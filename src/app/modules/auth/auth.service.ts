@@ -247,10 +247,41 @@ const changePasswordToDB = async (
   await User.findOneAndUpdate({ _id: user.id }, updateData, { new: true });
 };
 
+const resendVerifyEmailToDB = async (email: string) => {
+  const isExistUser = await User.findOne({ email });
+  if (!isExistUser) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+  }
+
+  if (isExistUser.verified) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'User is already verified!');
+  }
+
+  // Generate new OTP
+  const otp = generateOTP();
+
+  // Save OTP to DB
+  const authentication = {
+    oneTimeCode: otp,
+    expireAt: new Date(Date.now() + 3 * 60000), // 3 minutes
+  };
+  await User.findOneAndUpdate({ email }, { $set: { authentication } });
+
+  // Send email
+  const emailData = emailTemplate.createAccount({
+    name: isExistUser.name,
+    email: isExistUser.email,
+    otp,
+  });
+  await emailHelper.sendEmail(emailData);
+
+  return { otp }; // optional: just for logging/debugging
+};
 export const AuthService = {
   verifyEmailToDB,
   loginUserFromDB,
   forgetPasswordToDB,
   resetPasswordToDB,
   changePasswordToDB,
+  resendVerifyEmailToDB,
 };

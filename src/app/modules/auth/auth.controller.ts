@@ -66,10 +66,22 @@ const changePassword = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const resendVerifyEmail = catchAsync(async (req: Request, res: Response) => {
+  const { email } = req.body;
+  const result = await AuthService.resendVerifyEmailToDB(email);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Verification code has been resent to your email.',
+    data: result,
+  });
+});
 export const AuthController = {
   verifyEmail,
   loginUser,
   forgetPassword,
   resetPassword,
   changePassword,
+  resendVerifyEmail,
 };

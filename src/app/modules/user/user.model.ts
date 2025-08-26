@@ -6,10 +6,16 @@ import { USER_ROLES } from '../../../enums/user';
 import ApiError from '../../../errors/ApiError';
 import { IUser, UserModal } from './user.interface';
 
-const userSchema = new Schema<IUser, UserModal>(
+const userSchema = new Schema<IUser>(
   {
     name: {
       type: String,
+      required: true,
+      trim: true,
+    },
+    role: {
+      type: String,
+      enum: Object.values(USER_ROLES),
       required: true,
     },
     email: {
@@ -17,17 +23,28 @@ const userSchema = new Schema<IUser, UserModal>(
       required: true,
       unique: true,
       lowercase: true,
+      trim: true,
     },
     password: {
       type: String,
       required: true,
-      select: 0,
       minlength: 8,
+      select: false, // hide password by default
     },
-    role: {
+    location: {
       type: String,
-      enum: Object.values(USER_ROLES),
-      required: true,
+      trim: true,
+    },
+    gender: {
+      type: String,
+      enum: ['male', 'female'],
+    },
+    dateOfBirth: {
+      type: String,
+    },
+    phone: {
+      type: String,
+      trim: true,
     },
     image: {
       type: String,
@@ -57,7 +74,7 @@ const userSchema = new Schema<IUser, UserModal>(
           default: null,
         },
       },
-      select: 0,
+      select: false, // hide auth info by default
     },
   },
   { timestamps: true }

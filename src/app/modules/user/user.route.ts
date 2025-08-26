@@ -8,32 +8,37 @@ import { UserValidation } from './user.validation';
 
 const router = express.Router();
 
-router
-  .route('/profile')
-  // GET /profile → Get current user's profile
-  .get(auth(USER_ROLES.ADMIN, USER_ROLES.USER), UserController.getUserProfile)
+// Create a new user
+router.post(
+  '/',
+  validateRequest(UserValidation.createUserZodSchema),
+  UserController.createUser
+);
 
-  // PATCH /profile → Update user profile
-  .patch(
-    auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.USER),
-    fileUploadHandler(), // Handle profile picture upload
-    (req: Request, res: Response, next: NextFunction) => {
-      if (req.body.data) {
-        // Parse and validate JSON data from form-data
-        req.body = UserValidation.updateUserZodSchema.parse(
-          JSON.parse(req.body.data)
-        );
-      }
-      return UserController.updateProfile(req, res, next);
+// Get current user's profile
+router.get(
+  '/profile',
+  auth(USER_ROLES.POSTER, USER_ROLES.TASKER, USER_ROLES.SUPER_ADMIN),
+  UserController.getUserProfile
+);
+
+// Update user profile
+router.patch(
+  '/profile',
+  auth(USER_ROLES.POSTER, USER_ROLES.TASKER, USER_ROLES.SUPER_ADMIN),
+  fileUploadHandler(), // Handle profile picture upload
+  (req: Request, res: Response, next: NextFunction) => {
+    if (req.body.data) {
+      // Parse and validate JSON data from form-data
+      req.body = UserValidation.updateUserZodSchema.parse(
+        JSON.parse(req.body.data)
+      );
     }
-  );
+    return UserController.updateProfile(req, res, next);
+  }
+);
 
-router
-  .route('/')
-  // POST / → Create a new user
-  .post(
-    validateRequest(UserValidation.createUserZodSchema),
-    UserController.createUser
-  );
+// ✅ Get all users and also /users?role=poster OR /users?role=tasker
+router.get('/', auth(USER_ROLES.SUPER_ADMIN), UserController.getAllUsers);
 
 export const UserRoutes = router;

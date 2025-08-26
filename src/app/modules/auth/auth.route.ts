@@ -32,9 +32,11 @@ router.post(
 
 router.post(
   '/change-password',
-  auth(USER_ROLES.ADMIN, USER_ROLES.USER),
+  auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.TASKER, USER_ROLES.POSTER),
   validateRequest(AuthValidation.createChangePasswordZodSchema),
   AuthController.changePassword
 );
+
+router.post('/resend-verify-email', AuthController.resendVerifyEmail);
 
 export const AuthRoutes = router;
