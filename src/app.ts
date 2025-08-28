@@ -6,9 +6,11 @@ import swaggerUi from 'swagger-ui-express';
 import { StatusCodes } from 'http-status-codes';
 import express, { Request, Response } from 'express';
 import globalErrorHandler from './app/middlewares/globalErrorHandler';
+import './config/passport'; // register strategy
 
 const app = express();
 import path from 'path';
+import passport from 'passport';
 //morgan
 app.use(Morgan.successHandler);
 app.use(Morgan.errorHandler);
@@ -17,6 +19,7 @@ app.use(Morgan.errorHandler);
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(passport.initialize());
 
 //file retrieve
 app.use(express.static('uploads'));

@@ -3,6 +3,10 @@ import { StatusCodes } from 'http-status-codes';
 import catchAsync from '../../../shared/catchAsync';
 import sendResponse from '../../../shared/sendResponse';
 import { AuthService } from './auth.service';
+import { jwtHelper } from '../../../helpers/jwtHelper';
+import config from '../../../config';
+import { JwtPayload, Secret } from 'jsonwebtoken';
+import { IUser } from '../user/user.interface';
 
 const verifyEmail = catchAsync(async (req: Request, res: Response) => {
   const { ...verifyData } = req.body;
@@ -55,7 +59,8 @@ const resetPassword = catchAsync(async (req: Request, res: Response) => {
 });
 
 const changePassword = catchAsync(async (req: Request, res: Response) => {
-  const user = req.user;
+  // const user = req.user;
+  const user = req.user as JwtPayload;
   const { ...passwordData } = req.body;
   await AuthService.changePasswordToDB(user, passwordData);
 
@@ -77,6 +82,7 @@ const resendVerifyEmail = catchAsync(async (req: Request, res: Response) => {
     data: result,
   });
 });
+
 export const AuthController = {
   verifyEmail,
   loginUser,

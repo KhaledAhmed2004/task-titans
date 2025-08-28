@@ -16,6 +16,7 @@ import cryptoToken from '../../../util/cryptoToken';
 import generateOTP from '../../../util/generateOTP';
 import { ResetToken } from '../resetToken/resetToken.model';
 import { User } from '../user/user.model';
+import { USER_STATUS } from '../../../enums/user';
 
 //login
 const loginUserFromDB = async (payload: ILoginData) => {
@@ -34,7 +35,7 @@ const loginUserFromDB = async (payload: ILoginData) => {
   }
 
   //check user status
-  if (isExistUser.status === 'delete') {
+  if (isExistUser.status === USER_STATUS.DELETE) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
       'You don’t have permission to access this content.It looks like your account has been deactivated.'
@@ -277,6 +278,7 @@ const resendVerifyEmailToDB = async (email: string) => {
 
   return { otp }; // optional: just for logging/debugging
 };
+
 export const AuthService = {
   verifyEmailToDB,
   loginUserFromDB,

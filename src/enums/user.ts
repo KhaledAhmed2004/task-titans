@@ -3,3 +3,10 @@ export enum USER_ROLES {
   POSTER = 'POSTER',
   TASKER = 'TASKER',
 }
+
+export enum USER_STATUS {
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
+  RESTRICTED = 'RESTRICTED',
+  DELETE = 'DELETE',
+}
