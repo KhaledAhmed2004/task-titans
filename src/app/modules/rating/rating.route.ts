@@ -7,84 +7,121 @@ import { RatingValidation } from './rating.validation';
 
 const router = express.Router();
 
-// Routes for authenticated users
-router
-  .route('/')
-  // POST / → Create a new rating
-  .post(
-    auth(USER_ROLES.USER, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
-    validateRequest(RatingValidation.createRatingZodSchema),
-    RatingController.createRating
-  )
-  // GET / → Get all ratings with filters and pagination
-  .get(
-    validateRequest(RatingValidation.getRatingsQueryZodSchema),
-    RatingController.getAllRatings
-  );
+/**
+ * Route: POST /ratings/
+ * Description: Create a new rating (given by POSTER or TASKER)
+ * Access: POSTER, TASKER
+ */
+router.post(
+  '/',
+  auth(USER_ROLES.POSTER, USER_ROLES.TASKER),
+  validateRequest(RatingValidation.createRatingZodSchema),
+  RatingController.createRating
+);
 
-// Routes for my ratings (authenticated user's own ratings)
-router
-  .route('/my-ratings')
-  // GET /my-ratings → Get current user's given ratings
-  .get(
-    auth(USER_ROLES.USER, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
-    RatingController.getMyRatings
-  );
+/**
+ * Route: GET /ratings/
+ * Description: Get all ratings with filters and pagination
+ * Access: SUPER_ADMIN only
+ */
+router.get(
+  '/',
+  auth(USER_ROLES.SUPER_ADMIN),
+  validateRequest(RatingValidation.getRatingsQueryZodSchema),
+  RatingController.getAllRatings
+);
 
-router
-  .route('/my-stats')
-  // GET /my-stats → Get current user's rating statistics
-  .get(
-    auth(USER_ROLES.USER, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
-    RatingController.getMyRatingStats
-  );
+/**
+ * Route: GET /ratings/my-ratings
+ * Description: Get all ratings given by the current authenticated user
+ * Access: POSTER, TASKER
+ */
+router.get(
+  '/my-ratings',
+  auth(USER_ROLES.POSTER, USER_ROLES.TASKER),
+  RatingController.getMyRatings
+);
 
-// Routes for specific rating operations
-router
-  .route('/:id')
-  // GET /:id → Get a specific rating by ID
-  .get(
-    validateRequest(RatingValidation.ratingIdParamZodSchema),
-    RatingController.getSingleRating
-  )
-  // PATCH /:id → Update a specific rating
-  .patch(
-    auth(USER_ROLES.USER, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
-    validateRequest(RatingValidation.ratingIdParamZodSchema),
-    validateRequest(RatingValidation.updateRatingZodSchema),
-    RatingController.updateRating
-  )
-  // DELETE /:id → Delete a specific rating
-  .delete(
-    auth(USER_ROLES.USER, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
-    validateRequest(RatingValidation.ratingIdParamZodSchema),
-    RatingController.deleteRating
-  );
+/**
+ * Route: GET /ratings/my-stats
+ * Description: Get current user's rating statistics (average, total count, etc.)
+ * Access: POSTER, TASKER
+ */
+router.get(
+  '/my-stats',
+  auth(USER_ROLES.POSTER, USER_ROLES.TASKER),
+  RatingController.getMyRatingStats
+);
 
-// Routes for user-specific ratings
-router
-  .route('/user/:userId')
-  // GET /user/:userId → Get all ratings for a specific user
-  .get(
-    validateRequest(RatingValidation.userIdParamZodSchema),
-    RatingController.getUserRatings
-  );
+/**
+ * Route: GET /ratings/:id
+ * Description: Get a specific rating by its ID
+ * Access: POSTER, TASKER
+ */
+router.get(
+  '/:id',
+  auth(USER_ROLES.POSTER, USER_ROLES.TASKER),
+  validateRequest(RatingValidation.ratingIdParamZodSchema),
+  RatingController.getSingleRating
+);
 
-router
-  .route('/user/:userId/stats')
-  // GET /user/:userId/stats → Get rating statistics for a specific user
-  .get(
-    validateRequest(RatingValidation.userIdParamZodSchema),
-    RatingController.getUserRatingStats
-  );
+/**
+ * Route: PATCH /ratings/:id
+ * Description: Update a specific rating by ID
+ * Access: POSTER, TASKER
+ */
+router.patch(
+  '/:id',
+  auth(USER_ROLES.POSTER, USER_ROLES.TASKER),
+  validateRequest(RatingValidation.ratingIdParamZodSchema),
+  validateRequest(RatingValidation.updateRatingZodSchema),
+  RatingController.updateRating
+);
 
-// Routes for task-specific ratings
-router
-  .route('/task/:taskId')
-  // GET /task/:taskId → Get all ratings for a specific task
-  .get(
-    validateRequest(RatingValidation.taskIdParamZodSchema),
-    RatingController.getTaskRatings
-  );
+/**
+ * Route: DELETE /ratings/:id
+ * Description: Delete a specific rating by ID
+ * Access: POSTER, TASKER
+ */
+router.delete(
+  '/:id',
+  auth(USER_ROLES.POSTER, USER_ROLES.TASKER),
+  validateRequest(RatingValidation.ratingIdParamZodSchema),
+  RatingController.deleteRating
+);
+
+/**
+ * Route: GET /ratings/user/:userId
+ * Description: Get all ratings for a specific user
+ * Access: POSTER, TASKER
+ */
+router.get(
+  '/user/:userId',
+  auth(USER_ROLES.POSTER, USER_ROLES.TASKER),
+  validateRequest(RatingValidation.userIdParamZodSchema),
+  RatingController.getUserRatings
+);
+
+/**
+ * Route: GET /ratings/user/:userId/stats
+ * Description: Get rating statistics (average, total count, etc.) for a specific user
+ * Access: Public / Authenticated
+ */
+router.get(
+  '/user/:userId/stats',
+  validateRequest(RatingValidation.userIdParamZodSchema),
+  RatingController.getUserRatingStats
+);
+
+/**
+ * Route: GET /ratings/task/:taskId
+ * Description: Get all ratings for a specific task
+ * Access: Public / Authenticated
+ */
+router.get(
+  '/task/:taskId',
+  validateRequest(RatingValidation.taskIdParamZodSchema),
+  RatingController.getTaskRatings
+);
 
 export const RatingRoutes = router;

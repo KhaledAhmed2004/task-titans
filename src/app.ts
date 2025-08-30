@@ -16,7 +16,15 @@ app.use(Morgan.successHandler);
 app.use(Morgan.errorHandler);
 
 //body parser
-app.use(cors());
+// app.use(cors());
+app.use(
+  cors({
+    origin: ['http://localhost:5173', 'http://localhost:3000'], // allow both URLs
+    methods: ['GET', 'POST', 'PUT', 'DELETE'], // allowed methods
+    credentials: true, // if you need cookies/auth
+  })
+);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(passport.initialize());

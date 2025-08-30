@@ -4,10 +4,17 @@ import catchAsync from '../../../shared/catchAsync';
 import sendResponse from '../../../shared/sendResponse';
 import { IReport } from './report.interface';
 import { ReportService } from './report.service';
+import { JwtPayload } from 'jsonwebtoken';
 
 // Create a new report
 const createReport = catchAsync(async (req: Request, res: Response) => {
-  const result = await ReportService.createReport(req.body);
+  const payload = {
+    ...req.body,
+    reportedBy: (req?.user as JwtPayload).id, // fill from auth middleware
+    // reportedBy: (req.user as { id: string }).id,
+  };
+
+  const result = await ReportService.createReport(payload);
 
   sendResponse<IReport>(res, {
     success: true,
@@ -96,10 +103,33 @@ const deleteReport = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// Resolve a report
+const resolveReport = catchAsync(async (req: Request, res: Response) => {
+  const { reportId } = req.params;
+  const result = await ReportService.resolveReport(reportId);
+
+  if (!result) {
+    return sendResponse(res, {
+      success: false,
+      statusCode: StatusCodes.NOT_FOUND,
+      message: 'Report not found',
+      data: null,
+    });
+  }
+
+  sendResponse<IReport>(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Report resolved successfully',
+    data: result,
+  });
+});
+
 export const ReportController = {
   createReport,
   getAllReports,
   getReportById,
   updateReport,
   deleteReport,
+  resolveReport,
 };

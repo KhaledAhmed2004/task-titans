@@ -62,10 +62,22 @@ const deleteReport = async (reportId: string): Promise<IReport | null> => {
   return deletedReport;
 };
 
+// Resolve a report
+const resolveReport = async (reportId: string): Promise<IReport | null> => {
+  const resolvedReport = await Report.findByIdAndUpdate(
+    reportId,
+    { status: 'resolved' }, // or REPORT_STATUS.RESOLVED
+    { new: true, runValidators: true }
+  );
+
+  return resolvedReport;
+};
+
 export const ReportService = {
   createReport,
   getAllReports,
   getReportById,
   updateReport,
   deleteReport,
+  resolveReport,
 };

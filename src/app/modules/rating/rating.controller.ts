@@ -1,172 +1,108 @@
-import { NextFunction, Request, Response } from 'express';
-import { StatusCodes } from 'http-status-codes';
-import catchAsync from '../../../shared/catchAsync';
-import pick from '../../../shared/pick';
-import sendResponse from '../../../shared/sendResponse';
+import { Request, Response } from 'express';
 import { RatingService } from './rating.service';
+import sendResponse from '../../../shared/sendResponse';
+import catchAsync from '../../../shared/catchAsync';
 
-const createRating = catchAsync(
-  async (req: Request, res: Response, next: NextFunction) => {
-    const user = req.user;
-    const ratingData = req.body;
-    
-    const result = await RatingService.createRatingToDB(user, ratingData);
+const createRating = catchAsync(async (req: Request, res: Response) => {
+  const data = {
+    taskId: req.body.taskId,
+    givenBy: req?.user?.id,
+    givenTo: req.body.givenTo,
+    rating: req.body.rating,
+    message: req.body.message,
+  };
 
-    sendResponse(res, {
-      success: true,
-      statusCode: StatusCodes.CREATED,
-      message: 'Rating created successfully',
-      data: result,
-    });
-  }
-);
+  const result = await RatingService.createRating(data);
+  sendResponse(res, {
+    success: true,
+    statusCode: 201,
+    message: 'Rating created successfully',
+    data: result,
+  });
+});
 
-const getAllRatings = catchAsync(
-  async (req: Request, res: Response) => {
-    const filters = pick(req.query, [
-      'taskId',
-      'raterId', 
-      'ratedUserId',
-      'ratingType',
-      'status'
-    ]);
-    
-    const paginationOptions = pick(req.query, [
-      'page',
-      'limit',
-      'sortBy',
-      'sortOrder'
-    ]);
+const getAllRatings = catchAsync(async (req: Request, res: Response) => {
+  const result = await RatingService.getAllRatings(req.query);
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    data: result,
+  });
+});
 
-    const result = await RatingService.getAllRatingsFromDB(filters, paginationOptions);
+const getMyRatings = catchAsync(async (req: Request, res: Response) => {
+  const result = await RatingService.getMyRatings(req?.user?._id);
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    data: result,
+  });
+});
 
-    sendResponse(res, {
-      success: true,
-      statusCode: StatusCodes.OK,
-      message: 'Ratings retrieved successfully',
-      pagination: result.pagination,
-      data: result.data,
-    });
-  }
-);
+const getMyRatingStats = catchAsync(async (req: Request, res: Response) => {
+  const result = await RatingService.getMyRatingStats(req?.user?._id);
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    data: result,
+  });
+});
 
-const getSingleRating = catchAsync(
-  async (req: Request, res: Response) => {
-    const { id } = req.params;
-    const result = await RatingService.getSingleRatingFromDB(id);
+const getSingleRating = catchAsync(async (req: Request, res: Response) => {
+  const result = await RatingService.getSingleRating(req.params.id);
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    data: result,
+  });
+});
 
-    sendResponse(res, {
-      success: true,
-      statusCode: StatusCodes.OK,
-      message: 'Rating retrieved successfully',
-      data: result,
-    });
-  }
-);
+const updateRating = catchAsync(async (req: Request, res: Response) => {
+  const result = await RatingService.updateRating(req.params.id, req.body);
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    message: 'Rating updated successfully',
+    data: result,
+  });
+});
 
-const updateRating = catchAsync(
-  async (req: Request, res: Response, next: NextFunction) => {
-    const user = req.user;
-    const { id } = req.params;
-    const updateData = req.body;
-    
-    const result = await RatingService.updateRatingToDB(user, id, updateData);
+const deleteRating = catchAsync(async (req: Request, res: Response) => {
+  const result = await RatingService.deleteRating(req.params.id);
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    message: 'Rating deleted successfully',
+    data: result,
+  });
+});
 
-    sendResponse(res, {
-      success: true,
-      statusCode: StatusCodes.OK,
-      message: 'Rating updated successfully',
-      data: result,
-    });
-  }
-);
+const getUserRatings = catchAsync(async (req: Request, res: Response) => {
+  const result = await RatingService.getUserRatings(req.params.userId);
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    data: result,
+  });
+});
 
-const deleteRating = catchAsync(
-  async (req: Request, res: Response, next: NextFunction) => {
-    const user = req.user;
-    const { id } = req.params;
-    
-    await RatingService.deleteRatingFromDB(user, id);
+const getUserRatingStats = catchAsync(async (req: Request, res: Response) => {
+  const result = await RatingService.getUserRatingStats(req.params.userId);
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    data: result,
+  });
+});
 
-    sendResponse(res, {
-      success: true,
-      statusCode: StatusCodes.OK,
-      message: 'Rating deleted successfully',
-      data: null,
-    });
-  }
-);
-
-const getUserRatings = catchAsync(
-  async (req: Request, res: Response) => {
-    const { userId } = req.params;
-    const result = await RatingService.getUserRatingsFromDB(userId);
-
-    sendResponse(res, {
-      success: true,
-      statusCode: StatusCodes.OK,
-      message: 'User ratings retrieved successfully',
-      data: result,
-    });
-  }
-);
-
-const getTaskRatings = catchAsync(
-  async (req: Request, res: Response) => {
-    const { taskId } = req.params;
-    const result = await RatingService.getTaskRatingsFromDB(taskId);
-
-    sendResponse(res, {
-      success: true,
-      statusCode: StatusCodes.OK,
-      message: 'Task ratings retrieved successfully',
-      data: result,
-    });
-  }
-);
-
-const getUserRatingStats = catchAsync(
-  async (req: Request, res: Response) => {
-    const { userId } = req.params;
-    const result = await RatingService.getUserRatingStatsFromDB(userId);
-
-    sendResponse(res, {
-      success: true,
-      statusCode: StatusCodes.OK,
-      message: 'User rating statistics retrieved successfully',
-      data: result,
-    });
-  }
-);
-
-const getMyRatings = catchAsync(
-  async (req: Request, res: Response) => {
-    const user = req.user;
-    const result = await RatingService.getMyRatingsFromDB(user);
-
-    sendResponse(res, {
-      success: true,
-      statusCode: StatusCodes.OK,
-      message: 'Your ratings retrieved successfully',
-      data: result,
-    });
-  }
-);
-
-const getMyRatingStats = catchAsync(
-  async (req: Request, res: Response) => {
-    const user = req.user;
-    const { id: userId } = user;
-    const result = await RatingService.getUserRatingStatsFromDB(userId);
-
-    sendResponse(res, {
-      success: true,
-      statusCode: StatusCodes.OK,
-      message: 'Your rating statistics retrieved successfully',
-      data: result,
-    });
-  }
-);
+const getTaskRatings = catchAsync(async (req: Request, res: Response) => {
+  const result = await RatingService.getTaskRatings(req.params.taskId);
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    data: result,
+  });
+});
 
 export const RatingController = {
   createRating,

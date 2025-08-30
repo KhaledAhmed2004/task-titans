@@ -1,60 +1,56 @@
-import { StatusCodes } from 'http-status-codes';
+
+import { IFaq } from './faq.interface'; // Optional interface for FAQ
 import ApiError from '../../../errors/ApiError';
-import { IFaq } from './faq.interface';
+import { StatusCodes } from 'http-status-codes';
 import { Faq } from './faq.model';
-import mongoose from 'mongoose';
-import QueryBuilder from '../../../shared/apiFeature';
 
-
-const createFaqToDB = async (payload: IFaq): Promise<IFaq> => {
-  const faq = await Faq.create(payload);
-  if (!faq) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to created Faq');
-  }
-
+// Create a new FAQ
+const createFaq = async (faqData: IFaq) => {
+  const faq = await Faq.create(faqData);
   return faq;
 };
 
-const faqsFromDB = async (query: Record<string, any>):
-  Promise<{ faqs: IFaq[], pagination: { page: number, totalPage: number, limit: number, total: number } }> => {
-
-  const apiFeatures = new QueryBuilder(Faq.find(), query).paginate();
-  const faqs = await apiFeatures.queryModel;
-  const pagination = await apiFeatures.getPaginationInfo();
-
-  return {
-    pagination: pagination,
-    faqs
-  };
-}
-
-const deleteFaqToDB = async (id: string): Promise<IFaq | undefined> => {
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid ID');
-  }
-
-  await Faq.findByIdAndDelete(id);
-  return;
+// Get all FAQs
+const getAllFaqs = async () => {
+  const faqs = await Faq.find();
+  return faqs;
 };
 
-const updateFaqToDB = async (id: string, payload: IFaq): Promise<IFaq> => {
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid ID');
+// Get a single FAQ by ID
+const getFaqById = async (id: string) => {
+  const faq = await Faq.findById(id);
+  if (!faq) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'FAQ not found');
   }
+  return faq;
+};
 
-  const updatedFaq = await Faq.findByIdAndUpdate({ _id: id }, payload, {
+// Update a FAQ
+const updateFaq = async (id: string, updateData: Partial<IFaq>) => {
+  const updatedFaq = await Faq.findByIdAndUpdate(id, updateData, {
     new: true,
+    runValidators: true,
   });
   if (!updatedFaq) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to updated Faq');
+    throw new ApiError(StatusCodes.NOT_FOUND, 'FAQ not found');
   }
-
   return updatedFaq;
 };
 
+// Delete a FAQ
+const deleteFaq = async (id: string) => {
+  const deletedFaq = await Faq.findByIdAndDelete(id); 
+  if (!deletedFaq) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'FAQ not found');
+  }
+  return deletedFaq;
+};
+
+// Export all functions in one object
 export const FaqService = {
-  createFaqToDB,
-  updateFaqToDB,
-  faqsFromDB,
-  deleteFaqToDB,
-};  
+  createFaq,
+  getAllFaqs,
+  getFaqById,
+  updateFaq,
+  deleteFaq,
+};

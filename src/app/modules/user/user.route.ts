@@ -38,7 +38,28 @@ router.patch(
   }
 );
 
-// ✅ Get all users and also /users?role=poster OR /users?role=tasker
+// Get all users
 router.get('/', auth(USER_ROLES.SUPER_ADMIN), UserController.getAllUsers);
+
+// Block a user
+router.patch(
+  '/:id/block',
+  auth(USER_ROLES.SUPER_ADMIN),
+  UserController.blockUser
+);
+
+// Unblock a user
+router.patch(
+  '/:id/unblock',
+  auth(USER_ROLES.SUPER_ADMIN),
+  UserController.unblockUser
+);
+
+// Get a specific user by ID
+router.get(
+  '/:id',
+  auth(USER_ROLES.SUPER_ADMIN), // Only admin can access
+  UserController.getUserById
+);
 
 export const UserRoutes = router;

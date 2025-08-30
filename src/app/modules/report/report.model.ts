@@ -1,7 +1,6 @@
 import { Schema, model } from 'mongoose';
 import { IReport, REPORT_STATUS, REPORT_TYPE } from './report.interface';
 
-// Define the schema
 const reportSchema = new Schema<IReport>(
   {
     title: {
@@ -28,14 +27,9 @@ const reportSchema = new Schema<IReport>(
       ref: 'User',
       required: [true, 'Reporter is required'],
     },
-    relatedTo: {
-      type: Schema.Types.ObjectId,
-      refPath: 'relatedModel', // dynamic reference if needed
-    },
   },
   {
-    timestamps: true, // adds createdAt & updatedAt
-    versionKey: false,
+    timestamps: true,
   }
 );
 

@@ -1,60 +1,95 @@
 import { Request, Response } from 'express';
+import ApiError from '../../../errors/ApiError';
+import { StatusCodes } from 'http-status-codes';
 import catchAsync from '../../../shared/catchAsync';
 import sendResponse from '../../../shared/sendResponse';
-import { FaqService } from './faq.service';
+import { Faq } from './faq.model';
 
+// Create a new FAQ
 const createFaq = catchAsync(async (req: Request, res: Response) => {
-    const payload = req.body;
-    const result = await FaqService.createFaqToDB(payload);
-  
-    sendResponse(res, {
-        statusCode: 200,
-        success: true,
-        message: 'Faq Created Successfully',
-        data: result
-    });
+  const faq = await Faq.create(req.body);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.CREATED,
+    success: true,
+    message: 'FAQ created successfully',
+    data: faq,
+  });
 });
 
+// Get all FAQs
+const getAllFaqs = catchAsync(async (req: Request, res: Response) => {
+  const faqs = await Faq.find();
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: 'FAQs retrieved successfully',
+    data: faqs,
+  });
+});
+
+// Get a single FAQ by ID
+const getFaqById = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const faq = await Faq.findById(id);
+
+  if (!faq) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'FAQ not found');
+  }
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: 'FAQ retrieved successfully',
+    data: faq,
+  });
+});
+
+// Update FAQ
 const updateFaq = catchAsync(async (req: Request, res: Response) => {
-    const id = req.params.id;
-    const payload = req.body;
-    const result = await FaqService.updateFaqToDB(id, payload);
-  
-    sendResponse(res, {
-        statusCode: 200,
-        success: true,
-        message: 'Faq Updated Successfully',
-        data: result
-    });
+  const { id } = req.params;
+
+  const updatedFaq = await Faq.findByIdAndUpdate(id, req.body, {
+    new: true,
+    runValidators: true,
+  });
+
+  if (!updatedFaq) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'FAQ not found');
+  }
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: 'FAQ updated successfully',
+    data: updatedFaq,
+  });
 });
 
+// Delete FAQ
 const deleteFaq = catchAsync(async (req: Request, res: Response) => {
-    const id = req.params.id;
-    const result = await FaqService.deleteFaqToDB(id);
-  
-    sendResponse(res, {
-      statusCode: 200,
-      success: true,
-      message: 'Faq Deleted Successfully',
-      data: result,
-    });
-});
-  
-const getFaqs = catchAsync(async (req: Request, res: Response) => {
-    const result = await FaqService.faqsFromDB(req.query);
-  
-    sendResponse(res, {
-      statusCode: 200,
-      success: true,
-      message: 'Faq retrieved Successfully',
-      pagination: result.pagination,
-      data: result.faqs
-    });
+  const { id } = req.params;
+
+  const deletedFaq = await Faq.findByIdAndDelete(id);
+
+  if (!deletedFaq) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'FAQ not found');
+  }
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: 'FAQ deleted successfully',
+    data: deletedFaq,
+  });
 });
 
+// Export all functions together in one object
 export const FaqController = {
-    createFaq,
-    updateFaq,
-    deleteFaq,
-    getFaqs
-};  
+  createFaq,
+  getAllFaqs,
+  getFaqById,
+  updateFaq,
+  deleteFaq,
+};

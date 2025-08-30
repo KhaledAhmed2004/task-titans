@@ -1,6 +1,6 @@
 import { StatusCodes } from 'http-status-codes';
 import { JwtPayload } from 'jsonwebtoken';
-import { USER_ROLES } from '../../../enums/user';
+import { USER_ROLES, USER_STATUS } from '../../../enums/user';
 import ApiError from '../../../errors/ApiError';
 import { emailHelper } from '../../../helpers/emailHelper';
 import { emailTemplate } from '../../../shared/emailTemplate';
@@ -8,6 +8,7 @@ import unlinkFile from '../../../shared/unlinkFile';
 import generateOTP from '../../../util/generateOTP';
 import { IUser } from './user.interface';
 import { User } from './user.model';
+import QueryBuilder from '../../builder/QueryBuilder';
 
 const createUserToDB = async (payload: Partial<IUser>): Promise<IUser> => {
   const createUser = await User.create(payload);
@@ -74,20 +75,68 @@ const updateProfileToDB = async (
   return updateDoc;
 };
 
-const getAllUsers = async (role?: string) => {
-  const filter: any = {};
+const getAllUsers = async (query: Record<string, unknown>) => {
+  // ✅ Query builder for search, filter, pagination
+  const userQuery = new QueryBuilder(User.find(), query)
+    .search(['name', 'email'])
+    .filter()
+    .sort()
+    .paginate()
+    .fields();
 
-  if (role) {
-    // Validate role
-    const validRoles = Object.values(USER_ROLES);
-    if (!validRoles.includes(role as USER_ROLES)) {
-      throw new Error('Invalid role filter');
-    }
-    filter.role = role;
+  const users = await userQuery.modelQuery;
+  const paginationInfo = await userQuery.getPaginationInfo();
+
+  // ✅ Count stats
+  const totalUsers = await User.countDocuments();
+  const totalTaskers = await User.countDocuments({ role: USER_ROLES.TASKER });
+  const totalPosters = await User.countDocuments({ role: USER_ROLES.POSTER });
+
+  // ✅ Monthly growth calculation
+  const now = new Date();
+  const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+
+  const thisMonthCount = await User.countDocuments({
+    createdAt: { $gte: startOfThisMonth },
+  });
+
+  const lastMonthCount = await User.countDocuments({
+    createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth },
+  });
+
+  let monthlyGrowth = 0;
+  let growthType: 'increase' | 'decrease' | 'no_change' = 'no_change';
+
+  if (lastMonthCount > 0) {
+    monthlyGrowth = ((thisMonthCount - lastMonthCount) / lastMonthCount) * 100;
+    growthType =
+      monthlyGrowth > 0
+        ? 'increase'
+        : monthlyGrowth < 0
+        ? 'decrease'
+        : 'no_change';
+  } else if (thisMonthCount > 0 && lastMonthCount === 0) {
+    monthlyGrowth = 100;
+    growthType = 'increase';
   }
 
-  // Fetch users from DB based on filter
-  return await User.find(filter);
+  return {
+    pagination: paginationInfo,
+    data: {
+      stats: {
+        totalUsers,
+        totalTaskers,
+        totalPosters,
+        thisMonthCount,
+        lastMonthCount,
+        monthlyGrowth: parseFloat(monthlyGrowth.toFixed(2)),
+        growthType,
+      },
+      users,
+    },
+  };
 };
 
 const resendVerifyEmailToDB = async (email: string) => {
@@ -121,10 +170,34 @@ const resendVerifyEmailToDB = async (email: string) => {
   return { otp }; // optional: just for logging/debugging
 };
 
+const updateUserStatus = async (id: string, status: USER_STATUS) => {
+  const user = await User.isExistUserById(id);
+  if (!user) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+  }
+
+  const updatedUser = await User.findByIdAndUpdate(
+    id,
+    { status },
+    { new: true }
+  );
+
+  return updatedUser;
+};
+
+const getUserById = async (id: string) => {
+  const user = await User.findById(id);
+  if (!user) {
+    throw new ApiError(StatusCodes.NOT_FOUND, "User doesn't exist!");
+  }
+  return user;
+};
 export const UserService = {
   createUserToDB,
   getUserProfileFromDB,
   updateProfileToDB,
   getAllUsers,
   resendVerifyEmailToDB,
+  updateUserStatus,
+  getUserById,
 };
