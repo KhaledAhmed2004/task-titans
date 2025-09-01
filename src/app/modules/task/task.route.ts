@@ -18,6 +18,13 @@ router.post(
 // get all tasks
 router.get('/', auth(USER_ROLES.SUPER_ADMIN), TaskController.getAllTasks);
 
+// get tasks of the current user (poster)
+router.get(
+  '/my-tasks',
+  auth(USER_ROLES.POSTER), // only accessible by posters
+  TaskController.getMyTasks
+);
+
 // get task by id
 router.get(
   '/:taskId',
