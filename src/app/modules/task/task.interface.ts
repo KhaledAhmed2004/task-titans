@@ -1,13 +1,14 @@
 const TaskStatus = {
-  PENDING: 'pending',
-  IN_PROGRESS: 'in-progress',
   COMPLETED: 'completed',
+  ACTIVE: 'active',
+  PROGRESSING: 'progressing',
+  CANCELLED: 'cancelled',
 } as const;
 
 export { TaskStatus };
 
 // Type helper
-type TaskStatusType = typeof TaskStatus[keyof typeof TaskStatus];
+type TaskStatusType = (typeof TaskStatus)[keyof typeof TaskStatus];
 
 export type Task = {
   _id: string;
@@ -16,12 +17,12 @@ export type Task = {
   title: string;
   taskCategory: string;
   description: string;
-  taskImage?: string; 
+  taskImage?: string;
   taskBudget: number;
   taskLocation: string;
   status: TaskStatusType;
   userId: string;
-}
+};
 
 export type TaskUpdate = {
   title?: string;
@@ -32,11 +33,12 @@ export type TaskUpdate = {
   taskLocation?: string;
   dueDate?: string;
   status?: TaskStatusType;
-}
+};
 
 export type TaskQuery = {
   userId?: string;
   status?: TaskStatusType;
   taskCategory?: string;
   taskLocation?: string;
+  timeRange?: 'recent' | 'weekly' | 'monthly';
 };

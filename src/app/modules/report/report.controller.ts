@@ -25,15 +25,26 @@ const createReport = catchAsync(async (req: Request, res: Response) => {
 });
 
 // Get all reports with filters, search, sorting & pagination
-const getAllReports = catchAsync(async (req: Request, res: Response) => {
-  const { data, pagination } = await ReportService.getAllReports(req.query);
+// const getAllReports = catchAsync(async (req: Request, res: Response) => {
+//   const { data, pagination } = await ReportService.getAllReports(req.query);
 
-  sendResponse<IReport[]>(res, {
+//   sendResponse<IReport[]>(res, {
+//     success: true,
+//     statusCode: StatusCodes.OK,
+//     message: 'Reports retrieved successfully',
+//     pagination,
+//     data,
+//   });
+// });
+const getAllReports = catchAsync(async (req: Request, res: Response) => {
+  const result = await ReportService.getAllReports(req.query);
+
+  sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
     message: 'Reports retrieved successfully',
-    pagination,
-    data,
+    pagination: result.pagination,
+    data: result.data, // contains { stats, reports }
   });
 });
 

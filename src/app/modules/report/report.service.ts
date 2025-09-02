@@ -4,6 +4,7 @@ import {
   IUpdateReport,
   IQueryReports,
   IReport,
+  REPORT_STATUS,
 } from './report.interface';
 import QueryBuilder from '../../builder/QueryBuilder';
 
@@ -14,24 +15,107 @@ const createReport = async (payload: ICreateReport): Promise<IReport> => {
 };
 
 // Get all reports with filtering, searching, sorting & pagination
-const getAllReports = async (query: IQueryReports) => {
-  const reportQuery = new QueryBuilder<IReport>(
-    Report.find(),
-    query as Record<string, unknown>
-  ) // Type assertion)
-    .search(['title', 'description']) // allow searching in these fields
+// const getAllReports = async (query: IQueryReports) => {
+//   const reportQuery = new QueryBuilder<IReport>(
+//     Report.find(),
+//     query as Record<string, unknown>
+//   ) // Type assertion)
+//     .search(['title', 'description']) // allow searching in these fields
+//     .filter()
+//     .sort()
+//     .paginate()
+//     .fields()
+//     .populate(['reportedBy'], { reportedBy: 'name email role' });
+
+//   const data = await reportQuery.modelQuery;
+//   const pagination = await reportQuery.getPaginationInfo();
+
+//   return {
+//     data,
+//     pagination,
+//   };
+// };
+
+ const getAllReports = async (query: IQueryReports) => {
+  // ✅ Query builder for search, filter, pagination
+  const reportQuery = new QueryBuilder(Report.find(), query as Record<string, unknown>)
+    .search(['title', 'description'])
     .filter()
     .sort()
     .paginate()
     .fields()
     .populate(['reportedBy'], { reportedBy: 'name email role' });
 
-  const data = await reportQuery.modelQuery;
-  const pagination = await reportQuery.getPaginationInfo();
+  const reports = await reportQuery.modelQuery;
+  const paginationInfo = await reportQuery.getPaginationInfo();
+
+  // ✅ Total counts
+  const totalReports = await Report.countDocuments();
+  const totalPending = await Report.countDocuments({ status: REPORT_STATUS.PENDING });
+  const totalReviewed = await Report.countDocuments({ status: REPORT_STATUS.REVIEWED });
+  const totalResolved = await Report.countDocuments({ status: REPORT_STATUS.RESOLVED });
+
+  // ✅ Function to calculate monthly growth for a given filter
+  const calculateMonthlyGrowth = async (filter: Record<string, unknown> = {}) => {
+    const now = new Date();
+    const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+
+    const thisMonthCount = await Report.countDocuments({
+      ...filter,
+      createdAt: { $gte: startOfThisMonth },
+    });
+
+    const lastMonthCount = await Report.countDocuments({
+      ...filter,
+      createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth },
+    });
+
+    let monthlyGrowth = 0;
+    let growthType: 'increase' | 'decrease' | 'no_change' = 'no_change';
+
+    if (lastMonthCount > 0) {
+      monthlyGrowth = ((thisMonthCount - lastMonthCount) / lastMonthCount) * 100;
+      growthType =
+        monthlyGrowth > 0
+          ? 'increase'
+          : monthlyGrowth < 0
+          ? 'decrease'
+          : 'no_change';
+    } else if (thisMonthCount > 0 && lastMonthCount === 0) {
+      monthlyGrowth = 100;
+      growthType = 'increase';
+    }
+
+    const formattedGrowth = (monthlyGrowth > 0 ? '+' : '') + monthlyGrowth.toFixed(2) + '%';
+
+    return {
+      thisMonthCount,
+      lastMonthCount,
+      monthlyGrowth: Math.abs(monthlyGrowth),
+      formattedGrowth,
+      growthType,
+    };
+  };
+
+  // ✅ Calculate stats for all reports and by status
+  const allReportStats = await calculateMonthlyGrowth();
+  const pendingStats = await calculateMonthlyGrowth({ status: REPORT_STATUS.PENDING });
+  const reviewedStats = await calculateMonthlyGrowth({ status: REPORT_STATUS.REVIEWED });
+  const resolvedStats = await calculateMonthlyGrowth({ status: REPORT_STATUS.RESOLVED });
 
   return {
-    data,
-    pagination,
+    pagination: paginationInfo,
+    data: {
+      stats: {
+        allReports: { total: totalReports, ...allReportStats },
+        pending: { total: totalPending, ...pendingStats },
+        reviewed: { total: totalReviewed, ...reviewedStats },
+        resolved: { total: totalResolved, ...resolvedStats },
+      },
+      reports,
+    },
   };
 };
 

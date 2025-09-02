@@ -31,7 +31,6 @@ const getUserProfile = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-//update profile
 const updateProfile = catchAsync(async (req: Request, res: Response) => {
   const user = req.user;
   let image = getSingleFilePath(req.files, 'image');
@@ -88,13 +87,19 @@ const unblockUser = catchAsync(async (req: Request, res: Response) => {
 
 const getUserById = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const result = await UserService.getUserById(id);
+
+  // Only pagination params are used (limit & page)
+  const result = await UserService.getUserById(id, req.query);
 
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
-    message: 'User retrieved successfully',
-    data: result,
+    message: 'User and tasks retrieved successfully',
+    data: {
+      user: result.user,
+      tasks: result.tasks,
+    },
+    pagination: result.pagination,
   });
 });
 

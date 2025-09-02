@@ -80,6 +80,21 @@ const deleteTask = async (req: Request, res: Response) => {
     data: result,
   });
 };
+// Get all tasks of the current logged-in user
+const getMyTasks = async (req: Request, res: Response) => {
+  const userId = (req.user as { id: string }).id;
+  const query = req.query; // includes status, timeRange, etc.
+
+  const result = await TaskService.getAllTasksByUser(userId, query);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: 'Your tasks retrieved successfully',
+    data: result.data,
+    pagination: result.pagination,
+  });
+};
 
 export const TaskController = {
   createTask,
@@ -87,4 +102,5 @@ export const TaskController = {
   getTaskById,
   updateTask,
   deleteTask,
+  getMyTasks,
 };
