@@ -36,6 +36,10 @@ const TaskSchema = new mongoose.Schema<Task>(
       type: String,
       required: true,
     },
+    assignedTo: {
+      type: String,
+      required: false,
+    },
   },
   {
     timestamps: true,

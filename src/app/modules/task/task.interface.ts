@@ -3,6 +3,7 @@ const TaskStatus = {
   ACTIVE: 'active',
   PROGRESSING: 'progressing',
   CANCELLED: 'cancelled',
+   ASSIGNED: 'assigned',
 } as const;
 
 export { TaskStatus };
@@ -22,6 +23,7 @@ export type Task = {
   taskLocation: string;
   status: TaskStatusType;
   userId: string;
+  assignedTo?: string;
 };
 
 export type TaskUpdate = {

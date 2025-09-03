@@ -5,77 +5,163 @@ import { BidUpdate } from './bid.interface';
 import { BidService } from './bid.service';
 
 const createBid = async (req: Request, res: Response) => {
-  const bid = req.body;
-  const result = await BidService.createBid(bid);
-  sendResponse(res, {
-    statusCode: StatusCodes.CREATED,
-    success: true,
-    message: 'Bid created successfully',
-    data: result,
-  });
+  try {
+    const { taskId } = req.params;
+    const taskerId = req?.user?.id;
+    const bidData = req.body;
+    bidData.taskId = taskId;
+    bidData.taskerId = taskerId;
+
+    const result = await BidService.createBid(bidData, taskerId);
+
+    sendResponse(res, {
+      statusCode: StatusCodes.CREATED,
+      success: true,
+      message: 'Bid created successfully',
+      data: result,
+    });
+  } catch (error: any) {
+    sendResponse(res, {
+      statusCode: StatusCodes.BAD_REQUEST,
+      success: false,
+      message: error.message,
+    });
+  }
 };
 
 const getAllBids = async (req: Request, res: Response) => {
-  const query = req.query;
-  const result = await BidService.getAllBids(query);
-  sendResponse(res, {
-    statusCode: StatusCodes.OK,
-    success: true,
-    message: 'Bids retrieved successfully',
-    data: result,
-  });
-};
+  try {
+    const query = req.query;
+    const result = await BidService.getAllBids(query as any);
 
-const getBidById = async (req: Request, res: Response) => {
-  const bidId = req.params.bidId;
-  const result = await BidService.getBidById(bidId);
-  sendResponse(res, {
-    statusCode: StatusCodes.OK,
-    success: true,
-    message: 'Bid retrieved successfully',
-    data: result,
-  });
-};
-
-const updateBid = async (req: Request, res: Response) => {
-  const bidId = req.params.bidId;
-  const bid: BidUpdate = req.body;
-  const result = await BidService.updateBid(bidId, bid);
-  sendResponse(res, {
-    statusCode: StatusCodes.OK,
-    success: true,
-    message: 'Bid updated successfully',
-    data: result,
-  });
-};
-
-const deleteBid = async (req: Request, res: Response) => {
-  const bidId = req.params.bidId;
-  const result = await BidService.deleteBid(bidId);
-  sendResponse(res, {
-    statusCode: StatusCodes.OK,
-    success: true,
-    message: 'Bid deleted successfully',
-    data: result,
-  });
+    sendResponse(res, {
+      statusCode: StatusCodes.OK,
+      success: true,
+      message: 'Bids retrieved successfully',
+      data: result,
+    });
+  } catch (error: any) {
+    sendResponse(res, {
+      statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+      success: false,
+      message: error.message,
+    });
+  }
 };
 
 const getAllBidsByTaskId = async (req: Request, res: Response) => {
-  const taskId = req.params.taskId;
-  const result = await BidService.getAllBidsByTaskId(taskId);
-  sendResponse(res, {
-    statusCode: StatusCodes.OK,
-    success: true,
-    message: 'Bids for task retrieved successfully',
-    data: result,
-  });
+  try {
+    const { taskId } = req.params;
+    const result = await BidService.getAllBidsByTaskId(taskId);
+
+    sendResponse(res, {
+      statusCode: StatusCodes.OK,
+      success: true,
+      message: 'Bids for task retrieved successfully',
+      data: result,
+    });
+  } catch (error: any) {
+    sendResponse(res, {
+      statusCode: StatusCodes.BAD_REQUEST,
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+const getBidById = async (req: Request, res: Response) => {
+  try {
+    const { bidId } = req.params;
+    const result = await BidService.getBidById(bidId);
+
+    sendResponse(res, {
+      statusCode: StatusCodes.OK,
+      success: true,
+      message: 'Bid retrieved successfully',
+      data: result,
+    });
+  } catch (error: any) {
+    sendResponse(res, {
+      statusCode: StatusCodes.NOT_FOUND,
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+const updateBid = async (req: Request, res: Response) => {
+  try {
+    const { bidId } = req.params;
+    const taskerId = req?.user?.id;
+    const bidUpdate: BidUpdate = req.body;
+
+    const result = await BidService.updateBid(bidId, taskerId, bidUpdate);
+
+    sendResponse(res, {
+      statusCode: StatusCodes.OK,
+      success: true,
+      message: 'Bid updated successfully',
+      data: result,
+    });
+  } catch (error: any) {
+    sendResponse(res, {
+      statusCode: StatusCodes.BAD_REQUEST,
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+const deleteBid = async (req: Request, res: Response) => {
+  try {
+    const { bidId } = req.params;
+    const taskerId = req?.user?.id;
+
+    const result = await BidService.deleteBid(bidId, taskerId);
+
+    sendResponse(res, {
+      statusCode: StatusCodes.OK,
+      success: true,
+      message: 'Bid deleted successfully',
+      data: result,
+    });
+  } catch (error: any) {
+    sendResponse(res, {
+      statusCode: StatusCodes.BAD_REQUEST,
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+const acceptBid = async (req: Request, res: Response) => {
+  try {
+    const { bidId } = req.params;
+    const clientId = req?.user?.id;
+
+    const result = await BidService.acceptBid(bidId, clientId);
+
+    sendResponse(res, {
+      statusCode: StatusCodes.OK,
+      success: true,
+      message: 'Bid accepted successfully',
+      data: result,
+    });
+  } catch (error: any) {
+    sendResponse(res, {
+      statusCode: StatusCodes.BAD_REQUEST,
+      success: false,
+      message: error.message,
+    });
+  }
 };
 
 export const BidController = {
   createBid,
   getAllBids,
-  getAllBidsByTaskId, // <- add here
+  getAllBidsByTaskId,
   getBidById,
   updateBid,
   deleteBid,
+  acceptBid,
 };

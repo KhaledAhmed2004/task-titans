@@ -1,51 +1,103 @@
-import { Bid, BidUpdate, BidQuery } from './bid.interface';
+import { Bid, BidUpdate, BidQuery, BidStatus } from './bid.interface';
 import { BidModel } from './bid.model';
+import { TaskModel } from '../task/task.model';
+import { TaskStatus } from '../task/task.interface';
 
-// Create a new bid
-const createBid = async (bid: Bid) => {
-  const result = await BidModel.create(bid);
-  return result;
+const createBid = async (bid: Bid, taskerId: string) => {
+  const task = await TaskModel.findById(bid.taskId);
+  if (!task) throw new Error('Task not found');
+
+  const isBidExist = await BidModel.findOne({ taskId: bid.taskId, taskerId });
+  if (isBidExist)
+    throw new Error('You have already placed a bid for this task');
+
+  const newBid = await BidModel.create({
+    ...bid,
+    taskerId,
+    status: BidStatus.PENDING, // ✅ use BidStatus constant
+  });
+
+  return newBid;
 };
 
-// Get all bids with optional query
 const getAllBids = async (query?: BidQuery) => {
   const filter = query ? { ...query } : {};
-  const result = await BidModel.find(filter);
-  return result;
+  return await BidModel.find(filter);
 };
 
-// Get bid by ID
-const getBidById = async (bidId: string) => {
-  const result = await BidModel.findById(bidId);
-  return result;
-};
-
-// Update bid
-const updateBid = async (bidId: string, bid: BidUpdate) => {
-  const result = await BidModel.findByIdAndUpdate(bidId, bid, {
-    new: true,
-    runValidators: true,
-  });
-  return result;
-};
-
-// Delete bid
-const deleteBid = async (bidId: string) => {
-  const result = await BidModel.findByIdAndDelete(bidId);
-  return result;
-};
-
-// Get all bids by taskId
 const getAllBidsByTaskId = async (taskId: string) => {
-  const result = await BidModel.find({ taskId });
-  return result;
+  const task = await TaskModel.findById(taskId);
+  if (!task) throw new Error('Task not found');
+
+  return await BidModel.find({ taskId });
+};
+
+const getBidById = async (bidId: string) => {
+  const bid = await BidModel.findById(bidId);
+  if (!bid) throw new Error('Bid not found');
+  return bid;
+};
+
+const updateBid = async (
+  bidId: string,
+  taskerId: string,
+  bidUpdate: BidUpdate
+) => {
+  const bid = await BidModel.findById(bidId);
+  if (!bid) throw new Error('Bid not found');
+  if (bid.taskerId.toString() !== taskerId) throw new Error('Not authorized');
+  if (bid.status !== BidStatus.PENDING)
+    throw new Error('Cannot update a bid that is not pending');
+
+  Object.assign(bid, bidUpdate);
+  await bid.save();
+  return bid;
+};
+
+const deleteBid = async (bidId: string, taskerId: string) => {
+  const bid = await BidModel.findById(bidId);
+  if (!bid) throw new Error('Bid not found');
+  if (bid.taskerId.toString() !== taskerId) throw new Error('Not authorized');
+  if (bid.status !== BidStatus.PENDING)
+    throw new Error('Cannot cancel a bid that is not pending');
+
+  bid.status = BidStatus.REJECTED; // ✅ mark cancelled bids as rejected
+  await bid.save();
+  return bid;
+};
+
+const acceptBid = async (bidId: string, clientId: string) => {
+  const bid = await BidModel.findById(bidId);
+  if (!bid) throw new Error('Bid not found');
+
+  const task = await TaskModel.findById(bid.taskId);
+  if (!task) throw new Error('Task not found');
+  if (task.userId.toString() !== clientId) throw new Error('Not authorized');
+
+  // Accept selected bid
+  bid.status = BidStatus.ACCEPTED;
+  await bid.save();
+
+  // Assign task
+  task.status = TaskStatus.ASSIGNED;
+  task.assignedTo = bid.taskerId;
+  await task.save();
+
+  // Reject other bids
+  await BidModel.updateMany(
+    { taskId: task._id, _id: { $ne: bid._id } },
+    { $set: { status: BidStatus.REJECTED } }
+  );
+
+  return { bid, task };
 };
 
 export const BidService = {
   createBid,
   getAllBids,
+  getAllBidsByTaskId,
   getBidById,
   updateBid,
   deleteBid,
-  getAllBidsByTaskId, // <- add here
+  acceptBid,
 };

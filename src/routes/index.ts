@@ -23,7 +23,7 @@ const apiRoutes = [
     route: TaskRoutes,
   },
   {
-    path: '/bids',
+    path: '/',
     route: BidRoutes,
   },
   {
@@ -41,7 +41,7 @@ const apiRoutes = [
   {
     path: '/chats',
     route: ChatRoutes,
-  }
+  },
 ];
 
 apiRoutes.forEach(route => router.use(route.path, route.route));
