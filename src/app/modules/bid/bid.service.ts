@@ -2,20 +2,54 @@ import { Bid, BidUpdate, BidQuery, BidStatus } from './bid.interface';
 import { BidModel } from './bid.model';
 import { TaskModel } from '../task/task.model';
 import { TaskStatus } from '../task/task.interface';
+import { sendNotifications } from '../../../helpers/notificationsHelper';
+import { NotificationType } from '../notification/notification.interface';
+
+// const createBid = async (bid: Bid, taskerId: string) => {
+//   const task = await TaskModel.findById(bid.taskId);
+//   if (!task) throw new Error('Task not found');
+
+//   const isBidExist = await BidModel.findOne({ taskId: bid.taskId, taskerId });
+//   if (isBidExist)
+//     throw new Error('You have already placed a bid for this task');
+
+//   const newBid = await BidModel.create({
+//     ...bid,
+//     taskerId,
+//     status: BidStatus.PENDING, // ✅ use BidStatus constant
+//   });
+
+//   return newBid;
+// };
 
 const createBid = async (bid: Bid, taskerId: string) => {
+  // 1️⃣ Find the task
   const task = await TaskModel.findById(bid.taskId);
   if (!task) throw new Error('Task not found');
 
+  // 2️⃣ Check if tasker has already bid
   const isBidExist = await BidModel.findOne({ taskId: bid.taskId, taskerId });
   if (isBidExist)
     throw new Error('You have already placed a bid for this task');
 
+  // 3️⃣ Create bid
   const newBid = await BidModel.create({
     ...bid,
     taskerId,
-    status: BidStatus.PENDING, // ✅ use BidStatus constant
+    status: BidStatus.PENDING, // default pending
   });
+
+  // 4️⃣ Send Notification to Task Owner
+  const notificationData = {
+    text: `Hi! A new bid has been placed on your task "${task.title}" by a tasker.`,
+    title: 'New Bid',
+    receiver: task.userId, // task owner
+    type: 'BID', // type of notification
+    referenceId: newBid._id, // link to bid
+    read: false,
+  };
+
+  await sendNotifications(notificationData);
 
   return newBid;
 };
