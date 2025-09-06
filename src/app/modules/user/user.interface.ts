@@ -13,6 +13,7 @@ export type IUser = {
   image?: string;
   status: USER_STATUS;
   verified: boolean;
+  deviceTokens?: string[]; // 🔹 store multiple device tokens
   authentication?: {
     isResetPassword: boolean;
     oneTimeCode: number;
@@ -24,4 +25,7 @@ export type UserModal = {
   isExistUserById(id: string): any;
   isExistUserByEmail(email: string): any;
   isMatchPassword(password: string, hashPassword: string): boolean;
+
+  addDeviceToken(userId: string, token: string): Promise<IUser | null>;
+  removeDeviceToken(userId: string, token: string): Promise<IUser | null>;
 } & Model<IUser>;

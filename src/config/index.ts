@@ -26,4 +26,6 @@ export default {
   google_client_id: process.env.GOOGLE_CLIENT_ID,
   google_client_secret: process.env.GOOGLE_CLIENT_SECRET,
   google_redirect_uri: process.env.GOOGLE_REDIRECT_URI,
+  firebase_api_key_base64: process.env.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64,
+  firebase_web_push_credentials: process.env.FIREBASE_WEB_PUSH_CREDENTIALS,
 };

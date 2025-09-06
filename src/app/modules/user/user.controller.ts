@@ -57,7 +57,18 @@ const getAllUsers = catchAsync(async (req: Request, res: Response) => {
     statusCode: StatusCodes.OK,
     message: 'Users retrieved successfully',
     pagination: result.pagination,
-    data: result.data, // contains { stats, users }
+    data: result.data,
+  });
+});
+
+const getUserStats = catchAsync(async (req: Request, res: Response) => {
+  const result = await UserService.getUserStats();
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'User stats retrieved successfully',
+    data: result,
   });
 });
 
@@ -85,21 +96,34 @@ const unblockUser = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// const getUserById = catchAsync(async (req: Request, res: Response) => {
+//   const { id } = req.params;
+
+//   // Only pagination params are used (limit & page)
+//   const result = await UserService.getUserById(id, req.query);
+
+//   sendResponse(res, {
+//     success: true,
+//     statusCode: StatusCodes.OK,
+//     message: 'User and tasks retrieved successfully',
+//     data: {
+//       user: result.user,
+//       tasks: result.tasks,
+//     },
+//     pagination: result.pagination,
+//   });
+// });
+
 const getUserById = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
 
-  // Only pagination params are used (limit & page)
-  const result = await UserService.getUserById(id, req.query);
+  const result = await UserService.getUserById(id);
 
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
-    message: 'User and tasks retrieved successfully',
-    data: {
-      user: result.user,
-      tasks: result.tasks,
-    },
-    pagination: result.pagination,
+    message: 'User data retrieved successfully',
+    data: result,
   });
 });
 
@@ -111,4 +135,5 @@ export const UserController = {
   blockUser,
   unblockUser,
   getUserById,
+  getUserStats,
 };

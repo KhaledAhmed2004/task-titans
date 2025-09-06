@@ -41,6 +41,9 @@ router.patch(
 // Get all users
 router.get('/', auth(USER_ROLES.SUPER_ADMIN), UserController.getAllUsers);
 
+// Get user stats
+router.get('/stats', auth(USER_ROLES.SUPER_ADMIN), UserController.getUserStats);
+
 // Block a user
 router.patch(
   '/:id/block',
@@ -56,10 +59,6 @@ router.patch(
 );
 
 // Get a specific user by ID
-router.get(
-  '/:id',
-  auth(USER_ROLES.SUPER_ADMIN), // Only admin can access
-  UserController.getUserById
-);
+router.get('/:id', auth(USER_ROLES.SUPER_ADMIN), UserController.getUserById);
 
 export const UserRoutes = router;
