@@ -207,30 +207,6 @@ const updateUserStatus = async (id: string, status: USER_STATUS) => {
   return updatedUser;
 };
 
-// const getUserById = async (id: string, query: Record<string, unknown>) => {
-//   // 1️⃣ Find the user
-//   const user = await User.findById(id).select('-password -authentication');
-//   if (!user) {
-//     throw new ApiError(StatusCodes.NOT_FOUND, "User doesn't exist!");
-//   }
-
-//   // 2️⃣ Build paginated tasks query for this user
-//   const taskQuery = new QueryBuilder(TaskModel.find({ userId: id }), query)
-//     .sort() // sort by createdAt descending by default
-//     .paginate() // only pagination
-//     .fields(); // select fields (-__v by default)
-
-//   const tasks = await taskQuery.modelQuery;
-//   const pagination = await taskQuery.getPaginationInfo();
-
-//   // 3️⃣ Return user + tasks + pagination
-//   return {
-//     user,
-//     tasks,
-//     pagination,
-//   };
-// };
-
 const getUserById = async (id: string) => {
   // 1️⃣ Find the user
   const user = await User.findById(id).select('-password -authentication');

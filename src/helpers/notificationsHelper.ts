@@ -13,10 +13,11 @@
 
 //   return result;
 // };
+
 import { INotification } from '../app/modules/notification/notification.interface';
 import { Notification } from '../app/modules/notification/notification.model';
 import { User } from '../app/modules/user/user.model';
-import { pushNotificationHelper } from './pushnotificationHelper';
+import { pushNotificationHelper } from './pushNotificationHelper';
 
 export const sendNotifications = async (data: any): Promise<INotification> => {
   const result = await Notification.create(data);
@@ -26,7 +27,8 @@ export const sendNotifications = async (data: any): Promise<INotification> => {
   if (user?.deviceTokens) {
     const message = {
       notification: {
-        title: 'New Notification Received',
+        // title: 'New Notification Received',
+        title: data?.title || 'Task Titans Notification',
         body: data?.text,
       },
       tokens: user?.deviceTokens,

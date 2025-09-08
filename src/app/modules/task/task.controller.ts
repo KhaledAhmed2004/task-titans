@@ -3,13 +3,21 @@ import { StatusCodes } from 'http-status-codes';
 import sendResponse from '../../../shared/sendResponse';
 import { TaskService } from './task.service';
 import { TaskUpdate } from './task.interface';
+import { getMultipleFilesPath } from '../../../shared/getFilePath';
+import catchAsync from '../../../shared/catchAsync';
+import ApiError from '../../../errors/ApiError';
+import { JwtPayload } from 'jsonwebtoken';
 
-// Create Task Controller
-const createTask = async (req: Request, res: Response) => {
-  console.log(req?.user);
+const createTask = catchAsync(async (req: Request, res: Response) => {
+  const user = req.user;
+
+  // Handle task image upload
+  const taskImage = getMultipleFilesPath(req.files, 'image');
+
   const task = {
     ...req.body,
-    userId: (req?.user as { id: string }).id, // attach userId from JWT
+    taskImage,
+    userId: (user as { id: string }).id,
   };
 
   const result = await TaskService.createTask(task);
@@ -20,19 +28,7 @@ const createTask = async (req: Request, res: Response) => {
     message: 'Task created successfully',
     data: result,
   });
-};
-
-// // Get All Tasks Controller
-// const getAllTasks = async (req: Request, res: Response) => {
-//   const query = req.query; // you can type it as TaskQuery if needed
-//   const result = await TaskService.getAllTasks(query);
-//   sendResponse(res, {
-//     statusCode: StatusCodes.OK,
-//     success: true,
-//     message: 'Tasks retrieved successfully',
-//     data: result,
-//   });
-// };
+});
 
 export const getAllTasks = async (req: Request, res: Response) => {
   const query = req.query;
@@ -47,6 +43,17 @@ export const getAllTasks = async (req: Request, res: Response) => {
   });
 };
 
+const getTaskStats = async (req: Request, res: Response) => {
+  const result = await TaskService.getTaskStats();
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: 'Task stats retrieved successfully',
+    data: result,
+  });
+};
+
 const getTaskById = async (req: Request, res: Response) => {
   const taskId = req.params.taskId;
   const result = await TaskService.getTaskById(taskId);
@@ -58,17 +65,24 @@ const getTaskById = async (req: Request, res: Response) => {
   });
 };
 
-const updateTask = async (req: Request, res: Response) => {
+const updateTask = catchAsync(async (req: Request, res: Response) => {
   const taskId = req.params.taskId;
-  const task: TaskUpdate = req.body;
-  const result = await TaskService.updateTask(taskId, task);
+  const taskImage = getMultipleFilesPath(req.files, 'image');
+
+  const payload = {
+    ...req.body,
+    taskImage,
+  };
+
+  const result = await TaskService.updateTask(taskId, payload);
+
   sendResponse(res, {
-    statusCode: StatusCodes.OK,
     success: true,
+    statusCode: StatusCodes.OK,
     message: 'Task updated successfully',
     data: result,
   });
-};
+});
 
 const deleteTask = async (req: Request, res: Response) => {
   const taskId = req.params.taskId;
@@ -96,11 +110,25 @@ const getMyTasks = async (req: Request, res: Response) => {
   });
 };
 
+const getLastSixMonthsCompletionStats = catchAsync(async (req: Request, res: Response) => {
+  const result = await TaskService.getLastSixMonthsCompletionStats();
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: 'Last 6 months task completion stats retrieved successfully',
+    data: result,
+  });
+});
+
+
 export const TaskController = {
   createTask,
+  getTaskStats,
   getAllTasks,
   getTaskById,
   updateTask,
   deleteTask,
   getMyTasks,
+  getLastSixMonthsCompletionStats,
 };

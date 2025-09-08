@@ -1,9 +1,11 @@
+import { Types } from 'mongoose';
+
 const TaskStatus = {
   COMPLETED: 'completed',
   ACTIVE: 'active',
   PROGRESSING: 'progressing',
   CANCELLED: 'cancelled',
-   ASSIGNED: 'assigned',
+  ASSIGNED: 'assigned',
 } as const;
 
 export { TaskStatus };
@@ -16,9 +18,9 @@ export type Task = {
   createdAt: Date;
   updatedAt: Date;
   title: string;
-  taskCategory: string;
+  taskCategory: Types.ObjectId;
   description: string;
-  taskImage?: string;
+  taskImage?: string[];
   taskBudget: number;
   taskLocation: string;
   status: TaskStatusType;

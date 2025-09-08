@@ -1,16 +1,24 @@
+import { StatusCodes } from 'http-status-codes';
+import ApiError from '../../../errors/ApiError';
 import QueryBuilder from '../../builder/QueryBuilder';
-import { TaskUpdate, TaskQuery, TaskStatus } from './task.interface';
+import { Category } from '../category/category.model';
+import { TaskUpdate, TaskStatus } from './task.interface';
 import { Task } from './task.interface';
 import { TaskModel } from './task.model';
+import unlinkFile from '../../../shared/unlinkFile';
 
-// Create a new task
 const createTask = async (task: Task) => {
+  // Validate category
+  const category = await Category.findById(task.taskCategory);
+  if (!category) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid category ID');
+  }
+
   const result = await TaskModel.create(task);
   return result;
 };
-
 const getAllTasks = async (query: Record<string, unknown>) => {
-  // 1️⃣ Build query with QueryBuilder
+  // Build query with QueryBuilder for search, filter, pagination
   const taskQuery = new QueryBuilder(TaskModel.find(), query)
     .search(['title', 'description'])
     .filter()
@@ -21,59 +29,9 @@ const getAllTasks = async (query: Record<string, unknown>) => {
   const tasks = await taskQuery.modelQuery;
   const paginationInfo = await taskQuery.getPaginationInfo();
 
-  // 2️⃣ Task stats by status
-  const totalTasks = await TaskModel.countDocuments();
-  const completedTasks = await TaskModel.countDocuments({
-    status: TaskStatus.COMPLETED,
-  });
-
-  const inProgressTasks = await TaskModel.countDocuments({
-    status: TaskStatus.PROGRESSING,
-  });
-
-  // 3️⃣ Monthly growth calculation
-  const now = new Date();
-  const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
-
-  const thisMonthCount = await TaskModel.countDocuments({
-    createdAt: { $gte: startOfThisMonth },
-  });
-  const lastMonthCount = await TaskModel.countDocuments({
-    createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth },
-  });
-
-  let monthlyGrowth = 0;
-  let growthType: 'increase' | 'decrease' | 'no_change' = 'no_change';
-
-  if (lastMonthCount > 0) {
-    monthlyGrowth = ((thisMonthCount - lastMonthCount) / lastMonthCount) * 100;
-    growthType =
-      monthlyGrowth > 0
-        ? 'increase'
-        : monthlyGrowth < 0
-        ? 'decrease'
-        : 'no_change';
-  } else if (thisMonthCount > 0 && lastMonthCount === 0) {
-    monthlyGrowth = 100;
-    growthType = 'increase';
-  }
-
   return {
     pagination: paginationInfo,
-    data: {
-      stats: {
-        totalTasks,
-        completedTasks,
-        inProgressTasks,
-        thisMonthCount,
-        lastMonthCount,
-        monthlyGrowth: parseFloat(monthlyGrowth.toFixed(2)),
-        growthType,
-      },
-      tasks,
-    },
+    data: tasks,
   };
 };
 
@@ -83,13 +41,23 @@ const getTaskById = async (taskId: string) => {
   return result;
 };
 
-// Update a task by ID
-const updateTask = async (taskId: string, task: TaskUpdate) => {
-  const result = await TaskModel.findByIdAndUpdate(taskId, task, {
-    new: true, // return the updated document
-    runValidators: true, // validate against schema
+const updateTask = async (taskId: string, payload: TaskUpdate) => {
+  const task = await TaskModel.findById(taskId);
+  if (!task) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
+  }
+
+  if (payload.taskImage && Array.isArray(payload.taskImage)) {
+    payload.taskImage.forEach((imgPath: string) => {
+      unlinkFile(imgPath);
+    });
+  }
+
+  const updateDoc = await TaskModel.findOneAndUpdate({ _id: taskId }, payload, {
+    new: true,
   });
-  return result;
+
+  return updateDoc;
 };
 
 // Delete a task by ID
@@ -133,6 +101,143 @@ const getAllTasksByUser = async (
   };
 };
 
+// Get task statistics
+const getTaskStats = async () => {
+  // Total counts by status
+  const totalTasks = await TaskModel.countDocuments();
+  const completedTasks = await TaskModel.countDocuments({
+    status: TaskStatus.COMPLETED,
+  });
+  const activeTasks = await TaskModel.countDocuments({
+    status: TaskStatus.ACTIVE,
+  });
+  const cancelledTasks = await TaskModel.countDocuments({
+    status: TaskStatus.CANCELLED,
+  });
+
+  // Function to calculate monthly growth for a given filter
+  const calculateMonthlyGrowth = async (
+    filter: Record<string, unknown> = {}
+  ) => {
+    const now = new Date();
+    const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+
+    const thisMonthCount = await TaskModel.countDocuments({
+      ...filter,
+      createdAt: { $gte: startOfThisMonth },
+    });
+
+    const lastMonthCount = await TaskModel.countDocuments({
+      ...filter,
+      createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth },
+    });
+
+    let monthlyGrowth = 0;
+    let growthType: 'increase' | 'decrease' | 'no_change' = 'no_change';
+
+    if (lastMonthCount > 0) {
+      monthlyGrowth =
+        ((thisMonthCount - lastMonthCount) / lastMonthCount) * 100;
+      growthType =
+        monthlyGrowth > 0
+          ? 'increase'
+          : monthlyGrowth < 0
+          ? 'decrease'
+          : 'no_change';
+    } else if (thisMonthCount > 0 && lastMonthCount === 0) {
+      monthlyGrowth = 100;
+      growthType = 'increase';
+    }
+
+    // Format for display
+    const formattedGrowth =
+      (monthlyGrowth > 0 ? '+' : '') + monthlyGrowth.toFixed(2) + '%';
+    return {
+      thisMonthCount,
+      lastMonthCount,
+      monthlyGrowth: Math.abs(monthlyGrowth), // absolute number for stats
+      formattedGrowth, // formatted string with + / - for UI
+      growthType,
+    };
+  };
+
+  // Calculate stats for all tasks and by status
+  const allTaskStats = await calculateMonthlyGrowth();
+  const completedStats = await calculateMonthlyGrowth({
+    status: TaskStatus.COMPLETED,
+  });
+  const activeStats = await calculateMonthlyGrowth({
+    status: TaskStatus.ACTIVE,
+  });
+  const cancelledStats = await calculateMonthlyGrowth({
+    status: TaskStatus.CANCELLED,
+  });
+
+  return {
+    allTasks: { total: totalTasks, ...allTaskStats },
+    completed: { total: completedTasks, ...completedStats },
+    active: { total: activeTasks, ...activeStats },
+    cancelled: { total: cancelledTasks, ...cancelledStats },
+  };
+};
+
+const getLastSixMonthsCompletionStats = async () => {
+  const now = new Date();
+  const stats: {
+    month: string;
+    completedTasks: number;
+    growthPercentage: number;
+    growthType: 'increase' | 'decrease' | 'no_change';
+  }[] = [];
+
+  let prevMonthCount = 0;
+
+  for (let i = 5; i >= 0; i--) {
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+
+    const completedTasks = await TaskModel.countDocuments({
+      status: TaskStatus.COMPLETED,
+      createdAt: { $gte: startOfMonth, $lte: endOfMonth },
+    });
+
+    // Calculate growth percentage compared to previous month
+    let growthPercentage = 0;
+    let growthType: 'increase' | 'decrease' | 'no_change' = 'no_change';
+
+    if (prevMonthCount > 0) {
+      growthPercentage =
+        ((completedTasks - prevMonthCount) / prevMonthCount) * 100;
+      growthType =
+        growthPercentage > 0
+          ? 'increase'
+          : growthPercentage < 0
+          ? 'decrease'
+          : 'no_change';
+    } else if (completedTasks > 0 && prevMonthCount === 0) {
+      growthPercentage = 100;
+      growthType = 'increase';
+    }
+
+    const monthName = startOfMonth.toLocaleString('default', {
+      month: 'short',
+    }); // Jan, Feb, etc.
+
+    stats.push({
+      month: monthName,
+      completedTasks,
+      growthPercentage: parseFloat(growthPercentage.toFixed(2)),
+      growthType,
+    });
+
+    prevMonthCount = completedTasks; // store for next iteration
+  }
+
+  return stats;
+};
+
 export const TaskService = {
   createTask,
   getAllTasks,
@@ -140,4 +245,6 @@ export const TaskService = {
   updateTask,
   deleteTask,
   getAllTasksByUser,
+  getTaskStats,
+  getLastSixMonthsCompletionStats,
 };

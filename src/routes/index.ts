@@ -8,6 +8,8 @@ import { ReportRoutes } from '../app/modules/report/report.route';
 import { FaqRoutes } from '../app/modules/faq/faq.route';
 import { ChatRoutes } from '../app/modules/chat/chat.route';
 import { MessageRoutes } from '../app/modules/message/message.route';
+import { RuleRoutes } from '../app/modules/rule/rule.route';
+import { CategoryRoutes } from '../app/modules/category/category.route';
 const router = express.Router();
 
 const apiRoutes = [
@@ -46,6 +48,14 @@ const apiRoutes = [
   {
     path: '/messages',
     route: MessageRoutes,
+  },
+  {
+    path: '/rules',
+    route: RuleRoutes,
+  },
+  {
+    path: '/categories',
+    route: CategoryRoutes,
   },
 ];
 
