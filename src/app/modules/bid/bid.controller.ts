@@ -156,6 +156,26 @@ const acceptBid = async (req: Request, res: Response) => {
   }
 };
 
+const getAllTasksByTaskerBids = async (req: Request, res: Response) => {
+  try {
+    const taskerId = req?.user?.id;
+    const result = await BidService.getAllTasksByTaskerBids(taskerId);
+
+    sendResponse(res, {
+      statusCode: StatusCodes.OK,
+      success: true,
+      message: 'Tasks with your bids retrieved successfully',
+      data: result,
+    });
+  } catch (error: any) {
+    sendResponse(res, {
+      statusCode: StatusCodes.BAD_REQUEST,
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 export const BidController = {
   createBid,
   getAllBids,
@@ -164,4 +184,5 @@ export const BidController = {
   updateBid,
   deleteBid,
   acceptBid,
+  getAllTasksByTaskerBids,
 };

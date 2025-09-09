@@ -3,24 +3,6 @@ import { BidModel } from './bid.model';
 import { TaskModel } from '../task/task.model';
 import { TaskStatus } from '../task/task.interface';
 import { sendNotifications } from '../../../helpers/notificationsHelper';
-import { NotificationType } from '../notification/notification.interface';
-
-// const createBid = async (bid: Bid, taskerId: string) => {
-//   const task = await TaskModel.findById(bid.taskId);
-//   if (!task) throw new Error('Task not found');
-
-//   const isBidExist = await BidModel.findOne({ taskId: bid.taskId, taskerId });
-//   if (isBidExist)
-//     throw new Error('You have already placed a bid for this task');
-
-//   const newBid = await BidModel.create({
-//     ...bid,
-//     taskerId,
-//     status: BidStatus.PENDING, // ✅ use BidStatus constant
-//   });
-
-//   return newBid;
-// };
 
 const createBid = async (bid: Bid, taskerId: string) => {
   // 1️⃣ Find the task
@@ -66,6 +48,17 @@ const getAllBidsByTaskId = async (taskId: string) => {
   return await BidModel.find({ taskId });
 };
 
+const getAllBidsByTaskIdWithTasker = async (taskId: string) => {
+  const task = await TaskModel.findById(taskId);
+  if (!task) throw new Error('Task not found');
+
+  return await BidModel.find({ taskId }).populate({
+    path: 'taskerId',
+    model: 'User',
+    select: 'name email image location phone role verified',
+  });
+};
+
 const getBidById = async (bidId: string) => {
   const bid = await BidModel.findById(bidId);
   if (!bid) throw new Error('Bid not found');
@@ -79,7 +72,8 @@ const updateBid = async (
 ) => {
   const bid = await BidModel.findById(bidId);
   if (!bid) throw new Error('Bid not found');
-  if (bid.taskerId.toString() !== taskerId) throw new Error('Not authorized');
+  if (!bid.taskerId || bid.taskerId.toString() !== taskerId)
+    throw new Error('Not authorized');
   if (bid.status !== BidStatus.PENDING)
     throw new Error('Cannot update a bid that is not pending');
 
@@ -91,7 +85,8 @@ const updateBid = async (
 const deleteBid = async (bidId: string, taskerId: string) => {
   const bid = await BidModel.findById(bidId);
   if (!bid) throw new Error('Bid not found');
-  if (bid.taskerId.toString() !== taskerId) throw new Error('Not authorized');
+  if (!bid.taskerId || bid.taskerId.toString() !== taskerId)
+    throw new Error('Not authorized');
   if (bid.status !== BidStatus.PENDING)
     throw new Error('Cannot cancel a bid that is not pending');
 
@@ -114,7 +109,7 @@ const acceptBid = async (bidId: string, clientId: string) => {
 
   // Assign task
   task.status = TaskStatus.ASSIGNED;
-  task.assignedTo = bid.taskerId;
+  task.assignedTo = bid.taskerId?.toString() ?? '';
   await task.save();
 
   // Reject other bids
@@ -126,12 +121,34 @@ const acceptBid = async (bidId: string, clientId: string) => {
   return { bid, task };
 };
 
+const getAllTasksByTaskerBids = async (taskerId: string) => {
+  // 1️⃣ Find all bids by the tasker
+  const bids = await BidModel.find({ taskerId }).populate({
+    path: 'taskId',
+    model: 'Task',
+    select: 'title description status userId assignedTo', // select fields you want
+  });
+
+  // 2️⃣ Format response: include task info with the tasker's bid
+  const result = bids.map(bid => ({
+    bidId: bid._id,
+    bidAmount: bid.amount,
+    bidStatus: bid.status,
+    task: bid.taskId,
+    message: bid.message,
+  }));
+
+  return result;
+};
+
 export const BidService = {
   createBid,
   getAllBids,
   getAllBidsByTaskId,
+  getAllBidsByTaskIdWithTasker,
   getBidById,
   updateBid,
   deleteBid,
   acceptBid,
+  getAllTasksByTaskerBids,
 };

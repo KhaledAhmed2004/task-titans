@@ -110,17 +110,31 @@ const getMyTasks = async (req: Request, res: Response) => {
   });
 };
 
-const getLastSixMonthsCompletionStats = catchAsync(async (req: Request, res: Response) => {
-  const result = await TaskService.getLastSixMonthsCompletionStats();
+const getLastSixMonthsCompletionStats = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = await TaskService.getLastSixMonthsCompletionStats();
 
-  sendResponse(res, {
-    statusCode: StatusCodes.OK,
+    sendResponse(res, {
+      statusCode: StatusCodes.OK,
+      success: true,
+      message: 'Last 6 months task completion stats retrieved successfully',
+      data: result,
+    });
+  }
+);
+
+const getMyTaskById = catchAsync(async (req: Request, res: Response) => {
+  const userId = req?.user?.id; // comes from auth middleware
+  const { taskId } = req.params;
+
+  const result = await TaskService.getMyTaskById(userId, taskId);
+
+  res.status(200).json({
     success: true,
-    message: 'Last 6 months task completion stats retrieved successfully',
+    message: 'Task retrieved successfully',
     data: result,
   });
 });
-
 
 export const TaskController = {
   createTask,
@@ -131,4 +145,5 @@ export const TaskController = {
   deleteTask,
   getMyTasks,
   getLastSixMonthsCompletionStats,
+  getMyTaskById,
 };

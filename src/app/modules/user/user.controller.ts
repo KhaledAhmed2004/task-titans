@@ -127,6 +127,19 @@ const getUserById = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// user.controller.ts
+const getUserDistribution = catchAsync(async (req: Request, res: Response) => {
+  const result = await UserService.getUserDistribution();
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'User distribution retrieved successfully',
+    data: result,
+  });
+});
+
+
 export const UserController = {
   createUser,
   getUserProfile,
@@ -136,4 +149,5 @@ export const UserController = {
   unblockUser,
   getUserById,
   getUserStats,
+  getUserDistribution,
 };

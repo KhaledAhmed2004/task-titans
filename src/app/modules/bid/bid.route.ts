@@ -8,6 +8,13 @@ import { USER_ROLES } from '../../../enums/user';
 
 const router = Router();
 
+// Get all tasks a tasker has bid on (with their bids)
+router.get(
+  '/tasker/bids',
+  auth(USER_ROLES.TASKER),
+  BidController.getAllTasksByTaskerBids
+);
+
 // Create a new bid (Tasker)
 router.post(
   '/tasks/:taskId/bids',

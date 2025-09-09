@@ -19,7 +19,11 @@ app.use(Morgan.errorHandler);
 // app.use(cors());
 app.use(
   cors({
-    origin: ['http://localhost:5173', 'http://localhost:3000' ], // allow both URLs
+    origin: [
+      'http://localhost:5173',
+      'http://localhost:3000',
+      'http://localhost:3001',
+    ], // allow both URLs
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], // allowed methods
     credentials: true, // if you need cookies/auth
   })

@@ -44,6 +44,13 @@ router.get('/', auth(USER_ROLES.SUPER_ADMIN), UserController.getAllUsers);
 // Get user stats
 router.get('/stats', auth(USER_ROLES.SUPER_ADMIN), UserController.getUserStats);
 
+// Get user distribution (taskers vs posters in %)
+router.get(
+  '/distribution',
+  auth(USER_ROLES.SUPER_ADMIN),
+  UserController.getUserDistribution
+);
+
 // Block a user
 router.patch(
   '/:id/block',
@@ -60,5 +67,7 @@ router.patch(
 
 // Get a specific user by ID
 router.get('/:id', auth(USER_ROLES.SUPER_ADMIN), UserController.getUserById);
+
+
 
 export const UserRoutes = router;

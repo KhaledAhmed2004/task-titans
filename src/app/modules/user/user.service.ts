@@ -244,6 +244,36 @@ const getUserById = async (id: string) => {
   return { user };
 };
 
+// user.service.ts
+const getUserDistribution = async () => {
+  const totalUsers = await User.countDocuments();
+  const totalTaskers = await User.countDocuments({ role: USER_ROLES.TASKER });
+  const totalPosters = await User.countDocuments({ role: USER_ROLES.POSTER });
+
+  if (totalUsers === 0) {
+    return {
+      totalUsers: 0,
+      taskers: { count: 0, percentage: '0%' },
+      posters: { count: 0, percentage: '0%' },
+    };
+  }
+
+  const taskerPercentage = ((totalTaskers / totalUsers) * 100).toFixed(2) + '%';
+  const posterPercentage = ((totalPosters / totalUsers) * 100).toFixed(2) + '%';
+
+  return {
+    totalUsers,
+    taskers: {
+      count: totalTaskers,
+      percentage: taskerPercentage,
+    },
+    posters: {
+      count: totalPosters,
+      percentage: posterPercentage,
+    },
+  };
+};
+
 export const UserService = {
   createUserToDB,
   getUserProfileFromDB,
@@ -253,4 +283,5 @@ export const UserService = {
   updateUserStatus,
   getUserById,
   getUserStats,
+  getUserDistribution,
 };

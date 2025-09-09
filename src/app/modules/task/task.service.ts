@@ -6,6 +6,7 @@ import { TaskUpdate, TaskStatus } from './task.interface';
 import { Task } from './task.interface';
 import { TaskModel } from './task.model';
 import unlinkFile from '../../../shared/unlinkFile';
+import { BidService } from '../bid/bid.service';
 
 const createTask = async (task: Task) => {
   // Validate category
@@ -238,6 +239,22 @@ const getLastSixMonthsCompletionStats = async () => {
   return stats;
 };
 
+const getMyTaskById = async (userId: string, taskId: string) => {
+  const task = await TaskModel.findOne({ _id: taskId, userId }); // ✅ fix here
+  if (!task) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
+  }
+  
+  // Get all bids for this task with populated tasker information
+  const bids = await BidService.getAllBidsByTaskIdWithTasker(taskId);
+  
+  return {
+    ...task.toObject(),
+    bids
+  };
+};
+
+
 export const TaskService = {
   createTask,
   getAllTasks,
@@ -247,4 +264,5 @@ export const TaskService = {
   getAllTasksByUser,
   getTaskStats,
   getLastSixMonthsCompletionStats,
+  getMyTaskById,
 };

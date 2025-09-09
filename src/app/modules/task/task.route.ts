@@ -34,6 +34,13 @@ router.get('/stats', auth(USER_ROLES.SUPER_ADMIN), TaskController.getTaskStats);
 // get tasks of the current user (poster)
 router.get('/my-tasks', auth(USER_ROLES.POSTER), TaskController.getMyTasks);
 
+// get a specific task of the current user (poster) by ID
+router.get(
+  '/my-tasks/:taskId',
+  auth(USER_ROLES.POSTER),
+  TaskController.getMyTaskById
+);
+
 // get task by id
 router.get(
   '/:taskId',
@@ -67,6 +74,5 @@ router.get(
   auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.POSTER),
   TaskController.getLastSixMonthsCompletionStats
 );
-
 
 export const TaskRoutes = router;
