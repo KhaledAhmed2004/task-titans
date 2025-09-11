@@ -38,6 +38,10 @@ const TaskSchema = new mongoose.Schema<Task>(
       type: String,
       required: false,
     },
+    paymentIntentId: {
+      type: String,
+      required: false,
+    },
   },
   {
     timestamps: true,

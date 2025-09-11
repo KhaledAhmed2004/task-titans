@@ -21,7 +21,7 @@ router.post(
       );
     }
     // Call createTask wrapped in catchAsync, just like updateProfile
-    return TaskController.createTask(req, res, next);
+    return TaskController.createNewTask(req, res, next);
   }
 );
 
@@ -29,7 +29,11 @@ router.post(
 router.get('/', auth(USER_ROLES.SUPER_ADMIN), TaskController.getAllTasks);
 
 // Get task stats
-router.get('/stats', auth(USER_ROLES.SUPER_ADMIN), TaskController.getTaskStats);
+router.get(
+  '/stats',
+  auth(USER_ROLES.SUPER_ADMIN),
+  TaskController.getTaskStatistics
+);
 
 // get tasks of the current user (poster)
 router.get('/my-tasks', auth(USER_ROLES.POSTER), TaskController.getMyTasks);
@@ -73,6 +77,13 @@ router.get(
   '/completion-stats/last-6-months',
   auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.POSTER),
   TaskController.getLastSixMonthsCompletionStats
+);
+
+// complete task and release payment
+router.patch(
+  '/:taskId/complete',
+  auth(USER_ROLES.POSTER),
+  TaskController.completeTask
 );
 
 export const TaskRoutes = router;

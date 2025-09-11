@@ -1,0 +1,114 @@
+{
+  "name": "task-titans-stripe-escrow",
+  "description": "Additional dependencies needed for Stripe escrow payment system",
+  "dependencies": {
+    "stripe": "^14.9.0",
+    "@stripe/stripe-js": "^2.4.0",
+    "express-rate-limit": "^7.1.5",
+    "helmet": "^7.1.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "zod": "^3.22.4",
+    "uuid": "^9.0.1",
+    "crypto": "^1.0.1",
+    "moment": "^2.29.4"
+  },
+  "devDependencies": {
+    "@types/stripe": "^8.0.417",
+    "@types/uuid": "^9.0.7",
+    "@types/cors": "^2.8.17",
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3",
+    "@types/jest": "^29.5.8",
+    "@types/supertest": "^2.0.16"
+  },
+  "scripts": {
+    "stripe:setup": "node scripts/stripe-setup.js",
+    "stripe:webhook": "stripe listen --forward-to localhost:3000/api/payments/webhook",
+    "test:payments": "jest tests/payment --detectOpenHandles",
+    "migrate:payments": "node scripts/payment-migration.js",
+    "seed:stripe": "node scripts/seed-stripe-data.js"
+  },
+  "installation_commands": [
+    "npm install stripe @stripe/stripe-js",
+    "npm install express-rate-limit helmet cors",
+    "npm install zod uuid moment",
+    "npm install -D @types/stripe @types/uuid @types/cors",
+    "npm install -D jest supertest @types/jest @types/supertest"
+  ],
+  "environment_variables": {
+    "required": [
+      "STRIPE_SECRET_KEY",
+      "STRIPE_PUBLISHABLE_KEY",
+      "STRIPE_WEBHOOK_SECRET",
+      "STRIPE_CONNECT_CLIENT_ID"
+    ],
+    "optional": [
+      "PLATFORM_FEE_PERCENTAGE",
+      "MINIMUM_CHARGE_AMOUNT",
+      "DEFAULT_CURRENCY",
+      "APP_BASE_URL",
+      "STRIPE_RETURN_URL",
+      "STRIPE_REFRESH_URL"
+    ]
+  },
+  "stripe_cli_setup": {
+    "installation": "https://stripe.com/docs/stripe-cli",
+    "login": "stripe login",
+    "webhook_testing": "stripe listen --forward-to localhost:3000/api/payments/webhook",
+    "trigger_events": [
+      "stripe trigger payment_intent.succeeded",
+      "stripe trigger payment_intent.payment_failed",
+      "stripe trigger account.updated",
+      "stripe trigger transfer.created"
+    ]
+  },
+  "testing_setup": {
+    "test_cards": {
+      "success": "4242424242424242",
+      "decline": "4000000000000002",
+      "authentication_required": "4000002500003155",
+      "insufficient_funds": "4000000000009995"
+    },
+    "test_amounts": {
+      "minimum": 50,
+      "typical": 5000,
+      "large": 100000
+    }
+  },
+  "webhook_events": [
+    "payment_intent.succeeded",
+    "payment_intent.payment_failed",
+    "payment_intent.canceled",
+    "account.updated",
+    "transfer.created",
+    "transfer.updated",
+    "payout.created",
+    "payout.updated",
+    "charge.dispute.created",
+    "invoice.payment_succeeded",
+    "invoice.payment_failed"
+  ],
+  "security_considerations": [
+    "Always validate webhook signatures",
+    "Use HTTPS in production",
+    "Implement rate limiting",
+    "Log all payment operations",
+    "Never store sensitive card data",
+    "Implement proper error handling",
+    "Use environment variables for secrets",
+    "Validate all input data",
+    "Implement idempotency for webhooks"
+  ],
+  "deployment_checklist": [
+    "Switch to live Stripe keys",
+    "Update webhook endpoints",
+    "Configure SSL certificates",
+    "Set up monitoring",
+    "Test all payment flows",
+    "Backup database",
+    "Configure error tracking",
+    "Update privacy policy",
+    "Set up compliance measures"
+  ]
+}

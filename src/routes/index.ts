@@ -10,6 +10,7 @@ import { ChatRoutes } from '../app/modules/chat/chat.route';
 import { MessageRoutes } from '../app/modules/message/message.route';
 import { RuleRoutes } from '../app/modules/rule/rule.route';
 import { CategoryRoutes } from '../app/modules/category/category.route';
+import { PaymentRoutes } from '../app/modules/payment/payment.routes';
 const router = express.Router();
 
 const apiRoutes = [
@@ -56,6 +57,10 @@ const apiRoutes = [
   {
     path: '/categories',
     route: CategoryRoutes,
+  },
+  {
+    path: '/payments',
+    route: PaymentRoutes,
   },
 ];
 

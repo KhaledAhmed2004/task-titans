@@ -1,3 +1,190 @@
+// import { Bid, BidUpdate, BidQuery, BidStatus } from './bid.interface';
+// import { BidModel } from './bid.model';
+// import { TaskModel } from '../task/task.model';
+// import { TaskStatus } from '../task/task.interface';
+// import { sendNotifications } from '../../../helpers/notificationsHelper';
+// import { PaymentService } from '../payment/payment.service';
+
+// const createBid = async (bid: Bid, taskerId: string) => {
+//   // 1️⃣ Find the task
+//   const task = await TaskModel.findById(bid.taskId);
+//   if (!task) throw new Error('Task not found');
+
+//   // 2️⃣ Check if tasker has already bid
+//   const isBidExist = await BidModel.findOne({ taskId: bid.taskId, taskerId });
+//   if (isBidExist)
+//     throw new Error('You have already placed a bid for this task');
+
+//   // 3️⃣ Create bid
+//   const newBid = await BidModel.create({
+//     ...bid,
+//     taskerId,
+//     status: BidStatus.PENDING, // default pending
+//   });
+
+//   // 4️⃣ Send Notification to Task Owner
+//   const notificationData = {
+//     text: `Hi! A new bid has been placed on your task "${task.title}" by a tasker.`,
+//     title: 'New Bid',
+//     receiver: task.userId, // task owner
+//     type: 'BID', // type of notification
+//     referenceId: newBid._id, // link to bid
+//     read: false,
+//   };
+
+//   await sendNotifications(notificationData);
+
+//   return newBid;
+// };
+
+// const getAllBids = async (query?: BidQuery) => {
+//   const filter = query ? { ...query } : {};
+//   return await BidModel.find(filter);
+// };
+
+// const getAllBidsByTaskId = async (taskId: string) => {
+//   const task = await TaskModel.findById(taskId);
+//   if (!task) throw new Error('Task not found');
+
+//   return await BidModel.find({ taskId });
+// };
+
+// const getAllBidsByTaskIdWithTasker = async (taskId: string) => {
+//   const task = await TaskModel.findById(taskId);
+//   if (!task) throw new Error('Task not found');
+
+//   return await BidModel.find({ taskId }).populate({
+//     path: 'taskerId',
+//     model: 'User',
+//     select: 'name email image location phone role verified',
+//   });
+// };
+
+// const getBidById = async (bidId: string) => {
+//   const bid = await BidModel.findById(bidId);
+//   if (!bid) throw new Error('Bid not found');
+//   return bid;
+// };
+
+// const updateBid = async (
+//   bidId: string,
+//   taskerId: string,
+//   bidUpdate: BidUpdate
+// ) => {
+//   const bid = await BidModel.findById(bidId);
+//   if (!bid) throw new Error('Bid not found');
+//   if (!bid.taskerId || bid.taskerId.toString() !== taskerId)
+//     throw new Error('Not authorized');
+//   if (bid.status !== BidStatus.PENDING)
+//     throw new Error('Cannot update a bid that is not pending');
+
+//   Object.assign(bid, bidUpdate);
+//   await bid.save();
+//   return bid;
+// };
+
+// const deleteBid = async (bidId: string, taskerId: string) => {
+//   const bid = await BidModel.findById(bidId);
+//   if (!bid) throw new Error('Bid not found');
+//   if (!bid.taskerId || bid.taskerId.toString() !== taskerId)
+//     throw new Error('Not authorized');
+//   if (bid.status !== BidStatus.PENDING)
+//     throw new Error('Cannot cancel a bid that is not pending');
+
+//   bid.status = BidStatus.REJECTED; // ✅ mark cancelled bids as rejected
+//   await bid.save();
+//   return bid;
+// };
+
+// const acceptBid = async (bidId: string, clientId: string) => {
+//   const bid = await BidModel.findById(bidId);
+//   if (!bid) throw new Error('Bid not found');
+
+//   const task = await TaskModel.findById(bid.taskId);
+//   if (!task) throw new Error('Task not found');
+//   if (task.userId.toString() !== clientId) throw new Error('Not authorized');
+
+//   try {
+//     // Create escrow payment when bid is accepted
+//     const escrowPayment = await PaymentService.createEscrowPayment({
+//       taskId: task._id.toString(),
+//       bidId: bid._id.toString(),
+//       clientId: clientId,
+//       freelancerId: bid.taskerId?.toString() ?? '',
+//       amount: bid.bidAmount,
+//       description: `Payment for task: ${task.title}`,
+//       metadata: {
+//         taskTitle: task.title,
+//         bidAmount: bid.bidAmount.toString(),
+//         taskCategory: task.category || 'General'
+//       }
+//     });
+
+//     // Accept selected bid
+//     bid.status = BidStatus.ACCEPTED;
+//     await bid.save();
+
+//     // Assign task and store payment intent ID
+//     task.status = TaskStatus.ASSIGNED;
+//     task.assignedTo = bid.taskerId?.toString() ?? '';
+//     task.paymentIntentId = escrowPayment.paymentIntentId; // Store payment reference
+//     await task.save();
+
+//     // Reject other bids
+//     await BidModel.updateMany(
+//       { taskId: task._id, _id: { $ne: bid._id } },
+//       { $set: { status: BidStatus.REJECTED } }
+//     );
+
+//     // Send notification to freelancer about accepted bid
+//     const notificationData = {
+//       text: `Congratulations! Your bid for "${task.title}" has been accepted. Payment is secured in escrow.`,
+//       title: 'Bid Accepted',
+//       receiver: bid.taskerId?.toString() ?? '',
+//       type: 'BID_ACCEPTED',
+//       referenceId: bid._id,
+//       read: false,
+//     };
+//     await sendNotifications(notificationData);
+
+//     return { bid, task, escrowPayment };
+//   } catch (error) {
+//     throw new Error(`Failed to accept bid and create escrow payment: ${error}`);
+//   }
+// };
+
+// const getAllTasksByTaskerBids = async (taskerId: string) => {
+//   // 1️⃣ Find all bids by the tasker
+//   const bids = await BidModel.find({ taskerId }).populate({
+//     path: 'taskId',
+//     model: 'Task',
+//     select: 'title description status userId assignedTo', // select fields you want
+//   });
+
+//   // 2️⃣ Format response: include task info with the tasker's bid
+//   const result = bids.map(bid => ({
+//     bidId: bid._id,
+//     bidAmount: bid.amount,
+//     bidStatus: bid.status,
+//     task: bid.taskId,
+//     message: bid.message,
+//   }));
+
+//   return result;
+// };
+
+// export const BidService = {
+//   createBid,
+//   getAllBids,
+//   getAllBidsByTaskId,
+//   getAllBidsByTaskIdWithTasker,
+//   getBidById,
+//   updateBid,
+//   deleteBid,
+//   acceptBid,
+//   getAllTasksByTaskerBids,
+// };
+
 import { Bid, BidUpdate, BidQuery, BidStatus } from './bid.interface';
 import { BidModel } from './bid.model';
 import { TaskModel } from '../task/task.model';

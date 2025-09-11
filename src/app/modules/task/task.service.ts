@@ -7,6 +7,8 @@ import { Task } from './task.interface';
 import { TaskModel } from './task.model';
 import unlinkFile from '../../../shared/unlinkFile';
 import { BidService } from '../bid/bid.service';
+import { PaymentService } from '../payment/payment.service';
+import { sendNotifications } from '../../../helpers/notificationsHelper';
 
 const createTask = async (task: Task) => {
   // Validate category
@@ -254,6 +256,56 @@ const getMyTaskById = async (userId: string, taskId: string) => {
   };
 };
 
+// Complete task and release payment
+const completeTask = async (taskId: string, clientId: string) => {
+  const task = await TaskModel.findById(taskId);
+  if (!task) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
+  }
+
+  if (task.userId !== clientId) {
+    throw new ApiError(StatusCodes.FORBIDDEN, 'Only task owner can complete the task');
+  }
+
+  if (task.status !== TaskStatus.PROGRESSING) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Task must be in progress to complete');
+  }
+
+  if (!task.paymentIntentId) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'No payment found for this task');
+  }
+
+  try {
+    // Release payment to freelancer
+    const paymentRelease = await PaymentService.releasePayment({
+      paymentIntentId: task.paymentIntentId,
+      clientId: clientId,
+      reason: 'Task completed and approved by client'
+    });
+
+    // Update task status to completed
+    task.status = TaskStatus.COMPLETED;
+    await task.save();
+
+    // Send notification to freelancer about payment release
+    if (task.assignedTo) {
+      const notificationData = {
+        text: `Great news! Payment for "${task.title}" has been released. The task is now completed.`,
+        title: 'Payment Released',
+        receiver: task.assignedTo,
+        type: 'PAYMENT_RELEASED',
+        referenceId: task._id,
+        read: false,
+      };
+      await sendNotifications(notificationData);
+    }
+
+    return { task, paymentRelease };
+  } catch (error) {
+    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, `Failed to complete task and release payment: ${error}`);
+  }
+};
+
 
 export const TaskService = {
   createTask,
@@ -265,4 +317,5 @@ export const TaskService = {
   getTaskStats,
   getLastSixMonthsCompletionStats,
   getMyTaskById,
+  completeTask,
 };

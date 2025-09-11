@@ -26,6 +26,7 @@ export type Task = {
   status: TaskStatusType;
   userId: string;
   assignedTo?: string;
+  paymentIntentId?: string; // Stripe payment intent ID for escrow
 };
 
 export type TaskUpdate = {
