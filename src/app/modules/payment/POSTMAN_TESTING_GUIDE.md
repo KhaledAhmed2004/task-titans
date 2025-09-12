@@ -488,6 +488,32 @@ Authorization: Bearer {{client_token}}
 
 ### 2. Validation Errors
 
+#### Invalid ObjectId Format
+**Test**: Use malformed payment ID
+**Expected Response**:
+```json
+{
+  "success": false,
+  "statusCode": 400,
+  "message": "Invalid payment ID format",
+  "data": null,
+  "errorType": "ValidationError"
+}
+```
+
+#### Missing Required Fields
+**Test**: Create escrow payment without bid ID
+**Expected Response**:
+```json
+{
+  "success": false,
+  "statusCode": 400,
+  "message": "Bid ID is required for escrow payment",
+  "data": null,
+  "errorType": "ValidationError"
+}
+```
+
 #### Invalid Bid ID
 **Test**: Use non-existent bid ID in escrow creation
 **Expected Response**:
@@ -496,7 +522,21 @@ Authorization: Bearer {{client_token}}
   "success": false,
   "statusCode": 404,
   "message": "Bid not found",
-  "data": null
+  "data": null,
+  "errorType": "ValidationError"
+}
+```
+
+#### Freelancer Not Assigned
+**Test**: Create payment for bid without assigned freelancer
+**Expected Response**:
+```json
+{
+  "success": false,
+  "statusCode": 400,
+  "message": "Bid does not have an assigned freelancer",
+  "data": null,
+  "errorType": "BusinessLogicError"
 }
 ```
 
@@ -508,7 +548,8 @@ Authorization: Bearer {{client_token}}
   "success": false,
   "statusCode": 400,
   "message": "Freelancer has not completed Stripe onboarding",
-  "data": null
+  "data": null,
+  "errorType": "StripeError"
 }
 ```
 
@@ -522,7 +563,8 @@ Authorization: Bearer {{client_token}}
   "success": false,
   "statusCode": 400,
   "message": "Payment already exists for this bid",
-  "data": null
+  "data": null,
+  "errorType": "BusinessLogicError"
 }
 ```
 
@@ -534,9 +576,30 @@ Authorization: Bearer {{client_token}}
   "success": false,
   "statusCode": 400,
   "message": "Cannot release payment with status: released",
-  "data": null
+  "data": null,
+  "errorType": "BusinessLogicError"
 }
 ```
+
+### 4. Error Response Format
+
+All error responses follow this structure with improved type safety:
+
+```json
+{
+  "success": false,
+  "message": "Error description with proper error handling",
+  "statusCode": 400,
+  "data": null,
+  "errorType": "ValidationError | StripeError | DatabaseError | BusinessLogicError"
+}
+```
+
+**Common Error Types:**
+- **ValidationError**: Invalid ObjectId format, missing required fields
+- **StripeError**: Stripe API failures, account issues
+- **DatabaseError**: MongoDB connection or query issues
+- **BusinessLogicError**: Duplicate payments, unauthorized access
 
 ## Webhook Testing
 

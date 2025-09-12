@@ -595,25 +595,35 @@ Before setting up Stripe integration, ensure you have:
    };
    ```
 
-3. **Static Model Methods Integration**
+3. **Static Model Methods Integration with Type Safety**
    ```typescript
-   // Example: Enhanced PaymentModel with static methods
+   // Example: Enhanced PaymentModel with static methods and proper type handling
    import { Schema, model, Types } from 'mongoose';
    import { PAYMENT_STATUS, CURRENCY } from '../../../enums/payment';
    
-   // Static methods for PaymentModel
+   // Static methods for PaymentModel with proper ObjectId handling
    PaymentSchema.statics.isExistPaymentById = async function(paymentId: string) {
+     if (!Types.ObjectId.isValid(paymentId)) {
+       throw new Error('Invalid payment ID format');
+     }
      return await this.findById(paymentId);
    };
    
-   PaymentSchema.statics.getPaymentsByBid = async function(bidId: string) {
-     return await this.find({ bidId }).populate('posterId freelancerId');
+   PaymentSchema.statics.getPaymentsByBid = async function(bidId: string | Types.ObjectId) {
+     const bidObjectId = typeof bidId === 'string' ? new Types.ObjectId(bidId) : bidId;
+     if (!bidObjectId) {
+       throw new Error('Bid ID is required');
+     }
+     return await this.find({ bidId: bidObjectId }).populate('posterId freelancerId');
    };
    
    PaymentSchema.statics.updatePaymentStatus = async function(
      paymentId: string, 
      status: PAYMENT_STATUS
    ) {
+     if (!Types.ObjectId.isValid(paymentId)) {
+       throw new Error('Invalid payment ID format');
+     }
      return await this.findByIdAndUpdate(
        paymentId,
        { status, updatedAt: new Date() },
@@ -622,24 +632,27 @@ Before setting up Stripe integration, ensure you have:
    };
    
    PaymentSchema.statics.getPaymentsByUser = async function(
-     userId: string,
+     userId: string | Types.ObjectId,
      userType: 'poster' | 'freelancer'
    ) {
-     const query = userType === 'poster' ? { posterId: userId } : { freelancerId: userId };
+     const userObjectId = typeof userId === 'string' ? new Types.ObjectId(userId) : userId;
+     const query = userType === 'poster' ? { posterId: userObjectId } : { freelancerId: userObjectId };
      return await this.find(query).populate('taskId bidId');
    };
    
-   // Static methods for StripeAccountModel
-   StripeAccountSchema.statics.isExistAccountByUserId = async function(userId: string) {
-     return await this.findOne({ userId });
+   // Static methods for StripeAccountModel with type conversion
+   StripeAccountSchema.statics.isExistAccountByUserId = async function(userId: string | Types.ObjectId) {
+     const userObjectId = typeof userId === 'string' ? new Types.ObjectId(userId) : userId;
+     return await this.findOne({ userId: userObjectId });
    };
    
    StripeAccountSchema.statics.updateAccountStatus = async function(
-     userId: string,
+     userId: string | Types.ObjectId,
      updateData: Partial<IStripeAccountInfo>
    ) {
+     const userObjectId = typeof userId === 'string' ? new Types.ObjectId(userId) : userId;
      return await this.findOneAndUpdate(
-       { userId },
+       { userId: userObjectId },
        { ...updateData, updatedAt: new Date() },
        { new: true, upsert: true }
      );

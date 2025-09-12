@@ -8,7 +8,10 @@ import {
   PAYMENT_STATUS,
 } from './payment.interface';
 import mongoose from 'mongoose';
-import { Payment as PaymentModel, StripeAccount as StripeAccountModel } from './payment.model';
+import {
+  Payment as PaymentModel,
+  StripeAccount as StripeAccountModel,
+} from './payment.model';
 import { User } from '../user/user.model';
 import { TaskModel } from '../task/task.model';
 import { BidModel } from '../bid/bid.model';
@@ -23,7 +26,9 @@ import {
 } from '../../../config/stripe';
 
 // Create Stripe Connect account for freelancers
-export const createStripeAccount = async (data: IStripeAccount): Promise<any> => {
+export const createStripeAccount = async (
+  data: IStripeAccount
+): Promise<any> => {
   try {
     // Get user details
     const user = await User.findById(data.userId).select('name email');
@@ -89,7 +94,10 @@ export const createStripeAccount = async (data: IStripeAccount): Promise<any> =>
 // Create onboarding link for freelancer
 export const createOnboardingLink = async (userId: string): Promise<string> => {
   try {
-    const stripeAccount = await StripeAccountModel.isExistAccountByUserId(userId);
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+    const stripeAccount = await StripeAccountModel.isExistAccountByUserId(
+      userObjectId
+    );
 
     if (!stripeAccount) {
       throw new ApiError(
@@ -125,9 +133,16 @@ export const createOnboardingLink = async (userId: string): Promise<string> => {
 // Check if freelancer has completed Stripe onboarding
 export const checkOnboardingStatus = async (
   userId: string
-): Promise<{ completed: boolean; account_id?: string }> => {
+): Promise<{
+  completed: boolean;
+  account_id?: string;
+  missing_fields?: string[];
+}> => {
   try {
-    const stripeAccount = await StripeAccountModel.isExistAccountByUserId(userId);
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+    const stripeAccount = await StripeAccountModel.isExistAccountByUserId(
+      userObjectId
+    );
 
     if (!stripeAccount) {
       return { completed: false };
@@ -137,7 +152,9 @@ export const checkOnboardingStatus = async (
     const account = await stripe.accounts.retrieve(
       stripeAccount.stripeAccountId
     );
+    console.log(account);
     const completed = account.charges_enabled && account.payouts_enabled;
+    const currentlyDue = account?.requirements?.currently_due; // Array of missing fields
 
     // Update local status if changed
     if (completed !== stripeAccount.onboardingCompleted) {
@@ -151,6 +168,8 @@ export const checkOnboardingStatus = async (
     return {
       completed,
       account_id: stripeAccount.stripeAccountId,
+      // missing_fields: currentlyDue,
+      missing_fields: currentlyDue ?? undefined,
     };
   } catch (error) {
     throw new ApiError(
@@ -173,7 +192,7 @@ export const createEscrowPayment = async (
     }
 
     const task = bid.taskId as any;
-    if (task.userId !== data.clientId) {
+    if (task.userId !== data.posterId) {
       throw new ApiError(
         httpStatus.FORBIDDEN,
         'You are not authorized to accept this bid'
@@ -181,9 +200,14 @@ export const createEscrowPayment = async (
     }
 
     // Check freelancer's Stripe account
-    const freelancerStripeAccount = await StripeAccountModel.isExistAccountByUserId(
-      bid.taskerId
-    );
+    if (!bid.taskerId) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        'Bid does not have an assigned freelancer'
+      );
+    }
+    const freelancerStripeAccount =
+      await StripeAccountModel.isExistAccountByUserId(bid.taskerId);
     if (
       !freelancerStripeAccount ||
       !freelancerStripeAccount.onboardingCompleted
@@ -195,6 +219,19 @@ export const createEscrowPayment = async (
     }
 
     // Check if payment already exists for this bid
+    if (!data.bidId) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        'Bid ID is required for escrow payment'
+      );
+    }
+    if (!data.posterId) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        'Poster ID is required for escrow payment'
+      );
+    }
+
     const existingPayment = await PaymentModel.getPaymentsByBid(data.bidId);
 
     if (existingPayment && existingPayment.length > 0) {
@@ -218,7 +255,8 @@ export const createEscrowPayment = async (
       capture_method: 'manual', // Hold the payment until task completion
       metadata: {
         bid_id: data.bidId.toString(),
-        client_id: data.clientId.toString(),
+        // client_id: data.clientId.toString(),
+        poster_id: data.posterId.toString(),
         freelancer_id: data.freelancerId.toString(),
         task_title: task.title,
         type: 'escrow_payment',
@@ -229,7 +267,8 @@ export const createEscrowPayment = async (
     const payment = new PaymentModel({
       taskId: data.taskId,
       bidId: data.bidId,
-      posterId: data.clientId,
+      // posterId: data.clientId,
+      posterId: data.posterId,
       freelancerId: data.freelancerId,
       amount: data.amount,
       platformFee: platformFee,
@@ -255,14 +294,18 @@ export const createEscrowPayment = async (
 };
 
 // Release payment when task is completed and approved
-export const releaseEscrowPayment = async (data: IPaymentRelease): Promise<{
+export const releaseEscrowPayment = async (
+  data: IPaymentRelease
+): Promise<{
   success: boolean;
   message: string;
   freelancer_amount: number;
   platform_fee: number;
 }> => {
   try {
-    const payment = await PaymentModel.isExistPaymentById(data.paymentId.toString());
+    const payment = await PaymentModel.isExistPaymentById(
+      data.paymentId.toString()
+    );
 
     if (!payment) {
       throw new ApiError(httpStatus.NOT_FOUND, 'Payment not found');
@@ -294,7 +337,10 @@ export const releaseEscrowPayment = async (data: IPaymentRelease): Promise<{
     }
 
     // Update payment status
-    await PaymentModel.updatePaymentStatus(data.paymentId, PAYMENT_STATUS.RELEASED);
+    await PaymentModel.updatePaymentStatus(
+      data.paymentId,
+      PAYMENT_STATUS.RELEASED
+    );
 
     // Update bid status to completed
     await BidModel.findByIdAndUpdate(payment.bidId, {
@@ -317,7 +363,10 @@ export const releaseEscrowPayment = async (data: IPaymentRelease): Promise<{
 };
 
 // Refund escrow payment
-export const refundEscrowPayment = async (paymentId: string, reason?: string): Promise<any> => {
+export const refundEscrowPayment = async (
+  paymentId: string,
+  reason?: string
+): Promise<any> => {
   try {
     const payment = await PaymentModel.isExistPaymentById(paymentId);
 
@@ -350,8 +399,11 @@ export const refundEscrowPayment = async (paymentId: string, reason?: string): P
     });
 
     // Update payment status
-    await PaymentModel.updatePaymentStatus(paymentId, PAYMENT_STATUS.REFUNDED);
-    
+    await PaymentModel.updatePaymentStatus(
+      new mongoose.Types.ObjectId(paymentId),
+      PAYMENT_STATUS.REFUNDED
+    );
+
     // Update refund reason if provided
     if (reason) {
       await PaymentModel.findByIdAndUpdate(paymentId, {
@@ -380,16 +432,19 @@ export const refundEscrowPayment = async (paymentId: string, reason?: string): P
 };
 
 // Get payment by ID
-export const getPaymentById = async (paymentId: string): Promise<IPayment | null> => {
+export const getPaymentById = async (
+  paymentId: string
+): Promise<IPayment | null> => {
   try {
-    const payment = await PaymentModel.isExistPaymentById(paymentId)
-
+    const payment = await PaymentModel.isExistPaymentById(paymentId);
 
     return payment as IPayment;
   } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error occurred';
     throw new ApiError(
       httpStatus.BAD_REQUEST,
-      `Failed to get payment: ${error.message}`
+      `Failed to get payment: ${errorMessage}`
     );
   }
 };
@@ -399,7 +454,12 @@ export const getPayments = async (
   filters: IPaymentFilters,
   page: number = 1,
   limit: number = 10
-): Promise<{ payments: IPayment[]; total: number; totalPages: number; currentPage: number }> => {
+): Promise<{
+  payments: IPayment[];
+  total: number;
+  totalPages: number;
+  currentPage: number;
+}> => {
   try {
     const where: any = {};
 
@@ -438,22 +498,26 @@ export const getPayments = async (
 
     const totalPages = Math.ceil(total / limit);
 
-    return { 
-      payments: payments as IPayment[], 
-      total, 
+    return {
+      payments: payments as IPayment[],
+      total,
       totalPages,
-      currentPage: page
+      currentPage: page,
     };
   } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error occurred';
     throw new ApiError(
       httpStatus.BAD_REQUEST,
-      `Failed to get payments: ${error.message}`
+      `Failed to get payments: ${errorMessage}`
     );
   }
 };
 
 // Get payment statistics
-export const getPaymentStats = async (filters?: IPaymentFilters): Promise<IPaymentStats> => {
+export const getPaymentStats = async (
+  filters?: IPaymentFilters
+): Promise<IPaymentStats> => {
   try {
     const where: any = {};
 
@@ -537,9 +601,11 @@ export const getPaymentStats = async (filters?: IPaymentFilters): Promise<IPayme
       monthlyTrend: monthlyTrendFormatted,
     };
   } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error occurred';
     throw new ApiError(
       httpStatus.BAD_REQUEST,
-      `Failed to get payment stats: ${error.message}`
+      `Failed to get payment stats: ${errorMessage}`
     );
   }
 };
@@ -620,7 +686,12 @@ export const getUserPayments = async (
   userId: string,
   page: number = 1,
   limit: number = 10
-): Promise<{ payments: IPayment[]; total: number; totalPages: number; currentPage: number }> => {
+): Promise<{
+  payments: IPayment[];
+  total: number;
+  totalPages: number;
+  currentPage: number;
+}> => {
   try {
     const userObjectId = new mongoose.Types.ObjectId(userId);
     const payments = await PaymentModel.getPaymentsByUser(userObjectId);
@@ -636,28 +707,49 @@ export const getUserPayments = async (
       currentPage: page,
     };
   } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error occurred';
     throw new ApiError(
       httpStatus.BAD_REQUEST,
-      `Failed to get user payments: ${error.message}`
+      `Failed to get user payments: ${errorMessage}`
     );
   }
 };
 
 // Get user payment statistics
-export const getUserPaymentStats = async (userId: string): Promise<IPaymentStats> => {
+export const getUserPaymentStats = async (
+  userId: string
+): Promise<IPaymentStats> => {
   try {
     const userObjectId = new mongoose.Types.ObjectId(userId);
     const filters: IPaymentFilters = {
       posterId: userObjectId,
-      freelancerId: userObjectId
+      freelancerId: userObjectId,
     };
-    
+
     return await getPaymentStats(filters);
   } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error occurred';
     throw new ApiError(
       httpStatus.BAD_REQUEST,
-      `Failed to get user payment stats: ${error.message}`
+      `Failed to get user payment stats: ${errorMessage}`
     );
+  }
+};
+
+const deleteStripeAccountService = async (accountId: string) => {
+  try {
+    // Delete account from Stripe
+    const deleted = await stripe.accounts.del(accountId);
+
+    if (!deleted.deleted) {
+      throw new ApiError(httpStatus.BAD_REQUEST, 'Failed to delete account');
+    }
+
+    return deleted; // { id, object, deleted: true }
+  } catch (error: any) {
+    throw handleStripeError(error);
   }
 };
 
@@ -675,6 +767,7 @@ const PaymentService = {
   getUserPayments,
   getUserPaymentStats,
   handleWebhookEvent,
+  deleteStripeAccountService,
 };
 
 export default PaymentService;

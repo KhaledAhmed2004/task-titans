@@ -6,20 +6,42 @@ import { getMultipleFilesPath } from '../../../shared/getFilePath';
 import catchAsync from '../../../shared/catchAsync';
 import { JwtPayload } from 'jsonwebtoken';
 
-const createNewTask = catchAsync(async (req: Request, res: Response) => {
-  const user = req.user as JwtPayload;
-  const userId = user.id;
+// const createNewTask = catchAsync(async (req: Request, res: Response) => {
+//   const user = req.user as JwtPayload;
+//   const userId = user.id;
 
-  const taskImages = getMultipleFilesPath(req.files, 'image');
+//   const taskImages = getMultipleFilesPath(req.files, 'image');
 
-  const taskPayload = {
+//   const taskPayload = {
+//     ...req.body,
+//     taskImages,
+//     userId,
+//   };
+
+//   const result = await TaskService.createTask(taskPayload);
+
+//   sendResponse(res, {
+//     statusCode: StatusCodes.CREATED,
+//     success: true,
+//     message: 'Task created successfully',
+//     data: result,
+//   });
+// });
+
+const createTask = catchAsync(async (req: Request, res: Response) => {
+  const user = req.user;
+ 
+  // Handle task image upload
+  const taskImage = getMultipleFilesPath(req.files, 'image');
+ 
+  const task = {
     ...req.body,
-    taskImages,
-    userId,
+    taskImage,
+    userId: (user as { id: string }).id,
   };
-
-  const result = await TaskService.createTask(taskPayload);
-
+ 
+  const result = await TaskService.createTask(task);
+ 
   sendResponse(res, {
     statusCode: StatusCodes.CREATED,
     success: true,
@@ -27,6 +49,8 @@ const createNewTask = catchAsync(async (req: Request, res: Response) => {
     data: result,
   });
 });
+
+
 
 const getAllTasks = catchAsync(async (req: Request, res: Response) => {
   const query = req.query;
@@ -156,7 +180,8 @@ const completeTask = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const TaskController = {
-  createNewTask,
+  // createNewTask,
+  createTask,
   getTaskStatistics,
   getAllTasks,
   getTaskById,

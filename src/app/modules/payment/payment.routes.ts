@@ -7,7 +7,11 @@ import { USER_ROLES } from '../../../enums/user';
 const router = express.Router();
 
 // Webhook routes (no authentication required)
-router.post('/webhook', express.raw({ type: 'application/json' }), WebhookController.handleStripeWebhook);
+router.post(
+  '/webhook',
+  express.raw({ type: 'application/json' }),
+  WebhookController.handleStripeWebhook
+);
 router.get('/webhook/health', WebhookController.webhookHealthCheck);
 
 // Stripe Connect account management
@@ -18,13 +22,14 @@ router.post(
 );
 
 router.get(
-  '/stripe/onboarding/:userId',
+  '/stripe/onboarding',
   auth(USER_ROLES.TASKER, USER_ROLES.SUPER_ADMIN),
+  // auth(USER_ROLES.TASKER,USER_ROLES.POSTER, USER_ROLES.SUPER_ADMIN),
   PaymentController.getOnboardingLinkController
 );
 
 router.get(
-  '/stripe/onboarding-status/:userId',
+  '/stripe/onboarding-status',
   auth(USER_ROLES.TASKER, USER_ROLES.POSTER, USER_ROLES.SUPER_ADMIN),
   PaymentController.checkOnboardingStatusController
 );
@@ -65,6 +70,12 @@ router.get(
   '/stats/overview',
   auth(USER_ROLES.SUPER_ADMIN),
   PaymentController.getPaymentStatsController
+);
+
+router.delete(
+  '/account/:accountId',
+  auth(USER_ROLES.SUPER_ADMIN),
+  PaymentController.deleteStripeAccountController
 );
 
 // User-specific payment routes (TODO: Implement these controller methods)

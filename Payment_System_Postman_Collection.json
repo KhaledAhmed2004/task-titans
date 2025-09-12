@@ -1,0 +1,600 @@
+{
+  "info": {
+    "name": "Task Titans Payment System",
+    "description": "Complete payment system testing collection with authentication and validation",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://10.10.7.33:5000/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "paymentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "stripeAccountId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.accessToken) {",
+                  "        pm.collectionVariables.set('authToken', response.data.accessToken);",
+                  "        pm.collectionVariables.set('userId', response.data.user._id);",
+                  "        console.log('Auth token and userId saved successfully');",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Payment System Tests",
+      "item": [
+        {
+          "name": "1. Create Stripe Account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response has success true', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "});",
+                  "",
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.account_id) {",
+                  "        pm.collectionVariables.set('stripeAccountId', response.data.account_id);",
+                  "        console.log('Stripe Account ID saved:', response.data.account_id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"accountType\": \"express\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments/stripe/account",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments", "stripe", "account"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2. Get Onboarding Link",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains onboarding URL', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.data).to.have.property('url');",
+                  "    pm.expect(response.data.url).to.include('stripe.com');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/stripe/onboarding/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments", "stripe", "onboarding", "{{userId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3. Check Onboarding Status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains completed status', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.data).to.have.property('completed');",
+                  "    pm.expect(typeof response.data.completed).to.equal('boolean');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/stripe/onboarding-status/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments", "stripe", "onboarding-status", "{{userId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4. Create Escrow Payment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response contains payment and client_secret', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.data).to.have.property('payment');",
+                  "    pm.expect(response.data).to.have.property('client_secret');",
+                  "});",
+                  "",
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.payment && response.data.payment._id) {",
+                  "        pm.collectionVariables.set('paymentId', response.data.payment._id);",
+                  "        console.log('Payment ID saved:', response.data.payment._id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bidId\": \"507f1f77bcf86cd799439011\",\n  \"clientId\": \"{{userId}}\",\n  \"amount\": 100.00,\n  \"currency\": \"usd\",\n  \"description\": \"Test escrow payment for task completion\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments/escrow",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments", "escrow"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5. Get Payment by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains payment details', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.data).to.have.property('_id');",
+                  "    pm.expect(response.data).to.have.property('amount');",
+                  "    pm.expect(response.data).to.have.property('status');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/{{paymentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments", "{{paymentId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "6. Release Escrow Payment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Payment released successfully', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.data).to.have.property('success');",
+                  "    pm.expect(response.data.success).to.be.true;",
+                  "    pm.expect(response.data).to.have.property('freelancer_amount');",
+                  "    pm.expect(response.data).to.have.property('platform_fee');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": \"{{userId}}\",\n  \"releaseType\": \"complete\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments/release/{{paymentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments", "release", "{{paymentId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "7. Refund Payment (Alternative)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Payment refunded successfully', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.data).to.have.property('success');",
+                  "    pm.expect(response.data.success).to.be.true;",
+                  "    pm.expect(response.data).to.have.property('refund_id');",
+                  "    pm.expect(response.data).to.have.property('amount_refunded');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Customer requested refund\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments/refund/{{paymentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments", "refund", "{{paymentId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "8. Get All Payments (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains payments array', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.data).to.have.property('payments');",
+                  "    pm.expect(response.data.payments).to.be.an('array');",
+                  "    pm.expect(response.data).to.have.property('total');",
+                  "    pm.expect(response.data).to.have.property('totalPages');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "9. Get Payment Stats (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains payment statistics', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.data).to.have.property('totalPayments');",
+                  "    pm.expect(response.data).to.have.property('totalAmount');",
+                  "    pm.expect(response.data).to.have.property('statusBreakdown');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/stats/overview",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments", "stats", "overview"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Error Scenarios",
+      "item": [
+        {
+          "name": "Missing userId and accountType",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Error message is correct', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.false;",
+                  "    pm.expect(response.message).to.equal('User ID and account type are required');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments/stripe/account",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments", "stripe", "account"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Unauthorized Access",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 401', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"accountType\": \"express\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments/stripe/account",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments", "stripe", "account"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Invalid Payment ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 404 or 400', function () {",
+                  "    pm.expect([400, 404]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/invalid-payment-id",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments", "invalid-payment-id"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

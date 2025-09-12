@@ -9,6 +9,23 @@ import { NextFunction, Request, Response } from 'express';
 const router = Router();
 
 // create task
+// router.post(
+//   '/',
+//   auth(USER_ROLES.POSTER),
+//   fileUploadHandler(), // handle taskImage upload
+//   (req: Request, res: Response, next: NextFunction) => {
+//     if (req.body.data) {
+//       // Parse JSON from form-data
+//       req.body = TaskValidation.createTaskZodSchema.parse(
+//         JSON.parse(req.body.data)
+//       );
+//     }
+//     // Call createTask wrapped in catchAsync, just like updateProfile
+//     return TaskController.createNewTask(req, res, next);
+//   }
+// );
+
+// create task
 router.post(
   '/',
   auth(USER_ROLES.POSTER),
@@ -21,7 +38,7 @@ router.post(
       );
     }
     // Call createTask wrapped in catchAsync, just like updateProfile
-    return TaskController.createNewTask(req, res, next);
+    return TaskController.createTask(req, res, next);
   }
 );
 

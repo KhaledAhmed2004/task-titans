@@ -572,13 +572,30 @@ class EscrowPaymentFlow {
    * Phase 1: Payment Creation
    */
   async initiatePayment(bidData: IBidData): Promise<PaymentIntent> {
-    // 1. Validate freelancer account
+    // 1. Type Validation: Convert string IDs to ObjectId types and validate required fields
+    if (!bidData.bidId || !bidData.freelancerId) {
+      throw new Error('Missing required bid or freelancer information');
+    }
+    
+    // 2. Null Checks: Verify bidId and clientId are not undefined before processing
     const freelancerAccount = await this.validateFreelancerAccount(bidData.freelancerId);
     
-    // 2. Calculate fees
+    // 3. Freelancer Validation: Check if bid has an assigned freelancer (taskerId)
+    const bid = await BidModel.findById(bidData.bidId);
+    if (!bid || !bid.taskerId) {
+      throw new Error('Bid does not have an assigned freelancer');
+    }
+    
+    // 4. Duplicate Check: Verify no existing payment exists for the bid
+    const existingPayment = await PaymentModel.findOne({ bidId: bidData.bidId });
+    if (existingPayment) {
+      throw new Error('Payment already exists for this bid');
+    }
+    
+    // 5. Calculate fees
     const { platformFee, freelancerAmount } = this.calculateFees(bidData.amount);
     
-    // 3. Create PaymentIntent with destination
+    // 6. Create PaymentIntent with destination
     const paymentIntent = await this.stripe.paymentIntents.create({
       amount: Math.round(bidData.amount * 100),
       currency: (bidData.currency || CURRENCY.USD).toLowerCase(),
@@ -593,7 +610,7 @@ class EscrowPaymentFlow {
       }
     });
     
-    // 4. Save payment record
+    // 7. Save payment record with proper type safety
     await this.savePaymentRecord({
       ...bidData,
       platformFee,
@@ -853,6 +870,16 @@ export const webhookRateLimit = rateLimit({
 ```
 
 ## Error Handling
+
+The payment system implements comprehensive error handling with TypeScript type safety:
+
+- **Stripe API Errors**: Handled using the `handleStripeError` utility
+- **Validation Errors**: Input validation with proper error messages and null checks
+- **Database Errors**: Mongoose validation and connection errors
+- **Business Logic Errors**: Custom ApiError instances with appropriate HTTP status codes
+- **Type Safety**: All error objects are properly typed to avoid 'unknown' error issues
+- **ObjectId Validation**: String parameters are converted to ObjectId types where required
+- **Undefined Property Checks**: Proper validation for optional properties like bidId and clientId
 
 ### Custom Error Classes
 ```typescript

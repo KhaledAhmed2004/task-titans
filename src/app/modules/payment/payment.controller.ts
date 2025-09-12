@@ -4,7 +4,7 @@ import catchAsync from '../../../shared/catchAsync';
 import sendResponse from '../../../shared/sendResponse';
 import ApiError from '../../../errors/ApiError';
 import mongoose from 'mongoose';
-import {
+import PaymentService, {
   createStripeAccount,
   createOnboardingLink,
   checkOnboardingStatus,
@@ -17,11 +17,14 @@ import {
   handleWebhookEvent,
 } from './payment.service';
 import { IPaymentFilters } from './payment.interface';
+import { JwtPayload } from 'jsonwebtoken';
 
 // Create Stripe Connect account for freelancers
 export const createStripeAccountController = catchAsync(
   async (req: Request, res: Response) => {
-    const { userId, accountType } = req.body;
+    const user = req.user as JwtPayload;
+    const userId = user.id;
+    const { accountType } = req.body;
 
     if (!userId || !accountType) {
       throw new ApiError(
@@ -44,7 +47,8 @@ export const createStripeAccountController = catchAsync(
 // Get onboarding link for freelancer
 export const getOnboardingLinkController = catchAsync(
   async (req: Request, res: Response) => {
-    const { userId } = req.params;
+    const user = req.user as JwtPayload;
+    const userId = user.id;
 
     if (!userId) {
       throw new ApiError(httpStatus.BAD_REQUEST, 'User ID is required');
@@ -66,7 +70,8 @@ export const getOnboardingLinkController = catchAsync(
 // Check onboarding status
 export const checkOnboardingStatusController = catchAsync(
   async (req: Request, res: Response) => {
-    const { userId } = req.params;
+    const user = req.user as JwtPayload;
+    const userId = user.id;
 
     if (!userId) {
       throw new ApiError(httpStatus.BAD_REQUEST, 'User ID is required');
@@ -86,22 +91,31 @@ export const checkOnboardingStatusController = catchAsync(
 // Create escrow payment
 export const createEscrowPaymentController = catchAsync(
   async (req: Request, res: Response) => {
-    const {
-      taskId,
-      bidId,
-      clientId,
-      freelancerId,
-      amount,
-      description,
-      metadata,
-    } = req.body;
+    const { taskId, bidId, freelancerId, amount, description, metadata } =
+      req.body;
+
+    const user = req.user as JwtPayload;
+    const userId = user.id;
 
     // Validate required fields
-    if (!taskId || !bidId || !clientId || !freelancerId || !amount) {
-      throw new ApiError(
-        httpStatus.BAD_REQUEST,
-        'Task ID, Bid ID, Client ID, Freelancer ID, and amount are required'
-      );
+    if (!taskId) {
+      throw new ApiError(httpStatus.BAD_REQUEST, 'Task ID is required');
+    }
+
+    if (!bidId) {
+      throw new ApiError(httpStatus.BAD_REQUEST, 'Bid ID is required');
+    }
+
+    if (!userId) {
+      throw new ApiError(httpStatus.BAD_REQUEST, 'User ID is required');
+    }
+
+    if (!freelancerId) {
+      throw new ApiError(httpStatus.BAD_REQUEST, 'Freelancer ID is required');
+    }
+
+    if (!amount) {
+      throw new ApiError(httpStatus.BAD_REQUEST, 'Amount is required');
     }
 
     if (amount <= 0) {
@@ -114,7 +128,7 @@ export const createEscrowPaymentController = catchAsync(
     const result = await createEscrowPayment({
       taskId,
       bidId,
-      posterId: clientId,
+      posterId: userId,
       freelancerId,
       amount,
       description,
@@ -134,7 +148,9 @@ export const createEscrowPaymentController = catchAsync(
 export const releasePaymentController = catchAsync(
   async (req: Request, res: Response) => {
     const { paymentId } = req.params;
-    const { clientId } = req.body;
+    // const { clientId } = req.body;
+    const user = req.user as JwtPayload;
+    const clientId = user.id;
 
     if (!paymentId) {
       throw new ApiError(httpStatus.BAD_REQUEST, 'Payment ID is required');
@@ -316,6 +332,21 @@ export const handleStripeWebhookController = catchAsync(
   }
 );
 
+const deleteStripeAccountController = catchAsync(async (req, res) => {
+  const { accountId } = req.params;
+
+  const deletedAccount = await PaymentService.deleteStripeAccountService(
+    accountId
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Stripe account deleted successfully',
+    data: deletedAccount,
+  });
+});
+
 // Export all functions as default object for backward compatibility
 const PaymentController = {
   createStripeAccountController,
@@ -328,6 +359,7 @@ const PaymentController = {
   getPaymentsController,
   getPaymentStatsController,
   handleStripeWebhookController,
+  deleteStripeAccountController,
 };
 
 export default PaymentController;

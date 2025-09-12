@@ -1,4 +1,5 @@
 import { StatusCodes } from 'http-status-codes';
+import mongoose from 'mongoose';
 import ApiError from '../../../errors/ApiError';
 import QueryBuilder from '../../builder/QueryBuilder';
 import { Category } from '../category/category.model';
@@ -7,8 +8,21 @@ import { Task } from './task.interface';
 import { TaskModel } from './task.model';
 import unlinkFile from '../../../shared/unlinkFile';
 import { BidService } from '../bid/bid.service';
-import { PaymentService } from '../payment/payment.service';
 import { sendNotifications } from '../../../helpers/notificationsHelper';
+import PaymentService from '../payment/payment.service';
+import { RELEASE_TYPE } from '../payment/payment.interface';
+
+// const createTask = async (task: Task) => {
+//   // Validate category
+//   const category = await Category.findById(task.taskCategory);
+//   if (!category) {
+//     throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid category ID');
+//   }
+
+//   const result = await TaskModel.create(task);
+//   return result;
+// };
+
 
 const createTask = async (task: Task) => {
   // Validate category
@@ -16,10 +30,14 @@ const createTask = async (task: Task) => {
   if (!category) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid category ID');
   }
-
+ 
   const result = await TaskModel.create(task);
   return result;
 };
+
+
+
+
 const getAllTasks = async (query: Record<string, unknown>) => {
   // Build query with QueryBuilder for search, filter, pagination
   const taskQuery = new QueryBuilder(TaskModel.find(), query)
@@ -276,11 +294,17 @@ const completeTask = async (taskId: string, clientId: string) => {
   }
 
   try {
+    // Find the payment record first
+    const payment = await PaymentService.getPaymentById(task.paymentIntentId);
+    if (!payment) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Payment record not found');
+    }
+
     // Release payment to freelancer
-    const paymentRelease = await PaymentService.releasePayment({
-      paymentIntentId: task.paymentIntentId,
-      clientId: clientId,
-      reason: 'Task completed and approved by client'
+    const paymentRelease = await PaymentService.releaseEscrowPayment({
+      paymentId: payment._id!,
+      releaseType: RELEASE_TYPE.COMPLETE,
+      clientId: new mongoose.Types.ObjectId(clientId)
     });
 
     // Update task status to completed
@@ -302,7 +326,8 @@ const completeTask = async (taskId: string, clientId: string) => {
 
     return { task, paymentRelease };
   } catch (error) {
-    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, `Failed to complete task and release payment: ${error}`);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, `Failed to complete task and release payment: ${errorMessage}`);
   }
 };
 
