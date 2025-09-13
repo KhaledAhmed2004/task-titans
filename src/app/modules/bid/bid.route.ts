@@ -3,6 +3,8 @@ import validateRequest from '../../middlewares/validateRequest';
 
 import { BidController } from './bid.controller';
 import { BidValidation } from './bid.validaction';
+import auth from '../../middlewares/auth';
+import { USER_ROLES } from '../../../enums/user';
 
 const router = Router();
 
@@ -10,6 +12,7 @@ const router = Router();
 router.post(
   '/',
   validateRequest(BidValidation.createBidZodSchema),
+  auth(USER_ROLES.TASKER),
   BidController.createBid
 );
 
