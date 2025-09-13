@@ -28,7 +28,7 @@ const TaskSchema = new mongoose.Schema<Task>(
     status: {
       type: String,
       enum: Object.values(TaskStatus),
-      required: true,
+      default: TaskStatus.OPEN,
     },
     userId: {
       type: String,

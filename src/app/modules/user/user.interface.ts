@@ -13,7 +13,7 @@ export type IUser = {
   image?: string;
   status: USER_STATUS;
   verified: boolean;
-  deviceTokens?: string[]; // 🔹 store multiple device tokens
+  deviceTokens?: string[];
   authentication?: {
     isResetPassword: boolean;
     oneTimeCode: number;

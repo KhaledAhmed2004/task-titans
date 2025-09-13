@@ -78,7 +78,6 @@ const updateProfileToDB = async (
 };
 
 const getAllUsers = async (query: Record<string, unknown>) => {
-  // ✅ Query builder for search, filter, pagination
   const userQuery = new QueryBuilder(User.find(), query)
     .search(['name', 'email'])
     .filter()

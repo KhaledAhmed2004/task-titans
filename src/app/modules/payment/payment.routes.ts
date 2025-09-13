@@ -17,14 +17,13 @@ router.get('/webhook/health', WebhookController.webhookHealthCheck);
 // Stripe Connect account management
 router.post(
   '/stripe/account',
-  auth(USER_ROLES.TASKER, USER_ROLES.POSTER),
+  auth(USER_ROLES.TASKER),
   PaymentController.createStripeAccountController
 );
 
 router.get(
   '/stripe/onboarding',
   auth(USER_ROLES.TASKER, USER_ROLES.SUPER_ADMIN),
-  // auth(USER_ROLES.TASKER,USER_ROLES.POSTER, USER_ROLES.SUPER_ADMIN),
   PaymentController.getOnboardingLinkController
 );
 
@@ -70,6 +69,12 @@ router.get(
   '/stats/overview',
   auth(USER_ROLES.SUPER_ADMIN),
   PaymentController.getPaymentStatsController
+);
+
+router.post(
+  '/test/confirm-payment',
+  auth(USER_ROLES.POSTER, USER_ROLES.TASKER, USER_ROLES.SUPER_ADMIN),
+  PaymentController.testConfirmPaymentController
 );
 
 router.delete(

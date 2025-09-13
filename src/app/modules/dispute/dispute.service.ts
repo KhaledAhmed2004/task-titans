@@ -1,3 +1,4 @@
+
 // import { Types } from 'mongoose';
 // import { NotificationService } from '../notification/notification.service';
 // import {
@@ -5,6 +6,8 @@
 //   IDisputeCreate,
 //   DisputeStatus,
 //   DisputeResolution,
+//   DisputeStatusType,
+//   DisputeResolutionType,
 // } from './dispute.interface';
 // import { TaskModel } from '../task/task.model';
 // import { DisputeModel } from './dispute.model';
@@ -70,7 +73,7 @@
 // // Get disputes by user
 // const getUserDisputes = async (
 //   userId: string,
-//   status?: DisputeStatus
+//   status?: DisputeStatusType
 // ): Promise<IDispute[]> => {
 //   try {
 //     const query: any = {
@@ -141,7 +144,7 @@
 // // Update dispute status (Admin only)
 // const updateDisputeStatus = async (
 //   disputeId: string,
-//   status: DisputeStatus,
+//   status: DisputeStatusType,
 //   adminId: string
 // ): Promise<IDispute> => {
 //   try {
@@ -169,7 +172,7 @@
 // // Resolve dispute (Admin only)
 // const resolveDispute = async (
 //   disputeId: string,
-//   resolution: DisputeResolution,
+//   resolution: DisputeResolutionType,
 //   adminId: string,
 //   adminNotes?: string,
 //   refundPercentage?: number

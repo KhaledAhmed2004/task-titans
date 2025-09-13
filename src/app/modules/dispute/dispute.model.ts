@@ -1,5 +1,11 @@
 // import { Schema, model, Types } from 'mongoose';
-// import { IDispute, IDisputeEvidence, DisputeStatus, DisputeType, DisputeResolution, DisputePriority } from './dispute.interface';
+// import {
+//   IDispute,
+//   DisputeStatus,
+//   DisputeType,
+//   DisputeResolution,
+//   DisputePriority,
+// } from './dispute.interface';
 
 // const DisputeEvidenceSchema = new Schema<IDisputeEvidence>(
 //   {
@@ -120,11 +126,11 @@
 //       type: [DisputeEvidenceSchema],
 //       default: [],
 //       validate: {
-//         validator: function(evidence: IDisputeEvidence[]) {
+//         validator: function (evidence: IDisputeEvidence[]) {
 //           return evidence.length <= 20; // Max 20 pieces of evidence
 //         },
-//         message: 'Maximum 20 pieces of evidence allowed per dispute'
-//       }
+//         message: 'Maximum 20 pieces of evidence allowed per dispute',
+//       },
 //     },
 //     resolution: {
 //       type: String,
@@ -175,7 +181,7 @@
 // DisputeSchema.index({ status: 1, priority: 1, createdAt: -1 });
 
 // // Static methods
-// DisputeSchema.statics.findByTaskId = function(taskId: string) {
+// DisputeSchema.statics.findByTaskId = function (taskId: string) {
 //   return this.findOne({ taskId: new Types.ObjectId(taskId) })
 //     .populate('posterId', 'firstName lastName email')
 //     .populate('freelancerId', 'firstName lastName email')
@@ -185,10 +191,18 @@
 //     .populate('resolvedBy', 'firstName lastName email');
 // };
 
-// DisputeSchema.statics.findByUser = function(userId: string, role: 'poster' | 'freelancer', page: number = 1, limit: number = 10) {
+// DisputeSchema.statics.findByUser = function (
+//   userId: string,
+//   role: 'poster' | 'freelancer',
+//   page: number = 1,
+//   limit: number = 10
+// ) {
 //   const skip = (page - 1) * limit;
-//   const query = role === 'poster' ? { posterId: new Types.ObjectId(userId) } : { freelancerId: new Types.ObjectId(userId) };
-  
+//   const query =
+//     role === 'poster'
+//       ? { posterId: new Types.ObjectId(userId) }
+//       : { freelancerId: new Types.ObjectId(userId) };
+
 //   return this.find(query)
 //     .populate('posterId', 'firstName lastName email')
 //     .populate('freelancerId', 'firstName lastName email')
@@ -201,11 +215,14 @@
 //     .limit(limit);
 // };
 
-// DisputeSchema.statics.findPendingDisputes = function(page: number = 1, limit: number = 10) {
+// DisputeSchema.statics.findPendingDisputes = function (
+//   page: number = 1,
+//   limit: number = 10
+// ) {
 //   const skip = (page - 1) * limit;
-  
-//   return this.find({ 
-//     status: { $in: [DisputeStatus.OPEN, DisputeStatus.UNDER_REVIEW] }
+
+//   return this.find({
+//     status: { $in: [DisputeStatus.OPEN, DisputeStatus.UNDER_REVIEW] },
 //   })
 //     .populate('posterId', 'firstName lastName email')
 //     .populate('freelancerId', 'firstName lastName email')
@@ -217,12 +234,16 @@
 //     .limit(limit);
 // };
 
-// DisputeSchema.statics.findByPriority = function(priority: string, page: number = 1, limit: number = 10) {
+// DisputeSchema.statics.findByPriority = function (
+//   priority: string,
+//   page: number = 1,
+//   limit: number = 10
+// ) {
 //   const skip = (page - 1) * limit;
-  
-//   return this.find({ 
+
+//   return this.find({
 //     priority,
-//     status: { $in: [DisputeStatus.OPEN, DisputeStatus.UNDER_REVIEW] }
+//     status: { $in: [DisputeStatus.OPEN, DisputeStatus.UNDER_REVIEW] },
 //   })
 //     .populate('posterId', 'firstName lastName email')
 //     .populate('freelancerId', 'firstName lastName email')
@@ -234,22 +255,28 @@
 //     .limit(limit);
 // };
 
-// DisputeSchema.statics.updateStatus = function(disputeId: string, status: string, updateData: any = {}) {
+// DisputeSchema.statics.updateStatus = function (
+//   disputeId: string,
+//   status: string,
+//   updateData: any = {}
+// ) {
 //   const update = { status, ...updateData };
-  
+
 //   // Set appropriate timestamp based on status
 //   if (status === DisputeStatus.RESOLVED || status === DisputeStatus.CLOSED) {
 //     update.resolvedAt = new Date();
 //   }
-  
-//   return this.findByIdAndUpdate(
-//     new Types.ObjectId(disputeId),
-//     update,
-//     { new: true, runValidators: true }
-//   );
+
+//   return this.findByIdAndUpdate(new Types.ObjectId(disputeId), update, {
+//     new: true,
+//     runValidators: true,
+//   });
 // };
 
-// DisputeSchema.statics.addEvidence = function(disputeId: string, evidence: Omit<IDisputeEvidence, '_id'>) {
+// DisputeSchema.statics.addEvidence = function (
+//   disputeId: string,
+//   evidence: Omit<IDisputeEvidence, '_id'>
+// ) {
 //   return this.findByIdAndUpdate(
 //     new Types.ObjectId(disputeId),
 //     { $push: { evidence } },
@@ -257,7 +284,7 @@
 //   );
 // };
 
-// DisputeSchema.statics.getDisputeStats = function(filters: any = {}) {
+// DisputeSchema.statics.getDisputeStats = function (filters: any = {}) {
 //   const pipeline = [
 //     { $match: filters },
 //     {
@@ -267,20 +294,20 @@
 //         byStatus: {
 //           $push: {
 //             status: '$status',
-//             count: 1
-//           }
+//             count: 1,
+//           },
 //         },
 //         byType: {
 //           $push: {
 //             type: '$type',
-//             count: 1
-//           }
+//             count: 1,
+//           },
 //         },
 //         byPriority: {
 //           $push: {
 //             priority: '$priority',
-//             count: 1
-//           }
+//             count: 1,
+//           },
 //         },
 //         avgResolutionTime: {
 //           $avg: {
@@ -289,23 +316,23 @@
 //               then: {
 //                 $divide: [
 //                   { $subtract: ['$resolvedAt', '$createdAt'] },
-//                   1000 * 60 * 60 // Convert to hours
-//                 ]
+//                   1000 * 60 * 60, // Convert to hours
+//                 ],
 //               },
-//               else: null
-//             }
-//           }
+//               else: null,
+//             },
+//           },
 //         },
 //         resolvedCount: {
 //           $sum: {
 //             $cond: {
 //               if: { $eq: ['$status', DisputeStatus.RESOLVED] },
 //               then: 1,
-//               else: 0
-//             }
-//           }
-//         }
-//       }
+//               else: 0,
+//             },
+//           },
+//         },
+//       },
 //     },
 //     {
 //       $project: {
@@ -321,15 +348,15 @@
 //                   in: {
 //                     $concatArrays: [
 //                       '$$value',
-//                       [{ k: '$$this.status', v: '$$this.count' }]
-//                     ]
-//                   }
-//                 }
+//                       [{ k: '$$this.status', v: '$$this.count' }],
+//                     ],
+//                   },
+//                 },
 //               },
 //               as: 'item',
-//               in: { k: '$$item.k', v: '$$item.v' }
-//             }
-//           }
+//               in: { k: '$$item.k', v: '$$item.v' },
+//             },
+//           },
 //         },
 //         byType: {
 //           $arrayToObject: {
@@ -341,15 +368,15 @@
 //                   in: {
 //                     $concatArrays: [
 //                       '$$value',
-//                       [{ k: '$$this.type', v: '$$this.count' }]
-//                     ]
-//                   }
-//                 }
+//                       [{ k: '$$this.type', v: '$$this.count' }],
+//                     ],
+//                   },
+//                 },
 //               },
 //               as: 'item',
-//               in: { k: '$$item.k', v: '$$item.v' }
-//             }
-//           }
+//               in: { k: '$$item.k', v: '$$item.v' },
+//             },
+//           },
 //         },
 //         byPriority: {
 //           $arrayToObject: {
@@ -361,33 +388,35 @@
 //                   in: {
 //                     $concatArrays: [
 //                       '$$value',
-//                       [{ k: '$$this.priority', v: '$$this.count' }]
-//                     ]
-//                   }
-//                 }
+//                       [{ k: '$$this.priority', v: '$$this.count' }],
+//                     ],
+//                   },
+//                 },
 //               },
 //               as: 'item',
-//               in: { k: '$$item.k', v: '$$item.v' }
-//             }
-//           }
+//               in: { k: '$$item.k', v: '$$item.v' },
+//             },
+//           },
 //         },
 //         avgResolutionTime: { $ifNull: ['$avgResolutionTime', 0] },
 //         resolutionRate: {
 //           $cond: {
 //             if: { $gt: ['$total', 0] },
-//             then: { $multiply: [{ $divide: ['$resolvedCount', '$total'] }, 100] },
-//             else: 0
-//           }
-//         }
-//       }
-//     }
+//             then: {
+//               $multiply: [{ $divide: ['$resolvedCount', '$total'] }, 100],
+//             },
+//             else: 0,
+//           },
+//         },
+//       },
+//     },
 //   ];
-  
+
 //   return this.aggregate(pipeline);
 // };
 
 // // Pre-save middleware
-// DisputeSchema.pre('save', function(next) {
+// DisputeSchema.pre('save', function (next) {
 //   if (this.isNew) {
 //     // Auto-escalate priority based on dispute type
 //     if (this.type === DisputeType.PAYMENT_ISSUE) {
@@ -400,30 +429,33 @@
 // });
 
 // // Virtual for checking if dispute is overdue
-// DisputeSchema.virtual('isOverdue').get(function() {
-//   if (this.status === DisputeStatus.RESOLVED || this.status === DisputeStatus.CLOSED) {
+// DisputeSchema.virtual('isOverdue').get(function () {
+//   if (
+//     this.status === DisputeStatus.RESOLVED ||
+//     this.status === DisputeStatus.CLOSED
+//   ) {
 //     return false;
 //   }
-  
+
 //   const daysSinceCreation = Math.floor(
 //     (Date.now() - this.createdAt.getTime()) / (1000 * 60 * 60 * 24)
 //   );
-  
+
 //   // Different SLA based on priority
 //   const slaHours = {
 //     [DisputePriority.URGENT]: 24, // 1 day
-//     [DisputePriority.HIGH]: 72,   // 3 days
+//     [DisputePriority.HIGH]: 72, // 3 days
 //     [DisputePriority.MEDIUM]: 168, // 7 days
-//     [DisputePriority.LOW]: 336,   // 14 days
+//     [DisputePriority.LOW]: 336, // 14 days
 //   };
-  
+
 //   return daysSinceCreation * 24 > slaHours[this.priority];
 // });
 
 // // Virtual for resolution time in hours
-// DisputeSchema.virtual('resolutionTimeHours').get(function() {
+// DisputeSchema.virtual('resolutionTimeHours').get(function () {
 //   if (!this.resolvedAt || !this.createdAt) return null;
-  
+
 //   return Math.floor(
 //     (this.resolvedAt.getTime() - this.createdAt.getTime()) / (1000 * 60 * 60)
 //   );

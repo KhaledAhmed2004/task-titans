@@ -24,6 +24,7 @@ import {
   calculateFreelancerAmount,
   handleStripeError,
 } from '../../../config/stripe';
+import parsePhoneNumberFromString from 'libphonenumber-js';
 
 // Create Stripe Connect account for freelancers
 export const createStripeAccount = async (
@@ -31,7 +32,9 @@ export const createStripeAccount = async (
 ): Promise<any> => {
   try {
     // Get user details
-    const user = await User.findById(data.userId).select('name email');
+    const user = await User.findById(data.userId).select(
+      'name email phone dateOfBirth location'
+    );
 
     if (!user) {
       throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
@@ -48,6 +51,27 @@ export const createStripeAccount = async (
       );
     }
 
+    // Prepare DOB if exists
+    let dob;
+    if (user.dateOfBirth) {
+      const parts = user.dateOfBirth.split('-'); // format: YYYY-MM-DD
+      dob = {
+        year: Number(parts[0]),
+        month: Number(parts[1]),
+        day: Number(parts[2]),
+      };
+    }
+
+    // // Format phone number if exists
+    // let formattedPhone = user.phone;
+    // if (formattedPhone) {
+    //   const phoneNumber = parsePhoneNumberFromString(formattedPhone, 'US');
+    //   if (phoneNumber && phoneNumber.isValid()) {
+    //     formattedPhone = phoneNumber.formatInternational();
+    //   } else {
+    //     throw new Error('Invalid phone number format');
+    //   }
+    // }
     // Create Stripe Express account
     const account = await stripe.accounts.create({
       type: 'express',
@@ -58,6 +82,17 @@ export const createStripeAccount = async (
         transfers: { requested: true },
       },
       business_type: 'individual',
+      individual: {
+        first_name: user.name.split(' ')[0],
+        last_name: user.name.split(' ')[1] || '',
+        email: user.email,
+        // phone: user.phone || undefined,
+        dob,
+        address: {
+          city: user.location || undefined,
+          country: 'US',
+        },
+      },
       metadata: {
         user_id: data.userId.toString(),
         account_type: data.accountType,
@@ -192,12 +227,12 @@ export const createEscrowPayment = async (
     }
 
     const task = bid.taskId as any;
-    if (task.userId !== data.posterId) {
-      throw new ApiError(
-        httpStatus.FORBIDDEN,
-        'You are not authorized to accept this bid'
-      );
-    }
+    // if (task.userId !== data.posterId) {
+    //   throw new ApiError(
+    //     httpStatus.FORBIDDEN,
+    //     'You are not authorized to accept this bid'
+    //   );
+    // }
 
     // Check freelancer's Stripe account
     if (!bid.taskerId) {

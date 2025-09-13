@@ -191,6 +191,7 @@ import { TaskModel } from '../task/task.model';
 import { TaskStatus } from '../task/task.interface';
 import { sendNotifications } from '../../../helpers/notificationsHelper';
 import PaymentService from '../payment/payment.service';
+import mongoose from 'mongoose';
 
 const createBid = async (bid: Bid, taskerId: string) => {
   // 1️⃣ Find the task
@@ -289,16 +290,19 @@ const acceptBid = async (bidId: string, clientId: string) => {
 
   const task = await TaskModel.findById(bid.taskId);
   if (!task) throw new Error('Task not found');
-  if (task.userId.toString() !== clientId) throw new Error('Not authorized');
+  // if (task.userId.toString() !== clientId) throw new Error('Not authorized');
 
   try {
     // Create escrow payment for the accepted bid
-    const payment = await PaymentService.createEscrowPayment(
-      task._id.toString(),
-      clientId,
-      bid.taskerId?.toString() ?? '',
-      bid.amount
-    );
+    const paymentData = {
+      taskId: new mongoose.Types.ObjectId(task._id),
+      posterId: new mongoose.Types.ObjectId(clientId),
+      freelancerId: bid.taskerId!,
+      bidId: new mongoose.Types.ObjectId(bid._id),
+      amount: bid.amount,
+    };
+    
+    const paymentResult = await PaymentService.createEscrowPayment(paymentData);
 
     // Accept selected bid
     bid.status = BidStatus.ACCEPTED;
@@ -307,7 +311,7 @@ const acceptBid = async (bidId: string, clientId: string) => {
     // Update task with payment info and assign to freelancer
     task.status = TaskStatus.IN_PROGRESS; // Use new status instead of ASSIGNED
     task.assignedTo = bid.taskerId?.toString() ?? '';
-    task.paymentIntentId = payment.paymentIntentId;
+    task.paymentIntentId = paymentResult.payment.stripePaymentIntentId;
     await task.save();
 
     // Reject other bids
@@ -316,21 +320,22 @@ const acceptBid = async (bidId: string, clientId: string) => {
       { $set: { status: BidStatus.REJECTED } }
     );
 
-    // Send notifications
-    const acceptedNotification = {
-      text: `Congratulations! Your bid for "${task.title}" has been accepted. Payment is now in escrow.`,
-      title: 'Bid Accepted',
-      receiver: bid.taskerId?.toString() ?? '',
-      type: 'BID_ACCEPTED',
-      referenceId: bid._id,
-      read: false,
-    };
+    // // Send notifications
+    // const acceptedNotification = {
+    //   text: `Congratulations! Your bid for "${task.title}" has been accepted. Payment is now in escrow.`,
+    //   title: 'Bid Accepted',
+    //   receiver: bid.taskerId?.toString() ?? '',
+    //   type: 'BID_ACCEPTED',
+    //   referenceId: bid._id,
+    //   read: false,
+    // };
 
-    await sendNotifications(acceptedNotification);
+    // await sendNotifications(acceptedNotification);
 
-    return { bid, task, payment };
+    return { bid, task, payment: paymentResult };
   } catch (error) {
-    throw new Error(`Failed to accept bid: ${error.message}`);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    throw new Error(`Failed to accept bid: ${errorMessage}`);
   }
 };
 

@@ -50,7 +50,7 @@
 //   });
 // });
 
-// // Get disputes by user
+// // Get user's disputes
 // const getUserDisputes = catchAsync(async (req: Request, res: Response) => {
 //   const user = req.user as JwtPayload;
 //   const userId = user.id;
@@ -73,48 +73,6 @@
 //     success: true,
 //     statusCode: 200,
 //     data: disputes,
-//   });
-// });
-
-// // Get disputes by task
-// const getTaskDisputes = catchAsync(async (req: Request, res: Response) => {
-//   const { taskId } = req.params;
-//   const disputes = await DisputeService.getDisputesByTask(taskId);
-
-//   sendResponse(res, {
-//     success: true,
-//     statusCode: 200,
-//     data: disputes,
-//   });
-// });
-
-// // Add evidence to dispute
-// const addEvidence = catchAsync(async (req: Request, res: Response) => {
-//   const { disputeId } = req.params;
-//   const user = req.user as JwtPayload;
-//   const userId = user.id;
-
-//   if (!userId) {
-//     return sendResponse(res, {
-//       success: false,
-//       statusCode: 401,
-//       message: 'Authentication required',
-//     });
-//   }
-
-//   const evidence = {
-//     type: req.body.type,
-//     description: req.body.description,
-//     attachments: req.body.attachments || [],
-//   };
-
-//   const dispute = await DisputeService.addEvidence(disputeId, userId, evidence);
-
-//   sendResponse(res, {
-//     success: true,
-//     statusCode: 200,
-//     message: 'Evidence added successfully',
-//     data: dispute,
 //   });
 // });
 
@@ -202,8 +160,6 @@
 //   createDispute,
 //   getDisputeById,
 //   getUserDisputes,
-//   getTaskDisputes,
-//   addEvidence,
 //   updateDisputeStatus,
 //   resolveDispute,
 //   getDisputeStats,

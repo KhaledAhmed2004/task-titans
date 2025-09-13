@@ -3646,6 +3646,11 @@ libnpmversion@^7.0.0:
     proc-log "^5.0.0"
     semver "^7.3.7"
 
+libphonenumber-js@^1.12.17:
+  version "1.12.17"
+  resolved "https://registry.npmjs.org/libphonenumber-js/-/libphonenumber-js-1.12.17.tgz"
+  integrity sha512-bsxi8FoceAYR/bjHcLYc2ShJ/aVAzo5jaxAYiMHF0BD+NTp47405CGuPNKYpw+lHadN9k/ClFGc9X5vaZswIrA==
+
 limiter@^1.1.5:
   version "1.1.5"
   resolved "https://registry.npmjs.org/limiter/-/limiter-1.1.5.tgz"

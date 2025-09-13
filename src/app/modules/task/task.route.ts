@@ -12,7 +12,7 @@ const router = Router();
 router.post(
   '/',
   auth(USER_ROLES.POSTER),
-  fileUploadHandler(), // handle taskImage upload
+  fileUploadHandler(),
   (req: Request, res: Response, next: NextFunction) => {
     if (req.body.data) {
       // Parse JSON from form-data
@@ -86,26 +86,12 @@ router.patch(
   TaskController.completeTask
 );
 
-// Cancel task
-router.patch(
-  '/:taskId/cancel',
-  auth(USER_ROLES.POSTER),
-  TaskController.cancelTask
-);
-
-// Get task with delivery information
-router.get(
-  '/:taskId/delivery',
-  auth(USER_ROLES.POSTER, USER_ROLES.TASKER),
-  TaskController.getTaskWithDelivery
-);
-
-// Get enhanced task statistics
-router.get(
-  '/stats/enhanced',
-  auth(USER_ROLES.POSTER, USER_ROLES.TASKER),
-  TaskController.getEnhancedTaskStats
-);
+// // Cancel task
+// router.patch(
+//   '/:taskId/cancel',
+//   auth(USER_ROLES.POSTER),
+//   TaskController.cancelTask
+// );
 
 // Submit delivery for a task (by Tasker)
 router.post(

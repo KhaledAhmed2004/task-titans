@@ -96,24 +96,6 @@ const unblockUser = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// const getUserById = catchAsync(async (req: Request, res: Response) => {
-//   const { id } = req.params;
-
-//   // Only pagination params are used (limit & page)
-//   const result = await UserService.getUserById(id, req.query);
-
-//   sendResponse(res, {
-//     success: true,
-//     statusCode: StatusCodes.OK,
-//     message: 'User and tasks retrieved successfully',
-//     data: {
-//       user: result.user,
-//       tasks: result.tasks,
-//     },
-//     pagination: result.pagination,
-//   });
-// });
-
 const getUserById = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
 
@@ -127,7 +109,6 @@ const getUserById = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// user.controller.ts
 const getUserDistribution = catchAsync(async (req: Request, res: Response) => {
   const result = await UserService.getUserDistribution();
 
@@ -138,7 +119,6 @@ const getUserDistribution = catchAsync(async (req: Request, res: Response) => {
     data: result,
   });
 });
-
 
 export const UserController = {
   createUser,

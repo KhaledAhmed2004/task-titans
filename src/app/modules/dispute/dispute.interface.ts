@@ -7,7 +7,8 @@ export const DisputeStatus = {
   CLOSED: 'closed',
 } as const;
 
-export type DisputeStatusType = (typeof DisputeStatus)[keyof typeof DisputeStatus];
+export type DisputeStatusType =
+  (typeof DisputeStatus)[keyof typeof DisputeStatus];
 
 export const DisputeType = {
   DELIVERY_REJECTED: 'delivery_rejected',
@@ -28,7 +29,8 @@ export const DisputeResolution = {
   NO_ACTION: 'no_action',
 } as const;
 
-export type DisputeResolutionType = (typeof DisputeResolution)[keyof typeof DisputeResolution];
+export type DisputeResolutionType =
+  (typeof DisputeResolution)[keyof typeof DisputeResolution];
 
 export const DisputePriority = {
   LOW: 'low',
@@ -37,7 +39,8 @@ export const DisputePriority = {
   URGENT: 'urgent',
 } as const;
 
-export type DisputePriorityType = (typeof DisputePriority)[keyof typeof DisputePriority];
+export type DisputePriorityType =
+  (typeof DisputePriority)[keyof typeof DisputePriority];
 
 export interface IDispute {
   _id?: Types.ObjectId;
@@ -45,7 +48,6 @@ export interface IDispute {
   posterId: Types.ObjectId;
   freelancerId: Types.ObjectId;
   bidId: Types.ObjectId;
-  deliveryId?: Types.ObjectId;
   paymentId?: Types.ObjectId;
   type: DisputeTypeType;
   status: DisputeStatusType;
@@ -55,7 +57,6 @@ export interface IDispute {
   posterClaim: string;
   freelancerResponse?: string;
   adminNotes?: string;
-  evidence: IDisputeEvidence[];
   resolution?: DisputeResolutionType;
   resolutionDetails?: string;
   refundAmount?: number;
@@ -67,15 +68,6 @@ export interface IDispute {
   updatedAt?: Date;
 }
 
-export interface IDisputeEvidence {
-  _id?: Types.ObjectId;
-  type: 'file' | 'image' | 'text' | 'link';
-  content: string; // URL for files/images, text content for text, URL for links
-  description?: string;
-  uploadedBy: Types.ObjectId;
-  uploadedAt: Date;
-}
-
 export interface IDisputeCreate {
   taskId: string;
   type: DisputeTypeType;
@@ -83,7 +75,6 @@ export interface IDisputeCreate {
   description: string;
   posterClaim: string;
   deliveryId?: string;
-  evidence?: Omit<IDisputeEvidence, '_id' | 'uploadedBy' | 'uploadedAt'>[];
 }
 
 export interface IDisputeUpdate {
@@ -122,14 +113,6 @@ export interface IDisputeResolutionRequest {
 export interface IDisputeResponse {
   disputeId: string;
   response: string;
-  evidence?: Omit<IDisputeEvidence, '_id' | 'uploadedBy' | 'uploadedAt'>[];
-}
-
-export interface IDisputeEvidenceUpload {
-  disputeId: string;
-  type: 'file' | 'image' | 'text' | 'link';
-  content: string;
-  description?: string;
 }
 
 export interface IDisputeStats {

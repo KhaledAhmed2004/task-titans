@@ -7,10 +7,6 @@ const TaskStatus = {
   COMPLETED: 'completed', // Delivery accepted, payment released
   CANCELLED: 'cancelled', // Task cancelled by poster
   DISPUTED: 'disputed', // In dispute resolution
-  // Legacy statuses (for backward compatibility)
-  ACTIVE: 'active',
-  PROGRESSING: 'progressing',
-  ASSIGNED: 'assigned',
 } as const;
 
 export { TaskStatus };

@@ -52,15 +52,15 @@ const userSchema = new Schema<IUser>(
     },
     status: {
       type: String,
-      enum: Object.values(USER_STATUS), // use enum values
-      default: USER_STATUS.ACTIVE, // default to ACTIVE
+      enum: Object.values(USER_STATUS),
+      default: USER_STATUS.ACTIVE,
     },
     verified: {
       type: Boolean,
       default: false,
     },
     deviceTokens: {
-      type: [String], // 🔹 Array of tokens
+      type: [String],
       default: [],
     },
     authentication: {
@@ -135,7 +135,7 @@ userSchema.statics.removeDeviceToken = async (
 ) => {
   return await User.findByIdAndUpdate(
     userId,
-    { $pull: { deviceTokens: token } }, // remove specific token
+    { $pull: { deviceTokens: token } },
     { new: true }
   );
 };

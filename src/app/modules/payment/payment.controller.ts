@@ -16,6 +16,8 @@ import PaymentService, {
   getPaymentStats,
   handleWebhookEvent,
 } from './payment.service';
+import { stripe } from '../../../config/stripe';
+import { Payment as PaymentModel } from './payment.model';
 import { IPaymentFilters } from './payment.interface';
 import { JwtPayload } from 'jsonwebtoken';
 
@@ -347,7 +349,99 @@ const deleteStripeAccountController = catchAsync(async (req, res) => {
   });
 });
 
-// Export all functions as default object for backward compatibility
+export const testPaymentStatsController = catchAsync(
+  async (req: Request, res: Response) => {
+    try {
+      const stats = await getPaymentStats({});
+      const recentPayments = await getPayments({}, 1, 5);
+
+      sendResponse(res, {
+        success: true,
+        statusCode: httpStatus.OK,
+        message: 'Payment statistics retrieved successfully',
+        data: {
+          statistics: stats,
+          recent_payments: recentPayments.payments,
+          system_info: {
+            total_payments: recentPayments.total,
+            test_timestamp: new Date().toISOString(),
+          },
+        },
+      });
+    } catch (error: any) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        `Failed to retrieve payment stats: ${error.message}`
+      );
+    }
+  }
+);
+
+export const testConfirmPaymentController = catchAsync(
+  async (req: Request, res: Response) => {
+    const { client_secret, payment_method = 'pm_card_visa' } = req.body;
+
+    if (!client_secret) {
+      throw new ApiError(httpStatus.BAD_REQUEST, 'Client secret is required');
+    }
+
+    try {
+      // Extract payment intent ID from client secret
+      const paymentIntentId = client_secret.split('_secret_')[0];
+      
+      // Retrieve the payment intent from Stripe
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      
+      // Check if payment intent requires confirmation
+      let confirmedPaymentIntent;
+      if (paymentIntent.status === 'requires_confirmation') {
+        // Confirm the payment intent with payment method
+        confirmedPaymentIntent = await stripe.paymentIntents.confirm(paymentIntentId, {
+          payment_method: payment_method,
+        });
+      } else if (paymentIntent.status === 'requires_capture') {
+        // Capture the payment (for manual capture)
+        confirmedPaymentIntent = await stripe.paymentIntents.capture(paymentIntentId);
+      } else {
+        confirmedPaymentIntent = paymentIntent;
+      }
+
+      // Update payment status in database
+      const updatedPayment = await PaymentModel.findOneAndUpdate(
+        { stripePaymentIntentId: paymentIntentId },
+        { 
+          status: confirmedPaymentIntent.status === 'succeeded' ? 'completed' : 'pending',
+          updatedAt: new Date()
+        },
+        { new: true }
+      );
+
+      sendResponse(res, {
+        statusCode: httpStatus.OK,
+        success: true,
+        message: 'Payment processed successfully',
+        data: {
+          payment_intent: {
+            id: confirmedPaymentIntent.id,
+            status: confirmedPaymentIntent.status,
+            client_secret: confirmedPaymentIntent.client_secret,
+            amount: confirmedPaymentIntent.amount,
+            currency: confirmedPaymentIntent.currency,
+          },
+          database_payment: updatedPayment,
+          test_info: {
+            payment_method_used: payment_method,
+            processed_at: new Date().toISOString(),
+            stripe_dashboard_note: 'Check your Stripe dashboard for transaction details',
+          },
+        },
+      });
+    } catch (error: any) {
+      throw new ApiError(httpStatus.BAD_REQUEST, `Payment processing failed: ${error.message}`);
+    }
+  }
+);
+
 const PaymentController = {
   createStripeAccountController,
   getOnboardingLinkController,
@@ -360,6 +454,8 @@ const PaymentController = {
   getPaymentStatsController,
   handleStripeWebhookController,
   deleteStripeAccountController,
+  testPaymentStatsController,
+  testConfirmPaymentController,
 };
 
 export default PaymentController;

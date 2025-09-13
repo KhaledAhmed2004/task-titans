@@ -7,15 +7,15 @@ import catchAsync from '../../../shared/catchAsync';
 import { JwtPayload } from 'jsonwebtoken';
 
 const createTask = catchAsync(async (req: Request, res: Response) => {
-  const user = req.user;
+  const user = req.user as JwtPayload;
+  const userId = user.id;
 
-  // Handle task image upload
   const taskImage = getMultipleFilesPath(req.files, 'image');
 
   const task = {
     ...req.body,
     taskImage,
-    userId: (user as { id: string }).id,
+    userId,
   };
 
   const result = await TaskService.createTask(task);
@@ -155,50 +155,21 @@ const completeTask = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-const cancelTask = catchAsync(async (req: Request, res: Response) => {
-  const { taskId } = req.params;
-  const user = req.user as JwtPayload;
-  const userId = user.id;
-  const { reason } = req.body;
+// const cancelTask = catchAsync(async (req: Request, res: Response) => {
+//   const { taskId } = req.params;
+//   const user = req.user as JwtPayload;
+//   const userId = user.id;
+//   const { reason } = req.body;
 
-  const result = await TaskService.cancelTask(taskId, userId, reason);
+//   const result = await TaskService.cancelTask(taskId, userId, reason);
 
-  sendResponse(res, {
-    statusCode: StatusCodes.OK,
-    success: true,
-    message: 'Task cancelled successfully',
-    data: result,
-  });
-});
-
-const getTaskWithDelivery = catchAsync(async (req: Request, res: Response) => {
-  const { taskId } = req.params;
-  const user = req.user as JwtPayload;
-  const userId = user.id;
-
-  const result = await TaskService.getTaskWithDelivery(taskId, userId);
-
-  sendResponse(res, {
-    statusCode: StatusCodes.OK,
-    success: true,
-    message: 'Task with delivery retrieved successfully',
-    data: result,
-  });
-});
-
-const getEnhancedTaskStats = catchAsync(async (req: Request, res: Response) => {
-  const user = req.user as JwtPayload;
-  const userId = user.id;
-
-  const result = await TaskService.getEnhancedTaskStats(userId);
-
-  sendResponse(res, {
-    statusCode: StatusCodes.OK,
-    success: true,
-    message: 'Enhanced task statistics retrieved successfully',
-    data: result,
-  });
-});
+//   sendResponse(res, {
+//     statusCode: StatusCodes.OK,
+//     success: true,
+//     message: 'Task cancelled successfully',
+//     data: result,
+//   });
+// });
 
 // Submit delivery (Tasker)
 const submitDelivery = catchAsync(async (req: Request, res: Response) => {
@@ -227,8 +198,6 @@ export const TaskController = {
   getLastSixMonthsCompletionStats,
   getMyTaskById,
   completeTask,
-  cancelTask,
-  getTaskWithDelivery,
-  getEnhancedTaskStats,
-  submitDelivery
+  // cancelTask,
+  submitDelivery,
 };

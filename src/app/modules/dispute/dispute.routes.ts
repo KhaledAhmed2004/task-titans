@@ -1,10 +1,9 @@
 // import { Router } from 'express';
-// import { DisputeController } from './dispute.controller';
-
 // import auth from '../../middlewares/auth';
 // import { USER_ROLES } from '../../../enums/user';
 // import validateRequest from '../../middlewares/validateRequest';
 // import { DisputeValidation } from './dispute.validation';
+// import { DisputeController } from './dispute.controller';
 
 // const router = Router();
 
@@ -28,21 +27,6 @@
 //   '/user/my-disputes',
 //   auth(USER_ROLES.POSTER, USER_ROLES.TASKER),
 //   DisputeController.getUserDisputes
-// );
-
-// // Get disputes by task
-// router.get(
-//   '/task/:taskId',
-//   auth(USER_ROLES.POSTER, USER_ROLES.TASKER),
-//   DisputeController.getTaskDisputes
-// );
-
-// // Add evidence to dispute
-// router.post(
-//   '/:disputeId/evidence',
-//   auth(USER_ROLES.POSTER, USER_ROLES.TASKER),
-//   validateRequest(DisputeValidation.addEvidenceSchema),
-//   DisputeController.addEvidence
 // );
 
 // // Update dispute status (Admin only)

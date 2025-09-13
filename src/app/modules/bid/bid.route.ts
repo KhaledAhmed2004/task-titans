@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import validateRequest from '../../middlewares/validateRequest';
-
 import { BidController } from './bid.controller';
 import { BidValidation } from './bid.validaction';
 import auth from '../../middlewares/auth';

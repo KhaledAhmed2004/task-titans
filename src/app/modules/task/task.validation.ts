@@ -7,7 +7,6 @@ const createTaskZodSchema = z.object({
   taskImage: z.array(z.string()).optional(),
   taskBudget: z.number({ required_error: 'Task budget is required' }),
   taskLocation: z.string({ required_error: 'Task location is required' }),
-  status: z.string({ required_error: 'Status is required' }),
 });
 
 const updateTaskZodSchema = z.object({
