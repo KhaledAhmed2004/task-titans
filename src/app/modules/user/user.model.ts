@@ -59,6 +59,10 @@ const userSchema = new Schema<IUser>(
       type: Boolean,
       default: false,
     },
+    deviceTokens: {
+      type: [String], // 🔹 Array of tokens
+      default: [],
+    },
     authentication: {
       type: {
         isResetPassword: {
@@ -114,5 +118,26 @@ userSchema.pre('save', async function (next) {
   );
   next();
 });
+
+// ✅ add device token
+userSchema.statics.addDeviceToken = async (userId: string, token: string) => {
+  return await User.findByIdAndUpdate(
+    userId,
+    { $addToSet: { deviceTokens: token } }, // prevent duplicates
+    { new: true }
+  );
+};
+
+// ✅ remove device token
+userSchema.statics.removeDeviceToken = async (
+  userId: string,
+  token: string
+) => {
+  return await User.findByIdAndUpdate(
+    userId,
+    { $pull: { deviceTokens: token } }, // remove specific token
+    { new: true }
+  );
+};
 
 export const User = model<IUser, UserModal>('User', userSchema);

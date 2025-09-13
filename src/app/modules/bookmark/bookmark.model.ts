@@ -1,22 +1,22 @@
 import { Schema, model } from 'mongoose';
 import { IBookmark } from './bookmark.interface';
 
-// Bookmark Schema
+
 const bookmarkSchema = new Schema<IBookmark>(
   {
     user: {
       type: Schema.Types.ObjectId,
-      ref: 'User', // Reference to User model
+      ref: 'User', 
       required: true,
     },
     post: {
       type: Schema.Types.ObjectId,
-      ref: 'JobPost', // Reference to JobPost model
+      ref: 'JobPost',
       required: true,
     },
   },
   {
-    timestamps: true, // Adds createdAt & updatedAt fields automatically
+    timestamps: true, 
     versionKey: false,
   }
 );

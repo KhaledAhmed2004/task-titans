@@ -20,7 +20,7 @@ const getChatFromDB = async (user: any, search: string): Promise<IChat[]> => {
     const chats: any = await Chat.find({ participants: { $in: [user.id] } })
         .populate({
             path: 'participants',
-            select: '_id firstName lastName image',
+            select: '_id name image',
             match: {
             _id: { $ne: user.id }, // Exclude user.id in the populated participants
             ...(search && { name: { $regex: search, $options: 'i' } }), // Apply $regex only if search is valid

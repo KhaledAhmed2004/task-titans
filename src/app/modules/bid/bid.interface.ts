@@ -1,3 +1,5 @@
+import { Types } from 'mongoose';
+
 export const BidStatus = {
   PENDING: 'pending',
   ACCEPTED: 'accepted',
@@ -8,8 +10,9 @@ type BidStatusType = (typeof BidStatus)[keyof typeof BidStatus];
 
 export type Bid = {
   _id: string;
-  taskId: string;
-  userId: string;
+  taskId: Types.ObjectId;
+  // taskerId: string;
+  taskerId?: Types.ObjectId;
   amount: number;
   message?: string;
   status: BidStatusType;

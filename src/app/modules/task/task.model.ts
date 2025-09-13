@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 import { Task, TaskStatus } from './task.interface';
 
 const TaskSchema = new mongoose.Schema<Task>(
@@ -8,17 +8,15 @@ const TaskSchema = new mongoose.Schema<Task>(
       required: true,
     },
     taskCategory: {
-      type: String,
+      type: Schema.Types.ObjectId,
+      ref: 'Category',
       required: true,
     },
     description: {
       type: String,
       required: true,
     },
-    taskImage: {
-      type: String,
-      required: false,
-    },
+    taskImage: { type: [String], default: [] },
     taskBudget: {
       type: Number,
       required: true,
@@ -35,6 +33,14 @@ const TaskSchema = new mongoose.Schema<Task>(
     userId: {
       type: String,
       required: true,
+    },
+    assignedTo: {
+      type: String,
+      required: false,
+    },
+    paymentIntentId: {
+      type: String,
+      required: false,
     },
   },
   {

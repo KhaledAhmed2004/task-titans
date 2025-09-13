@@ -23,6 +23,14 @@ router.get(
   ReportController.getAllReports
 );
 
+// Get reports stats (separate API)
+router.get(
+  '/stats',
+  auth(USER_ROLES.SUPER_ADMIN),
+  ReportController.getReportStats
+);
+
+
 // Get a single report by ID
 router.get(
   '/:reportId',

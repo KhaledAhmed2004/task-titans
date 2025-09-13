@@ -3,7 +3,7 @@ import { IBookmark } from './bookmark.interface';
 import { Types } from 'mongoose';
 
 const create = async (userId: string, postId: string): Promise<IBookmark> => {
-  // Prevent duplicate bookmark (unique index also ensures this)
+  
   const bookmark = await Bookmark.create({
     user: new Types.ObjectId(userId),
     post: new Types.ObjectId(postId),

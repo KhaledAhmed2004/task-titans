@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import catchAsync from '../../../shared/catchAsync';
 import sendResponse from '../../../shared/sendResponse';
@@ -24,18 +24,21 @@ const createReport = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Get all reports with filters, search, sorting & pagination
 // const getAllReports = catchAsync(async (req: Request, res: Response) => {
-//   const { data, pagination } = await ReportService.getAllReports(req.query);
+//   const result = await ReportService.getAllReports(req.query);
 
-//   sendResponse<IReport[]>(res, {
+//   sendResponse(res, {
 //     success: true,
 //     statusCode: StatusCodes.OK,
 //     message: 'Reports retrieved successfully',
-//     pagination,
-//     data,
+//     pagination: result.pagination,
+//     data: result.data, // contains { stats, reports }
 //   });
 // });
+
+// Get a single report by ID
+
+// Get all reports (without stats)
 const getAllReports = catchAsync(async (req: Request, res: Response) => {
   const result = await ReportService.getAllReports(req.query);
 
@@ -44,11 +47,22 @@ const getAllReports = catchAsync(async (req: Request, res: Response) => {
     statusCode: StatusCodes.OK,
     message: 'Reports retrieved successfully',
     pagination: result.pagination,
-    data: result.data, // contains { stats, reports }
+    data: result.reports, // ✅ only reports here
   });
 });
 
-// Get a single report by ID
+// Get report stats (separate API)
+const getReportStats = catchAsync(async (req: Request, res: Response) => {
+  const stats = await ReportService.getReportStats();
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Report stats retrieved successfully',
+    data: stats,
+  });
+});
+
 const getReportById = catchAsync(async (req: Request, res: Response) => {
   const { reportId } = req.params;
   const result = await ReportService.getReportById(reportId);
@@ -143,4 +157,5 @@ export const ReportController = {
   updateReport,
   deleteReport,
   resolveReport,
+  getReportStats,
 };

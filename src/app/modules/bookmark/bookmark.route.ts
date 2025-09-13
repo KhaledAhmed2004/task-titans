@@ -7,19 +7,10 @@ import { BookmarkValidation } from './bookmark.validation';
 
 const router = express.Router();
 
-/**
- * Bookmark routes (Job Posts only, per-user)
- * Base path: /api/v1/bookmarks
- *
- *  - POST   /:postId   → Add bookmark for a job post
- *  - DELETE /:postId   → Remove bookmark for a job post
- *  - GET    /          → List current user's bookmarked job posts
- */
-
 // Add bookmark
 router.post(
   '/:postId',
-  auth(USER_ROLES.USER, USER_ROLES.ADMIN),
+  auth(USER_ROLES.TASKER, USER_ROLES.POSTER),
   validateRequest(BookmarkValidation.byPostIdParam),
   BookmarkController.create
 );
@@ -27,7 +18,7 @@ router.post(
 // Remove bookmark
 router.delete(
   '/:postId',
-  auth(USER_ROLES.USER, USER_ROLES.ADMIN),
+  auth(USER_ROLES.TASKER, USER_ROLES.POSTER),
   validateRequest(BookmarkValidation.byPostIdParam),
   BookmarkController.remove
 );
@@ -35,7 +26,7 @@ router.delete(
 // Get all bookmarks of the current user
 router.get(
   '/',
-  auth(USER_ROLES.USER, USER_ROLES.ADMIN),
+  auth(USER_ROLES.TASKER, USER_ROLES.POSTER),
   validateRequest(BookmarkValidation.listMineQuery),
   BookmarkController.listMine
 );

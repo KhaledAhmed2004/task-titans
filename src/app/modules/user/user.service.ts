@@ -10,6 +10,7 @@ import { IUser } from './user.interface';
 import { User } from './user.model';
 import QueryBuilder from '../../builder/QueryBuilder';
 import { TaskModel } from '../task/task.model';
+import { BidModel } from '../bid/bid.model';
 
 const createUserToDB = async (payload: Partial<IUser>): Promise<IUser> => {
   const createUser = await User.create(payload);
@@ -76,149 +77,6 @@ const updateProfileToDB = async (
   return updateDoc;
 };
 
-// const getAllUsers = async (query: Record<string, unknown>) => {
-//   // ✅ Query builder for search, filter, pagination
-//   const userQuery = new QueryBuilder(User.find(), query)
-//     .search(['name', 'email'])
-//     .filter()
-//     .sort()
-//     .paginate()
-//     .fields();
-
-//   const users = await userQuery.modelQuery;
-//   const paginationInfo = await userQuery.getPaginationInfo();
-
-//   // ✅ Count stats
-//   const totalUsers = await User.countDocuments();
-//   const totalTaskers = await User.countDocuments({ role: USER_ROLES.TASKER });
-//   const totalPosters = await User.countDocuments({ role: USER_ROLES.POSTER });
-
-//   // ✅ Monthly growth calculation
-//   const now = new Date();
-//   const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-//   const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-//   const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
-
-//   const thisMonthCount = await User.countDocuments({
-//     createdAt: { $gte: startOfThisMonth },
-//   });
-
-//   const lastMonthCount = await User.countDocuments({
-//     createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth },
-//   });
-
-//   let monthlyGrowth = 0;
-//   let growthType: 'increase' | 'decrease' | 'no_change' = 'no_change';
-
-//   if (lastMonthCount > 0) {
-//     monthlyGrowth = ((thisMonthCount - lastMonthCount) / lastMonthCount) * 100;
-//     growthType =
-//       monthlyGrowth > 0
-//         ? 'increase'
-//         : monthlyGrowth < 0
-//         ? 'decrease'
-//         : 'no_change';
-//   } else if (thisMonthCount > 0 && lastMonthCount === 0) {
-//     monthlyGrowth = 100;
-//     growthType = 'increase';
-//   }
-
-//   return {
-//     pagination: paginationInfo,
-//     data: {
-//       stats: {
-//         totalUsers,
-//         totalTaskers,
-//         totalPosters,
-//         thisMonthCount,
-//         lastMonthCount,
-//         monthlyGrowth: parseFloat(monthlyGrowth.toFixed(2)),
-//         growthType,
-//       },
-//       users,
-//     },
-//   };
-// };
-
-// const getAllUsers = async (query: Record<string, unknown>) => {
-//   // ✅ Query builder for search, filter, pagination
-//   const userQuery = new QueryBuilder(User.find(), query)
-//     .search(['name', 'email'])
-//     .filter()
-//     .sort()
-//     .paginate()
-//     .fields();
-
-//   const users = await userQuery.modelQuery;
-//   const paginationInfo = await userQuery.getPaginationInfo();
-
-//   // ✅ Total counts
-//   const totalUsers = await User.countDocuments();
-//   const totalTaskers = await User.countDocuments({ role: USER_ROLES.TASKER });
-//   const totalPosters = await User.countDocuments({ role: USER_ROLES.POSTER });
-
-//   // ✅ Function to calculate monthly growth for a given filter
-//   const calculateMonthlyGrowth = async (
-//     filter: Record<string, unknown> = {}
-//   ) => {
-//     const now = new Date();
-//     const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-//     const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-//     const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
-
-//     const thisMonthCount = await User.countDocuments({
-//       ...filter,
-//       createdAt: { $gte: startOfThisMonth },
-//     });
-
-//     const lastMonthCount = await User.countDocuments({
-//       ...filter,
-//       createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth },
-//     });
-
-//     let monthlyGrowth = 0;
-//     let growthType: 'increase' | 'decrease' | 'no_change' = 'no_change';
-
-//     if (lastMonthCount > 0) {
-//       monthlyGrowth =
-//         ((thisMonthCount - lastMonthCount) / lastMonthCount) * 100;
-//       growthType =
-//         monthlyGrowth > 0
-//           ? 'increase'
-//           : monthlyGrowth < 0
-//           ? 'decrease'
-//           : 'no_change';
-//     } else if (thisMonthCount > 0 && lastMonthCount === 0) {
-//       monthlyGrowth = 100;
-//       growthType = 'increase';
-//     }
-
-//     return {
-//       thisMonthCount,
-//       lastMonthCount,
-//       monthlyGrowth: parseFloat(monthlyGrowth.toFixed(2)),
-//       growthType,
-//     };
-//   };
-
-//   // ✅ Calculate stats for all users, taskers, and posters
-//   const allUserStats = await calculateMonthlyGrowth();
-//   const taskerStats = await calculateMonthlyGrowth({ role: USER_ROLES.TASKER });
-//   const posterStats = await calculateMonthlyGrowth({ role: USER_ROLES.POSTER });
-
-//   return {
-//     pagination: paginationInfo,
-//     data: {
-//       stats: {
-//         allUsers: { total: totalUsers, ...allUserStats },
-//         taskers: { total: totalTaskers, ...taskerStats },
-//         posters: { total: totalPosters, ...posterStats },
-//       },
-//       users,
-//     },
-//   };
-// };
-
 const getAllUsers = async (query: Record<string, unknown>) => {
   // ✅ Query builder for search, filter, pagination
   const userQuery = new QueryBuilder(User.find(), query)
@@ -231,6 +89,13 @@ const getAllUsers = async (query: Record<string, unknown>) => {
   const users = await userQuery.modelQuery;
   const paginationInfo = await userQuery.getPaginationInfo();
 
+  return {
+    pagination: paginationInfo,
+    data: users,
+  };
+};
+
+const getUserStats = async () => {
   // ✅ Total counts
   const totalUsers = await User.countDocuments();
   const totalTaskers = await User.countDocuments({ role: USER_ROLES.TASKER });
@@ -290,15 +155,9 @@ const getAllUsers = async (query: Record<string, unknown>) => {
   const posterStats = await calculateMonthlyGrowth({ role: USER_ROLES.POSTER });
 
   return {
-    pagination: paginationInfo,
-    data: {
-      stats: {
-        allUsers: { total: totalUsers, ...allUserStats },
-        taskers: { total: totalTaskers, ...taskerStats },
-        posters: { total: totalPosters, ...posterStats },
-      },
-      users,
-    },
+    allUsers: { total: totalUsers, ...allUserStats },
+    taskers: { total: totalTaskers, ...taskerStats },
+    posters: { total: totalPosters, ...posterStats },
   };
 };
 
@@ -348,29 +207,73 @@ const updateUserStatus = async (id: string, status: USER_STATUS) => {
   return updatedUser;
 };
 
-const getUserById = async (id: string, query: Record<string, unknown>) => {
+const getUserById = async (id: string) => {
   // 1️⃣ Find the user
   const user = await User.findById(id).select('-password -authentication');
   if (!user) {
     throw new ApiError(StatusCodes.NOT_FOUND, "User doesn't exist!");
   }
 
-  // 2️⃣ Build paginated tasks query for this user
-  const taskQuery = new QueryBuilder(TaskModel.find({ userId: id }), query)
-    .sort() // sort by createdAt descending by default
-    .paginate() // only pagination
-    .fields(); // select fields (-__v by default)
+  // 2️⃣ If user is a POSTER → return all tasks posted by this user
+  if (user.role === USER_ROLES.POSTER) {
+    const tasks = await TaskModel.find({ userId: id }).sort({ createdAt: -1 });
 
-  const tasks = await taskQuery.modelQuery;
-  const pagination = await taskQuery.getPaginationInfo();
+    return {
+      user,
+      tasks,
+    };
+  }
 
-  // 3️⃣ Return user + tasks + pagination
+  // 3️⃣ If user is a TASKER → return all bids by this tasker
+  if (user.role === USER_ROLES.TASKER) {
+    // Get all bids by this tasker + populate task info
+    const bids = await BidModel.find({ taskerId: id })
+      .populate('taskId', 'title description budget status') // only select some fields from task
+      .sort({ createdAt: -1 });
+
+    // const bidsCount = bids.length;
+
+    return {
+      user,
+      // bidsCount,
+      bids,
+    };
+  }
+
+  // 4️⃣ Other roles → just return user info
+  return { user };
+};
+
+// user.service.ts
+const getUserDistribution = async () => {
+  const totalUsers = await User.countDocuments();
+  const totalTaskers = await User.countDocuments({ role: USER_ROLES.TASKER });
+  const totalPosters = await User.countDocuments({ role: USER_ROLES.POSTER });
+
+  if (totalUsers === 0) {
+    return {
+      totalUsers: 0,
+      taskers: { count: 0, percentage: '0%' },
+      posters: { count: 0, percentage: '0%' },
+    };
+  }
+
+  const taskerPercentage = ((totalTaskers / totalUsers) * 100).toFixed(2) + '%';
+  const posterPercentage = ((totalPosters / totalUsers) * 100).toFixed(2) + '%';
+
   return {
-    user,
-    tasks,
-    pagination,
+    totalUsers,
+    taskers: {
+      count: totalTaskers,
+      percentage: taskerPercentage,
+    },
+    posters: {
+      count: totalPosters,
+      percentage: posterPercentage,
+    },
   };
 };
+
 export const UserService = {
   createUserToDB,
   getUserProfileFromDB,
@@ -379,4 +282,6 @@ export const UserService = {
   resendVerifyEmailToDB,
   updateUserStatus,
   getUserById,
+  getUserStats,
+  getUserDistribution,
 };

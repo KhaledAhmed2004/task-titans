@@ -18,8 +18,6 @@ const createReportSchema = z.object({
     type: z.nativeEnum(REPORT_TYPE, {
       required_error: 'Report type is required',
     }),
-   
-   
   }),
 });
 
