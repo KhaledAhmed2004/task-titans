@@ -1,10 +1,15 @@
 import { Types } from 'mongoose';
 
 const TaskStatus = {
-  COMPLETED: 'completed',
+  OPEN: 'open', // Task created, accepting bids
+  IN_PROGRESS: 'in_progress', // Bid accepted, freelancer working
+  UNDER_REVIEW: 'under_review', // Delivery submitted, awaiting review
+  COMPLETED: 'completed', // Delivery accepted, payment released
+  CANCELLED: 'cancelled', // Task cancelled by poster
+  DISPUTED: 'disputed', // In dispute resolution
+  // Legacy statuses (for backward compatibility)
   ACTIVE: 'active',
   PROGRESSING: 'progressing',
-  CANCELLED: 'cancelled',
   ASSIGNED: 'assigned',
 } as const;
 

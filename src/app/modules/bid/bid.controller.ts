@@ -3,11 +3,13 @@ import { StatusCodes } from 'http-status-codes';
 import sendResponse from '../../../shared/sendResponse';
 import { BidUpdate } from './bid.interface';
 import { BidService } from './bid.service';
+import { JwtPayload } from 'jsonwebtoken';
 
 const createBid = async (req: Request, res: Response) => {
   try {
     const { taskId } = req.params;
-    const taskerId = req?.user?.id;
+    const user = req?.user as JwtPayload;
+    const taskerId = user.id;
     const bidData = req.body;
     bidData.taskId = taskId;
     bidData.taskerId = taskerId;
@@ -92,7 +94,8 @@ const getBidById = async (req: Request, res: Response) => {
 const updateBid = async (req: Request, res: Response) => {
   try {
     const { bidId } = req.params;
-    const taskerId = req?.user?.id;
+    const user = req?.user as JwtPayload;
+    const taskerId = user.id;
     const bidUpdate: BidUpdate = req.body;
 
     const result = await BidService.updateBid(bidId, taskerId, bidUpdate);
@@ -115,7 +118,8 @@ const updateBid = async (req: Request, res: Response) => {
 const deleteBid = async (req: Request, res: Response) => {
   try {
     const { bidId } = req.params;
-    const taskerId = req?.user?.id;
+    const user = req?.user as JwtPayload;
+    const taskerId = user.id;
 
     const result = await BidService.deleteBid(bidId, taskerId);
 
@@ -137,7 +141,8 @@ const deleteBid = async (req: Request, res: Response) => {
 const acceptBid = async (req: Request, res: Response) => {
   try {
     const { bidId } = req.params;
-    const clientId = req?.user?.id;
+    const user = req?.user as JwtPayload;
+    const clientId = user.id;
 
     const result = await BidService.acceptBid(bidId, clientId);
 
@@ -158,7 +163,8 @@ const acceptBid = async (req: Request, res: Response) => {
 
 const getAllTasksByTaskerBids = async (req: Request, res: Response) => {
   try {
-    const taskerId = req?.user?.id;
+    const user = req?.user as JwtPayload;
+    const taskerId = user.id;
     const result = await BidService.getAllTasksByTaskerBids(taskerId);
 
     sendResponse(res, {

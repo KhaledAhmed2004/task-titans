@@ -1,5 +1,4 @@
 import { StatusCodes } from 'http-status-codes';
-import mongoose from 'mongoose';
 import ApiError from '../../../errors/ApiError';
 import QueryBuilder from '../../builder/QueryBuilder';
 import { Category } from '../category/category.model';
@@ -10,19 +9,9 @@ import unlinkFile from '../../../shared/unlinkFile';
 import { BidService } from '../bid/bid.service';
 import { sendNotifications } from '../../../helpers/notificationsHelper';
 import PaymentService from '../payment/payment.service';
-import { RELEASE_TYPE } from '../payment/payment.interface';
-
-// const createTask = async (task: Task) => {
-//   // Validate category
-//   const category = await Category.findById(task.taskCategory);
-//   if (!category) {
-//     throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid category ID');
-//   }
-
-//   const result = await TaskModel.create(task);
-//   return result;
-// };
-
+import { DeliveryService } from '../delivery/delivery.service';
+import { DisputeService } from '../dispute/dispute.service';
+import { DisputeType } from '../dispute/dispute.interface';
 
 const createTask = async (task: Task) => {
   // Validate category
@@ -30,13 +19,10 @@ const createTask = async (task: Task) => {
   if (!category) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid category ID');
   }
- 
+
   const result = await TaskModel.create(task);
   return result;
 };
-
-
-
 
 const getAllTasks = async (query: Record<string, unknown>) => {
   // Build query with QueryBuilder for search, filter, pagination
@@ -264,17 +250,17 @@ const getMyTaskById = async (userId: string, taskId: string) => {
   if (!task) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
   }
-  
+
   // Get all bids for this task with populated tasker information
   const bids = await BidService.getAllBidsByTaskIdWithTasker(taskId);
-  
+
   return {
     ...task.toObject(),
-    bids
+    bids,
   };
 };
 
-// Complete task and release payment
+// Complete task and release payment (called when delivery is accepted)
 const completeTask = async (taskId: string, clientId: string) => {
   const task = await TaskModel.findById(taskId);
   if (!task) {
@@ -282,30 +268,32 @@ const completeTask = async (taskId: string, clientId: string) => {
   }
 
   if (task.userId !== clientId) {
-    throw new ApiError(StatusCodes.FORBIDDEN, 'Only task owner can complete the task');
+    throw new ApiError(
+      StatusCodes.FORBIDDEN,
+      'Only task owner can complete the task'
+    );
   }
 
-  if (task.status !== TaskStatus.PROGRESSING) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'Task must be in progress to complete');
+  if (task.status !== TaskStatus.UNDER_REVIEW) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Task must be under review to complete'
+    );
   }
 
   if (!task.paymentIntentId) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'No payment found for this task');
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'No payment found for this task'
+    );
   }
 
   try {
-    // Find the payment record first
-    const payment = await PaymentService.getPaymentById(task.paymentIntentId);
-    if (!payment) {
-      throw new ApiError(StatusCodes.NOT_FOUND, 'Payment record not found');
-    }
-
     // Release payment to freelancer
-    const paymentRelease = await PaymentService.releaseEscrowPayment({
-      paymentId: payment._id!,
-      releaseType: RELEASE_TYPE.COMPLETE,
-      clientId: new mongoose.Types.ObjectId(clientId)
-    });
+    const paymentRelease = await PaymentService.releaseEscrowPayment(
+      taskId,
+      clientId
+    );
 
     // Update task status to completed
     task.status = TaskStatus.COMPLETED;
@@ -326,11 +314,182 @@ const completeTask = async (taskId: string, clientId: string) => {
 
     return { task, paymentRelease };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, `Failed to complete task and release payment: ${errorMessage}`);
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error occurred';
+    throw new ApiError(
+      StatusCodes.INTERNAL_SERVER_ERROR,
+      `Failed to complete task and release payment: ${errorMessage}`
+    );
   }
 };
 
+// Cancel task before delivery
+const cancelTask = async (
+  taskId: string,
+  clientId: string,
+  reason?: string
+) => {
+  const task = await TaskModel.findById(taskId);
+  if (!task) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
+  }
+
+  if (task.userId !== clientId) {
+    throw new ApiError(
+      StatusCodes.FORBIDDEN,
+      'Only task owner can cancel the task'
+    );
+  }
+
+  // Check if task can be cancelled
+  if (![TaskStatus.OPEN, TaskStatus.IN_PROGRESS].includes(task?.status)) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Task cannot be cancelled in current status'
+    );
+  }
+
+  try {
+    // If task has delivery, create dispute instead of direct cancellation
+    const delivery = await DeliveryService.getDeliveries({ taskId });
+    if (delivery.deliveries.length > 0) {
+      // Create dispute for cancellation after delivery
+      const dispute = await DisputeService.createDispute(clientId, {
+        taskId,
+        type: DisputeType.TASK_CANCELLATION,
+        title: `Task Cancellation Request: ${task.title}`,
+        description: `Poster requested to cancel task after delivery submission.`,
+        posterClaim: reason || 'Task cancellation requested by poster',
+        deliveryId: delivery.deliveries[0]._id?.toString(),
+      });
+
+      // Update task status to disputed
+      task.status = TaskStatus.DISPUTED;
+      await task.save();
+
+      return {
+        task,
+        dispute,
+        message: 'Dispute created for task cancellation after delivery',
+      };
+    }
+
+    // Direct cancellation - refund payment
+    if (task.paymentIntentId) {
+      await PaymentService.refundEscrowPayment(taskId, clientId, reason);
+    }
+
+    // Update task status
+    task.status = TaskStatus.CANCELLED;
+    await task.save();
+
+    // Send notification to freelancer if assigned
+    if (task.assignedTo) {
+      const notificationData = {
+        text: `Task "${task.title}" has been cancelled by the poster. ${
+          reason ? `Reason: ${reason}` : ''
+        }`,
+        title: 'Task Cancelled',
+        receiver: task.assignedTo,
+        type: 'TASK_CANCELLED',
+        referenceId: task._id,
+        read: false,
+      };
+      await sendNotifications(notificationData);
+    }
+
+    return { task, message: 'Task cancelled and payment refunded' };
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error occurred';
+    throw new ApiError(
+      StatusCodes.INTERNAL_SERVER_ERROR,
+      `Failed to cancel task: ${errorMessage}`
+    );
+  }
+};
+
+// Get task with delivery information
+const getTaskWithDelivery = async (taskId: string, userId: string) => {
+  const task = await getTaskById(taskId);
+
+  // Check if user is authorized to view this task
+  if (task?.userId !== userId && task?.assignedTo?.toString() !== userId) {
+    throw new ApiError(
+      StatusCodes.FORBIDDEN,
+      'Not authorized to view this task'
+    );
+  }
+
+  // Get delivery information if exists
+  let delivery = null;
+  try {
+    const deliveryResult = await DeliveryService.getDeliveries({ taskId });
+    if (deliveryResult.deliveries.length > 0) {
+      delivery = deliveryResult.deliveries[0];
+    }
+  } catch (error) {
+    // Delivery not found is not an error
+  }
+
+  return {
+    ...task,
+    delivery,
+  };
+};
+
+// Get task statistics with delivery and dispute info
+const getEnhancedTaskStats = async (userId?: string) => {
+  const baseStats = await getTaskStats();
+
+  // Add delivery statistics
+  const deliveryStats = await DeliveryService.getDeliveryStats(
+    userId ? { $or: [{ posterId: userId }, { freelancerId: userId }] } : {}
+  );
+
+  // Add dispute statistics
+  const disputeStats = await DisputeService.getDisputeStats(
+    userId ? { $or: [{ posterId: userId }, { freelancerId: userId }] } : {}
+  );
+
+  return {
+    ...baseStats,
+    deliveryStats,
+    disputeStats,
+  };
+};
+
+const submitDelivery = async (taskId: string, taskerId: string) => {
+  const task = await TaskModel.findById(taskId);
+  if (!task) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
+  }
+
+  // Ensure in progress
+  if (task.status !== TaskStatus.IN_PROGRESS) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Task is not in progress, cannot submit delivery'
+    );
+  }
+
+  // ✅ Change status
+  task.status = TaskStatus.UNDER_REVIEW;
+  await task.save();
+
+  // Notify poster
+  const notificationData = {
+    text: `Delivery submitted for "${task.title}". Please review.`,
+    title: 'Delivery Submitted',
+    receiver: task.userId,
+    type: 'DELIVERY_SUBMITTED',
+    referenceId: task._id,
+    read: false,
+  };
+  await sendNotifications(notificationData);
+
+  return task;
+};
 
 export const TaskService = {
   createTask,
@@ -343,4 +502,8 @@ export const TaskService = {
   getLastSixMonthsCompletionStats,
   getMyTaskById,
   completeTask,
+  cancelTask,
+  getTaskWithDelivery,
+  getEnhancedTaskStats,
+  submitDelivery,
 };

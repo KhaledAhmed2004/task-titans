@@ -6,42 +6,20 @@ import { getMultipleFilesPath } from '../../../shared/getFilePath';
 import catchAsync from '../../../shared/catchAsync';
 import { JwtPayload } from 'jsonwebtoken';
 
-// const createNewTask = catchAsync(async (req: Request, res: Response) => {
-//   const user = req.user as JwtPayload;
-//   const userId = user.id;
-
-//   const taskImages = getMultipleFilesPath(req.files, 'image');
-
-//   const taskPayload = {
-//     ...req.body,
-//     taskImages,
-//     userId,
-//   };
-
-//   const result = await TaskService.createTask(taskPayload);
-
-//   sendResponse(res, {
-//     statusCode: StatusCodes.CREATED,
-//     success: true,
-//     message: 'Task created successfully',
-//     data: result,
-//   });
-// });
-
 const createTask = catchAsync(async (req: Request, res: Response) => {
   const user = req.user;
- 
+
   // Handle task image upload
   const taskImage = getMultipleFilesPath(req.files, 'image');
- 
+
   const task = {
     ...req.body,
     taskImage,
     userId: (user as { id: string }).id,
   };
- 
+
   const result = await TaskService.createTask(task);
- 
+
   sendResponse(res, {
     statusCode: StatusCodes.CREATED,
     success: true,
@@ -49,8 +27,6 @@ const createTask = catchAsync(async (req: Request, res: Response) => {
     data: result,
   });
 });
-
-
 
 const getAllTasks = catchAsync(async (req: Request, res: Response) => {
   const query = req.query;
@@ -179,8 +155,68 @@ const completeTask = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const cancelTask = catchAsync(async (req: Request, res: Response) => {
+  const { taskId } = req.params;
+  const user = req.user as JwtPayload;
+  const userId = user.id;
+  const { reason } = req.body;
+
+  const result = await TaskService.cancelTask(taskId, userId, reason);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: 'Task cancelled successfully',
+    data: result,
+  });
+});
+
+const getTaskWithDelivery = catchAsync(async (req: Request, res: Response) => {
+  const { taskId } = req.params;
+  const user = req.user as JwtPayload;
+  const userId = user.id;
+
+  const result = await TaskService.getTaskWithDelivery(taskId, userId);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: 'Task with delivery retrieved successfully',
+    data: result,
+  });
+});
+
+const getEnhancedTaskStats = catchAsync(async (req: Request, res: Response) => {
+  const user = req.user as JwtPayload;
+  const userId = user.id;
+
+  const result = await TaskService.getEnhancedTaskStats(userId);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: 'Enhanced task statistics retrieved successfully',
+    data: result,
+  });
+});
+
+// Submit delivery (Tasker)
+const submitDelivery = catchAsync(async (req: Request, res: Response) => {
+  const user = req.user as JwtPayload;
+  const taskerId = user.id;
+  const { taskId } = req.params;
+
+  const result = await TaskService.submitDelivery(taskId, taskerId);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.CREATED,
+    success: true,
+    message: 'Delivery submitted successfully. Awaiting review.',
+    data: result,
+  });
+});
+
 export const TaskController = {
-  // createNewTask,
   createTask,
   getTaskStatistics,
   getAllTasks,
@@ -191,4 +227,8 @@ export const TaskController = {
   getLastSixMonthsCompletionStats,
   getMyTaskById,
   completeTask,
+  cancelTask,
+  getTaskWithDelivery,
+  getEnhancedTaskStats,
+  submitDelivery
 };

@@ -190,6 +190,7 @@ import { BidModel } from './bid.model';
 import { TaskModel } from '../task/task.model';
 import { TaskStatus } from '../task/task.interface';
 import { sendNotifications } from '../../../helpers/notificationsHelper';
+import PaymentService from '../payment/payment.service';
 
 const createBid = async (bid: Bid, taskerId: string) => {
   // 1️⃣ Find the task
@@ -290,22 +291,47 @@ const acceptBid = async (bidId: string, clientId: string) => {
   if (!task) throw new Error('Task not found');
   if (task.userId.toString() !== clientId) throw new Error('Not authorized');
 
-  // Accept selected bid
-  bid.status = BidStatus.ACCEPTED;
-  await bid.save();
+  try {
+    // Create escrow payment for the accepted bid
+    const payment = await PaymentService.createEscrowPayment(
+      task._id.toString(),
+      clientId,
+      bid.taskerId?.toString() ?? '',
+      bid.amount
+    );
 
-  // Assign task
-  task.status = TaskStatus.ASSIGNED;
-  task.assignedTo = bid.taskerId?.toString() ?? '';
-  await task.save();
+    // Accept selected bid
+    bid.status = BidStatus.ACCEPTED;
+    await bid.save();
 
-  // Reject other bids
-  await BidModel.updateMany(
-    { taskId: task._id, _id: { $ne: bid._id } },
-    { $set: { status: BidStatus.REJECTED } }
-  );
+    // Update task with payment info and assign to freelancer
+    task.status = TaskStatus.IN_PROGRESS; // Use new status instead of ASSIGNED
+    task.assignedTo = bid.taskerId?.toString() ?? '';
+    task.paymentIntentId = payment.paymentIntentId;
+    await task.save();
 
-  return { bid, task };
+    // Reject other bids
+    await BidModel.updateMany(
+      { taskId: task._id, _id: { $ne: bid._id } },
+      { $set: { status: BidStatus.REJECTED } }
+    );
+
+    // Send notifications
+    const acceptedNotification = {
+      text: `Congratulations! Your bid for "${task.title}" has been accepted. Payment is now in escrow.`,
+      title: 'Bid Accepted',
+      receiver: bid.taskerId?.toString() ?? '',
+      type: 'BID_ACCEPTED',
+      referenceId: bid._id,
+      read: false,
+    };
+
+    await sendNotifications(acceptedNotification);
+
+    return { bid, task, payment };
+  } catch (error) {
+    throw new Error(`Failed to accept bid: ${error.message}`);
+  }
 };
 
 const getAllTasksByTaskerBids = async (taskerId: string) => {

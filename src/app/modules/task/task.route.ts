@@ -9,23 +9,6 @@ import { NextFunction, Request, Response } from 'express';
 const router = Router();
 
 // create task
-// router.post(
-//   '/',
-//   auth(USER_ROLES.POSTER),
-//   fileUploadHandler(), // handle taskImage upload
-//   (req: Request, res: Response, next: NextFunction) => {
-//     if (req.body.data) {
-//       // Parse JSON from form-data
-//       req.body = TaskValidation.createTaskZodSchema.parse(
-//         JSON.parse(req.body.data)
-//       );
-//     }
-//     // Call createTask wrapped in catchAsync, just like updateProfile
-//     return TaskController.createNewTask(req, res, next);
-//   }
-// );
-
-// create task
 router.post(
   '/',
   auth(USER_ROLES.POSTER),
@@ -101,6 +84,34 @@ router.patch(
   '/:taskId/complete',
   auth(USER_ROLES.POSTER),
   TaskController.completeTask
+);
+
+// Cancel task
+router.patch(
+  '/:taskId/cancel',
+  auth(USER_ROLES.POSTER),
+  TaskController.cancelTask
+);
+
+// Get task with delivery information
+router.get(
+  '/:taskId/delivery',
+  auth(USER_ROLES.POSTER, USER_ROLES.TASKER),
+  TaskController.getTaskWithDelivery
+);
+
+// Get enhanced task statistics
+router.get(
+  '/stats/enhanced',
+  auth(USER_ROLES.POSTER, USER_ROLES.TASKER),
+  TaskController.getEnhancedTaskStats
+);
+
+// Submit delivery for a task (by Tasker)
+router.post(
+  '/:taskId/submit',
+  auth(USER_ROLES.TASKER),
+  TaskController.submitDelivery
 );
 
 export const TaskRoutes = router;
