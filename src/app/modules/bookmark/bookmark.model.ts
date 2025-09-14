@@ -1,12 +1,11 @@
 import { Schema, model } from 'mongoose';
 import { IBookmark } from './bookmark.interface';
 
-
 const bookmarkSchema = new Schema<IBookmark>(
   {
     user: {
       type: Schema.Types.ObjectId,
-      ref: 'User', 
+      ref: 'User',
       required: true,
     },
     post: {
@@ -16,7 +15,7 @@ const bookmarkSchema = new Schema<IBookmark>(
     },
   },
   {
-    timestamps: true, 
+    timestamps: true,
     versionKey: false,
   }
 );
@@ -24,5 +23,4 @@ const bookmarkSchema = new Schema<IBookmark>(
 // Prevent duplicate bookmarks (same user cannot bookmark same job twice)
 bookmarkSchema.index({ user: 1, post: 1 }, { unique: true });
 
-// Model
 export const Bookmark = model<IBookmark>('Bookmark', bookmarkSchema);

@@ -7,7 +7,7 @@ import { Task } from './task.interface';
 import { TaskModel } from './task.model';
 import unlinkFile from '../../../shared/unlinkFile';
 import { BidService } from '../bid/bid.service';
-import { sendNotifications } from '../../../helpers/notificationsHelper';
+import { sendNotifications } from '../notification/notificationsHelper';
 import PaymentService from '../payment/payment.service';
 import { PaymentModel } from '../payment/payment.model';
 import { PAYMENT_STATUS, RELEASE_TYPE } from '../payment/payment.interface';
@@ -297,7 +297,7 @@ const completeTask = async (taskId: string, clientId: string) => {
     if (!payments || payments.length === 0) {
       throw new ApiError(
         StatusCodes.NOT_FOUND,
-        'No payment found for this task'
+        'No payment found for this task. Please ensure payment was created when the bid was accepted.'
       );
     }
 
@@ -307,9 +307,174 @@ const completeTask = async (taskId: string, clientId: string) => {
     );
 
     if (!heldPayment) {
+      // Check if there are pending payments that need confirmation
+      const pendingPayment = payments.find(
+        payment => payment.status === PAYMENT_STATUS.PENDING
+      );
+      
+      if (pendingPayment) {
+        // Check the actual Stripe status
+        const stripe = require('../../../config/stripe').stripe;
+        const paymentIntent = await stripe.paymentIntents.retrieve(
+          pendingPayment.stripePaymentIntentId
+        );
+        
+        // Handle payment capture and processing
+        if (paymentIntent.status === 'requires_capture' || paymentIntent.status === 'succeeded') {
+          try {
+            let capturedPayment = paymentIntent;
+            
+            // Only capture if it requires capture
+            if (paymentIntent.status === 'requires_capture') {
+              capturedPayment = await stripe.paymentIntents.capture(
+                pendingPayment.stripePaymentIntentId
+              );
+            }
+            
+            if (capturedPayment.status === 'succeeded') {
+              // Ensure pendingPayment has a valid _id
+              if (!pendingPayment._id) {
+                throw new ApiError(
+                  StatusCodes.BAD_REQUEST,
+                  'Payment ID is missing'
+                );
+              }
+              
+              // Update payment status to HELD in database
+              await PaymentModel.updatePaymentStatus(
+                pendingPayment._id,
+                PAYMENT_STATUS.HELD
+              );
+              
+              // Refresh the payments array to get the updated status
+              const updatedPayments = await PaymentModel.getPaymentsByTask(
+                new mongoose.Types.ObjectId(taskId)
+              );
+              
+              // Find the now-held payment
+              const heldPayment = updatedPayments.find(
+                payment => payment.status === PAYMENT_STATUS.HELD
+              );
+              
+              if (heldPayment) {
+                // Continue with the release process using the captured payment
+                const paymentRelease = await PaymentService.releaseEscrowPayment({
+                  paymentId: heldPayment._id!,
+                  releaseType: RELEASE_TYPE.COMPLETE,
+                  clientId: new mongoose.Types.ObjectId(clientId),
+                });
+                
+                // Update task status to completed
+                task.status = TaskStatus.COMPLETED;
+                await task.save();
+                
+                // Send notification to freelancer about payment release
+                if (task.assignedTo) {
+                  const notificationData = {
+                    text: `Great news! Payment for "${task.title}" has been released. The task is now completed.`,
+                    title: 'Payment Released',
+                    receiver: task.assignedTo,
+                    type: 'TASK',
+                    referenceId: task._id,
+                    read: false,
+                  };
+                  await sendNotifications(notificationData);
+                }
+                
+                return { task, paymentRelease };
+              }
+            }
+          } catch (captureError: any) {
+            // Handle the case where payment is already captured
+            if (captureError.message && captureError.message.includes('already been captured')) {
+              // Payment is already captured, just update the database status
+              if (!pendingPayment._id) {
+                throw new ApiError(
+                  StatusCodes.BAD_REQUEST,
+                  'Payment ID is missing'
+                );
+              }
+              
+              await PaymentModel.updatePaymentStatus(
+                pendingPayment._id,
+                PAYMENT_STATUS.HELD
+              );
+              
+              // Refresh the payments array to get the updated status
+              const updatedPayments = await PaymentModel.getPaymentsByTask(
+                new mongoose.Types.ObjectId(taskId)
+              );
+              
+              // Find the now-held payment
+              const heldPayment = updatedPayments.find(
+                payment => payment.status === PAYMENT_STATUS.HELD
+              );
+              
+              if (heldPayment) {
+                // Continue with the release process
+                const paymentRelease = await PaymentService.releaseEscrowPayment({
+                  paymentId: heldPayment._id!,
+                  releaseType: RELEASE_TYPE.COMPLETE,
+                  clientId: new mongoose.Types.ObjectId(clientId),
+                });
+                
+                // Update task status to completed
+                task.status = TaskStatus.COMPLETED;
+                await task.save();
+                
+                // Send notification to freelancer about payment release
+                if (task.assignedTo) {
+                  const notificationData = {
+                    text: `Great news! Payment for "${task.title}" has been released. The task is now completed.`,
+                    title: 'Payment Released',
+                    receiver: task.assignedTo,
+                    type: 'TASK',
+                    referenceId: task._id,
+                    read: false,
+                  };
+                  await sendNotifications(notificationData);
+                }
+                
+                return { task, paymentRelease };
+              }
+            } else {
+              throw new ApiError(
+                StatusCodes.BAD_REQUEST,
+                `Failed to process payment: ${captureError.message}`
+              );
+            }
+          }
+        }
+        
+        let errorMessage = 'Payment is not yet confirmed. ';
+        let suggestions = [];
+        
+        if (paymentIntent.status === 'requires_payment_method') {
+          suggestions.push('Client needs to provide payment method');
+        } else if (paymentIntent.status === 'requires_confirmation') {
+          suggestions.push('Use the test confirmation endpoint: POST /api/v1/payments/test/confirm-payment');
+          suggestions.push(`Body: {"client_secret": "${paymentIntent.client_secret}", "task_id": "${taskId}"}`);
+        } else if (paymentIntent.status === 'requires_action') {
+          suggestions.push('Payment requires additional authentication');
+        } else if (paymentIntent.status === 'processing') {
+          suggestions.push('Payment is being processed, please wait');
+        } else {
+          suggestions.push(`Payment status in Stripe: ${paymentIntent.status}`);
+        }
+        
+        errorMessage += 'Suggestions: ' + suggestions.join('; ');
+        
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          errorMessage
+        );
+      }
+      
+      // Check for other payment statuses
+      const paymentStatuses = payments.map(p => p.status).join(', ');
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
-        'No held payment found for this task. Payment may have already been released or refunded.'
+        `No held payment found for this task. Current payment statuses: [${paymentStatuses}]. Payment may have already been released or refunded.`
       );
     }
 
@@ -330,7 +495,7 @@ const completeTask = async (taskId: string, clientId: string) => {
         text: `Great news! Payment for "${task.title}" has been released. The task is now completed.`,
         title: 'Payment Released',
         receiver: task.assignedTo,
-        type: 'PAYMENT_RELEASED',
+        type: 'TASK',
         referenceId: task._id,
         read: false,
       };
@@ -437,13 +602,13 @@ const submitDelivery = async (taskId: string, taskerId: string) => {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
   }
 
-  // Ensure in progress
-  if (task.status !== TaskStatus.IN_PROGRESS) {
-    throw new ApiError(
-      StatusCodes.BAD_REQUEST,
-      'Task is not in progress, cannot submit delivery'
-    );
-  }
+  // // Ensure in progress
+  // if (task.status !== TaskStatus.IN_PROGRESS) {
+  //   throw new ApiError(
+  //     StatusCodes.BAD_REQUEST,
+  //     'Task is not in progress, cannot submit delivery'
+  //   );
+  // }
 
   // ✅ Change status
   task.status = TaskStatus.UNDER_REVIEW;

@@ -24,7 +24,6 @@ import {
   calculateFreelancerAmount,
   handleStripeError,
 } from '../../../config/stripe';
-import parsePhoneNumberFromString from 'libphonenumber-js';
 
 // Create Stripe Connect account for freelancers
 export const createStripeAccount = async (
@@ -283,6 +282,9 @@ export const createEscrowPayment = async (
     const paymentIntent = await stripe.paymentIntents.create({
       amount: dollarsToCents(data.amount),
       currency: 'usd',
+      automatic_payment_methods: {
+        enabled: true,
+      },
       application_fee_amount: dollarsToCents(platformFee),
       transfer_data: {
         destination: freelancerStripeAccount.stripeAccountId,
@@ -290,7 +292,6 @@ export const createEscrowPayment = async (
       capture_method: 'manual', // Hold the payment until task completion
       metadata: {
         bid_id: data.bidId.toString(),
-        // client_id: data.clientId.toString(),
         poster_id: data.posterId.toString(),
         freelancer_id: data.freelancerId.toString(),
         task_title: task.title,
@@ -362,13 +363,39 @@ export const releaseEscrowPayment = async (
       );
     }
 
-    // Capture the payment intent
-    const paymentIntent = await stripe.paymentIntents.capture(
+    // Check current payment intent status and capture if needed
+    let paymentIntent = await stripe.paymentIntents.retrieve(
       payment.stripePaymentIntentId
     );
 
+    // Only capture if it requires capture
+    if (paymentIntent.status === 'requires_capture') {
+      try {
+        paymentIntent = await stripe.paymentIntents.capture(
+          payment.stripePaymentIntentId
+        );
+      } catch (captureError: any) {
+        // Handle already captured error
+        if (captureError.message && captureError.message.includes('already been captured')) {
+          // Retrieve the current status
+          paymentIntent = await stripe.paymentIntents.retrieve(
+            payment.stripePaymentIntentId
+          );
+        } else {
+          throw new ApiError(
+            httpStatus.BAD_REQUEST,
+            `Failed to capture payment: ${captureError.message}`
+          );
+        }
+      }
+    }
+
+    // Verify payment is successful
     if (paymentIntent.status !== 'succeeded') {
-      throw new ApiError(httpStatus.BAD_REQUEST, 'Failed to capture payment');
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        `Payment is not in succeeded status. Current status: ${paymentIntent.status}`
+      );
     }
 
     // Update payment status
@@ -788,7 +815,6 @@ const deleteStripeAccountService = async (accountId: string) => {
   }
 };
 
-// Export all functions as default object for backward compatibility
 const PaymentService = {
   createStripeAccount,
   createOnboardingLink,

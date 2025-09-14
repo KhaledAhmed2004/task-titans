@@ -14,9 +14,9 @@
 //   return result;
 // };
 
-import { INotification } from '../app/modules/notification/notification.interface';
-import { Notification } from '../app/modules/notification/notification.model';
-import { User } from '../app/modules/user/user.model';
+import { INotification } from './notification.interface';
+import { Notification } from './notification.model';
+import { User } from '../user/user.model';
 import { pushNotificationHelper } from './pushNotificationHelper';
 
 export const sendNotifications = async (data: any): Promise<INotification> => {
@@ -24,17 +24,27 @@ export const sendNotifications = async (data: any): Promise<INotification> => {
 
   const user = await User.findById(data?.receiver);
 
-  if (user?.deviceTokens) {
+  // Check if user has device tokens and the array is not empty
+  if (
+    user?.deviceTokens &&
+    Array.isArray(user.deviceTokens) &&
+    user.deviceTokens.length > 0
+  ) {
     const message = {
       notification: {
         // title: 'New Notification Received',
         title: data?.title || 'Task Titans Notification',
         body: data?.text,
       },
-      tokens: user?.deviceTokens,
+      tokens: user.deviceTokens,
     };
     //firebase
-    pushNotificationHelper.sendPushNotifications(message);
+    try {
+      await pushNotificationHelper.sendPushNotifications(message);
+    } catch (error) {
+      console.error('Failed to send push notification:', error);
+      // Don't throw error, just log it so notification creation still succeeds
+    }
   }
 
   //@ts-ignore

@@ -11,7 +11,6 @@ type BidStatusType = (typeof BidStatus)[keyof typeof BidStatus];
 export type Bid = {
   _id: string;
   taskId: Types.ObjectId;
-  // taskerId: string;
   taskerId?: Types.ObjectId;
   amount: number;
   message?: string;

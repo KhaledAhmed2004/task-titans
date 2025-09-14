@@ -33,19 +33,6 @@ router.get(
   PaymentController.checkOnboardingStatusController
 );
 
-// Escrow payment management
-router.post(
-  '/escrow',
-  auth(USER_ROLES.POSTER),
-  PaymentController.createEscrowPaymentController
-);
-
-router.post(
-  '/release/:paymentId',
-  auth(USER_ROLES.POSTER, USER_ROLES.SUPER_ADMIN),
-  PaymentController.releasePaymentController
-);
-
 router.post(
   '/refund/:paymentId',
   auth(USER_ROLES.POSTER, USER_ROLES.SUPER_ADMIN),
@@ -71,29 +58,10 @@ router.get(
   PaymentController.getPaymentStatsController
 );
 
-router.post(
-  '/test/confirm-payment',
-  auth(USER_ROLES.POSTER, USER_ROLES.TASKER, USER_ROLES.SUPER_ADMIN),
-  PaymentController.testConfirmPaymentController
-);
-
 router.delete(
   '/account/:accountId',
   auth(USER_ROLES.SUPER_ADMIN),
   PaymentController.deleteStripeAccountController
 );
-
-// User-specific payment routes (TODO: Implement these controller methods)
-// router.get(
-//   '/user/:userId',
-//   auth(USER_ROLES.POSTER, USER_ROLES.TASKER, USER_ROLES.SUPER_ADMIN),
-//   PaymentController.getUserPayments
-// );
-
-// router.get(
-//   '/user/:userId/stats',
-//   auth(USER_ROLES.POSTER, USER_ROLES.TASKER, USER_ROLES.SUPER_ADMIN),
-//   PaymentController.getUserPaymentStats
-// );
 
 export const PaymentRoutes = router;

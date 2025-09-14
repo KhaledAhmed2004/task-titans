@@ -8,16 +8,12 @@ import PaymentService, {
   createStripeAccount,
   createOnboardingLink,
   checkOnboardingStatus,
-  createEscrowPayment,
-  releaseEscrowPayment,
   refundEscrowPayment,
   getPaymentById,
   getPayments,
   getPaymentStats,
   handleWebhookEvent,
 } from './payment.service';
-import { stripe } from '../../../config/stripe';
-import { Payment as PaymentModel } from './payment.model';
 import { IPaymentFilters } from './payment.interface';
 import { JwtPayload } from 'jsonwebtoken';
 
@@ -86,96 +82,6 @@ export const checkOnboardingStatusController = catchAsync(
       statusCode: httpStatus.OK,
       message: 'Onboarding status retrieved successfully',
       data: status,
-    });
-  }
-);
-
-// Create escrow payment
-export const createEscrowPaymentController = catchAsync(
-  async (req: Request, res: Response) => {
-    const { taskId, bidId, freelancerId, amount, description, metadata } =
-      req.body;
-
-    const user = req.user as JwtPayload;
-    const userId = user.id;
-
-    // Validate required fields
-    if (!taskId) {
-      throw new ApiError(httpStatus.BAD_REQUEST, 'Task ID is required');
-    }
-
-    if (!bidId) {
-      throw new ApiError(httpStatus.BAD_REQUEST, 'Bid ID is required');
-    }
-
-    if (!userId) {
-      throw new ApiError(httpStatus.BAD_REQUEST, 'User ID is required');
-    }
-
-    if (!freelancerId) {
-      throw new ApiError(httpStatus.BAD_REQUEST, 'Freelancer ID is required');
-    }
-
-    if (!amount) {
-      throw new ApiError(httpStatus.BAD_REQUEST, 'Amount is required');
-    }
-
-    if (amount <= 0) {
-      throw new ApiError(
-        httpStatus.BAD_REQUEST,
-        'Amount must be greater than 0'
-      );
-    }
-
-    const result = await createEscrowPayment({
-      taskId,
-      bidId,
-      posterId: userId,
-      freelancerId,
-      amount,
-      description,
-      metadata,
-    });
-
-    sendResponse(res, {
-      success: true,
-      statusCode: httpStatus.CREATED,
-      message: 'Escrow payment created successfully',
-      data: result,
-    });
-  }
-);
-
-// Release escrow payment
-export const releasePaymentController = catchAsync(
-  async (req: Request, res: Response) => {
-    const { paymentId } = req.params;
-    // const { clientId } = req.body;
-    const user = req.user as JwtPayload;
-    const clientId = user.id;
-
-    if (!paymentId) {
-      throw new ApiError(httpStatus.BAD_REQUEST, 'Payment ID is required');
-    }
-
-    if (!clientId) {
-      throw new ApiError(httpStatus.BAD_REQUEST, 'Client ID is required');
-    }
-
-    const result = await releaseEscrowPayment({
-      paymentId: new mongoose.Types.ObjectId(paymentId),
-      clientId: new mongoose.Types.ObjectId(clientId),
-      releaseType: 'complete' as any,
-    });
-
-    sendResponse(res, {
-      success: true,
-      statusCode: httpStatus.OK,
-      message: result.message,
-      data: {
-        freelancer_amount: result.freelancer_amount,
-        platform_fee: result.platform_fee,
-      },
     });
   }
 );
@@ -349,113 +255,16 @@ const deleteStripeAccountController = catchAsync(async (req, res) => {
   });
 });
 
-export const testPaymentStatsController = catchAsync(
-  async (req: Request, res: Response) => {
-    try {
-      const stats = await getPaymentStats({});
-      const recentPayments = await getPayments({}, 1, 5);
-
-      sendResponse(res, {
-        success: true,
-        statusCode: httpStatus.OK,
-        message: 'Payment statistics retrieved successfully',
-        data: {
-          statistics: stats,
-          recent_payments: recentPayments.payments,
-          system_info: {
-            total_payments: recentPayments.total,
-            test_timestamp: new Date().toISOString(),
-          },
-        },
-      });
-    } catch (error: any) {
-      throw new ApiError(
-        httpStatus.BAD_REQUEST,
-        `Failed to retrieve payment stats: ${error.message}`
-      );
-    }
-  }
-);
-
-export const testConfirmPaymentController = catchAsync(
-  async (req: Request, res: Response) => {
-    const { client_secret, payment_method = 'pm_card_visa' } = req.body;
-
-    if (!client_secret) {
-      throw new ApiError(httpStatus.BAD_REQUEST, 'Client secret is required');
-    }
-
-    try {
-      // Extract payment intent ID from client secret
-      const paymentIntentId = client_secret.split('_secret_')[0];
-      
-      // Retrieve the payment intent from Stripe
-      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-      
-      // Check if payment intent requires confirmation
-      let confirmedPaymentIntent;
-      if (paymentIntent.status === 'requires_confirmation') {
-        // Confirm the payment intent with payment method
-        confirmedPaymentIntent = await stripe.paymentIntents.confirm(paymentIntentId, {
-          payment_method: payment_method,
-        });
-      } else if (paymentIntent.status === 'requires_capture') {
-        // Capture the payment (for manual capture)
-        confirmedPaymentIntent = await stripe.paymentIntents.capture(paymentIntentId);
-      } else {
-        confirmedPaymentIntent = paymentIntent;
-      }
-
-      // Update payment status in database
-      const updatedPayment = await PaymentModel.findOneAndUpdate(
-        { stripePaymentIntentId: paymentIntentId },
-        { 
-          status: confirmedPaymentIntent.status === 'succeeded' ? 'completed' : 'pending',
-          updatedAt: new Date()
-        },
-        { new: true }
-      );
-
-      sendResponse(res, {
-        statusCode: httpStatus.OK,
-        success: true,
-        message: 'Payment processed successfully',
-        data: {
-          payment_intent: {
-            id: confirmedPaymentIntent.id,
-            status: confirmedPaymentIntent.status,
-            client_secret: confirmedPaymentIntent.client_secret,
-            amount: confirmedPaymentIntent.amount,
-            currency: confirmedPaymentIntent.currency,
-          },
-          database_payment: updatedPayment,
-          test_info: {
-            payment_method_used: payment_method,
-            processed_at: new Date().toISOString(),
-            stripe_dashboard_note: 'Check your Stripe dashboard for transaction details',
-          },
-        },
-      });
-    } catch (error: any) {
-      throw new ApiError(httpStatus.BAD_REQUEST, `Payment processing failed: ${error.message}`);
-    }
-  }
-);
-
 const PaymentController = {
   createStripeAccountController,
   getOnboardingLinkController,
   checkOnboardingStatusController,
-  createEscrowPaymentController,
-  releasePaymentController,
   refundPaymentController,
   getPaymentByIdController,
   getPaymentsController,
   getPaymentStatsController,
   handleStripeWebhookController,
   deleteStripeAccountController,
-  testPaymentStatsController,
-  testConfirmPaymentController,
 };
 
 export default PaymentController;
