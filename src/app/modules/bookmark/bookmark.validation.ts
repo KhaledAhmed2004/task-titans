@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
-// Validate postId param (must be a valid MongoDB ObjectId)
-const byPostIdParam = z.object({
-  params: z.object({
+// Validate postId in request body (must be a valid MongoDB ObjectId)
+const toggle = z.object({
+  body: z.object({
     postId: z
       .string({
         required_error: 'Post ID is required',
@@ -11,8 +11,8 @@ const byPostIdParam = z.object({
   }),
 });
 
-// Validate query for listing bookmarks (optional pagination/sorting)
-const listMineQuery = z.object({
+// Validate query for listing bookmarks (optional pagination/sorting/filtering/searching)
+const getUserBookmarksQuery = z.object({
   query: z.object({
     limit: z
       .string()
@@ -26,10 +26,15 @@ const listMineQuery = z.object({
       .optional(),
     sortBy: z.string().optional(),
     sortOrder: z.enum(['asc', 'desc']).optional(),
+    category: z
+      .string()
+      .regex(/^[0-9a-fA-F]{24}$/, 'Invalid category ID format')
+      .optional(),
+    searchTerm: z.string().optional(),
   }),
 });
 
 export const BookmarkValidation = {
-  byPostIdParam,
-  listMineQuery,
+  toggle,
+  getUserBookmarksQuery,
 };

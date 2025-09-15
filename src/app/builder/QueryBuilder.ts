@@ -28,7 +28,7 @@ class QueryBuilder<T> {
     return this;
   }
 
-  // 🔎 Filtering (ignores system fields)
+  // 🔎 Filtering
   filter() {
     const queryObj = { ...this.query };
     const excludeFields = [
@@ -40,10 +40,22 @@ class QueryBuilder<T> {
       'timeFilter',
       'start',
       'end',
+      'category',
     ];
     excludeFields.forEach(el => delete queryObj[el]);
 
     this.modelQuery = this.modelQuery.find(queryObj as FilterQuery<T>);
+
+    // Category filtering (single or multiple)
+    if (this?.query?.category) {
+      const categories = (this.query.category as string)
+        .split(',')
+        .map(cat => cat.trim());
+
+      this.modelQuery = this.modelQuery.find({
+        taskCategory: { $in: categories },
+      } as FilterQuery<T>);
+    }
     return this;
   }
 
@@ -130,12 +142,12 @@ class QueryBuilder<T> {
     return this;
   }
 
-  // 🔗 Populating relations
-  populate(populateFields: string[], selectFields: Record<string, unknown>) {
+  // 🔗 Populating relations and select all fields if undefined
+  populate(populateFields: string[], selectFields?: Record<string, unknown>) {
     this.modelQuery = this.modelQuery.populate(
       populateFields.map(field => ({
         path: field,
-        select: selectFields[field],
+        select: selectFields?.[field] ?? undefined,
       }))
     );
     return this;

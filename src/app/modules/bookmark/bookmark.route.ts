@@ -7,28 +7,20 @@ import { BookmarkValidation } from './bookmark.validation';
 
 const router = express.Router();
 
-// Add bookmark
+// Toggle bookmark (add if not exists, remove if exists)
 router.post(
-  '/:postId',
-  auth(USER_ROLES.TASKER, USER_ROLES.POSTER),
-  validateRequest(BookmarkValidation.byPostIdParam),
-  BookmarkController.create
-);
-
-// Remove bookmark
-router.delete(
-  '/:postId',
-  auth(USER_ROLES.TASKER, USER_ROLES.POSTER),
-  validateRequest(BookmarkValidation.byPostIdParam),
-  BookmarkController.remove
+  '/',
+  auth(USER_ROLES.TASKER),
+  validateRequest(BookmarkValidation.toggle),
+  BookmarkController.toggleBookmark
 );
 
 // Get all bookmarks of the current user
 router.get(
-  '/',
+  '/my-bookmarks',
   auth(USER_ROLES.TASKER, USER_ROLES.POSTER),
-  validateRequest(BookmarkValidation.listMineQuery),
-  BookmarkController.listMine
+  validateRequest(BookmarkValidation.getUserBookmarksQuery),
+  BookmarkController.getUserBookmarks
 );
 
-export default router;
+export const BookmarkRoutes = router;

@@ -10,7 +10,7 @@ const bookmarkSchema = new Schema<IBookmark>(
     },
     post: {
       type: Schema.Types.ObjectId,
-      ref: 'JobPost',
+      ref: 'Task',
       required: true,
     },
   },
