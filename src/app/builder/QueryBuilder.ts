@@ -153,6 +153,91 @@ class QueryBuilder<T> {
     return this;
   }
 
+  // 🎯 Populate with match conditions for filtering
+  populateWithMatch(
+    path: string, 
+    matchConditions: Record<string, unknown> = {}, 
+    selectFields?: string
+  ) {
+    this.modelQuery = this.modelQuery.populate({
+      path,
+      match: matchConditions,
+      select: selectFields ?? '-__v'
+    });
+    return this;
+  }
+
+  // 🔍 Search within populated fields
+  searchInPopulatedFields(
+    path: string,
+    searchableFields: string[],
+    searchTerm: string,
+    additionalMatch: Record<string, unknown> = {}
+  ) {
+    if (searchTerm) {
+      const searchConditions = {
+        $and: [
+          {
+            $or: searchableFields.map(field => ({
+              [field]: {
+                $regex: searchTerm,
+                $options: 'i'
+              }
+            }))
+          },
+          additionalMatch
+        ]
+      };
+
+      this.modelQuery = this.modelQuery.populate({
+        path,
+        match: searchConditions,
+        select: '-__v'
+      });
+    }
+    return this;
+  }
+
+  // 🧹 Filter out documents with null populated fields
+  filterNullPopulatedFields() {
+    return this;
+  }
+
+  // 📊 Get filtered results with custom pagination
+  async getFilteredResults(populatedFieldsToCheck: string[] = []) {
+    const results = await this.modelQuery;
+    
+    // Filter out documents where specified populated fields are null
+    const filteredResults = results.filter((doc: any) => {
+      if (populatedFieldsToCheck.length === 0) {
+        return true; // No filtering if no fields specified
+      }
+      
+      return populatedFieldsToCheck.every((fieldPath: string) => {
+        const value = doc.get ? doc.get(fieldPath) : doc[fieldPath];
+        return value !== null && value !== undefined;
+      });
+    });
+
+    // Calculate pagination based on filtered results
+    const total = filteredResults.length;
+    const limit = Number(this?.query?.limit) || 10;
+    const page = Number(this?.query?.page) || 1;
+    const totalPage = Math.ceil(total / limit);
+
+    const pagination = {
+      total,
+      limit,
+      page,
+      totalPage
+    };
+
+    return {
+      data: filteredResults,
+      pagination
+    };
+  }
+
   // 📊 Pagination info
   async getPaginationInfo() {
     const total = await this.modelQuery.model.countDocuments(

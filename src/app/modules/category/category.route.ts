@@ -7,7 +7,7 @@ import { CategoryValidation } from './category.validation';
 
 const router = Router();
 
-// Create category 
+// Create category
 router.post(
   '/',
   auth(USER_ROLES.SUPER_ADMIN),
@@ -15,10 +15,10 @@ router.post(
   CategoryController.createCategory
 );
 
-// Get all categories → Posters (and others)
+// Get all categories
 router.get('/', CategoryController.getAllCategories);
 
-// Update category 
+// Update category
 router.patch(
   '/:id',
   auth(USER_ROLES.SUPER_ADMIN),
@@ -26,7 +26,7 @@ router.patch(
   CategoryController.updateCategory
 );
 
-// Delete category 
+// Delete category
 router.delete(
   '/:id',
   auth(USER_ROLES.SUPER_ADMIN),

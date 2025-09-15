@@ -5,6 +5,8 @@ const categorySchema = new Schema<ICategory>(
   {
     name: { type: String, required: true, unique: true },
     description: { type: String },
+    icon: { type: String },
+    isDeleted: { type: Boolean, default: false },
   },
   {
     timestamps: true,

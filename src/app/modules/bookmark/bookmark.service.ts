@@ -46,18 +46,15 @@ const getUserBookmarksFromDB = async (
   userId: string,
   query: Record<string, any>
 ): Promise<{ data: IBookmark[]; pagination: any }> => {
-  // Start with base query without population to avoid conflicts
+  // Start with base query
   let modelQuery = Bookmark.find({ user: userId });
 
-  // Create a modified query for filtering by category through populated post
+  // Create a modified query that excludes category and searchTerm from filter()
   const modifiedQuery = { ...query };
-  
-  // If category filter is provided, we need to handle it specially
-  if (query.category) {
-    // Remove category from the main query as it will be handled in populate
-    delete modifiedQuery.category;
-  }
+  delete modifiedQuery.category;
+  delete modifiedQuery.searchTerm;
 
+  // Create QueryBuilder instance
   const queryBuilder = new QueryBuilder<IBookmark>(modelQuery, modifiedQuery)
     .filter()
     .dateFilter()
@@ -65,55 +62,34 @@ const getUserBookmarksFromDB = async (
     .paginate()
     .fields();
 
-  // Populate post and apply category filter if needed
-  if (query.category) {
-    queryBuilder.modelQuery = queryBuilder.modelQuery.populate({
-      path: 'post',
-      match: { taskCategory: query.category },
-      select: '-__v'
-    });
+  // Handle category filtering and search through populated post field
+  if (query.category && query.searchTerm) {
+    // Combined category filtering and search
+    queryBuilder.searchInPopulatedFields(
+      'post',
+      ['title', 'description', 'taskLocation'],
+      query.searchTerm,
+      { taskCategory: query.category }
+    );
+  } else if (query.category) {
+    // Category filtering only
+    queryBuilder.populateWithMatch('post', { taskCategory: query.category });
+  } else if (query.searchTerm) {
+    // Search only
+    queryBuilder.searchInPopulatedFields(
+      'post',
+      ['title', 'description', 'taskLocation'],
+      query.searchTerm
+    );
   } else {
-    queryBuilder.modelQuery = queryBuilder.modelQuery.populate({
-      path: 'post',
-      select: '-__v'
-    });
+    // No filtering, just populate
+    queryBuilder.populate(['post']);
   }
 
-  // Apply search functionality on populated post fields
-  if (query.searchTerm) {
-    queryBuilder.modelQuery = queryBuilder.modelQuery.populate({
-      path: 'post',
-      match: {
-        $or: [
-          { title: { $regex: query.searchTerm, $options: 'i' } },
-          { description: { $regex: query.searchTerm, $options: 'i' } },
-          { taskLocation: { $regex: query.searchTerm, $options: 'i' } }
-        ],
-        ...(query.category && { taskCategory: query.category })
-      },
-      select: '-__v'
-    });
-  }
-
-  const bookmarks = await queryBuilder.modelQuery;
+  // Get filtered results with custom pagination
+  const result = await queryBuilder.getFilteredResults(['post']);
   
-  // Filter out bookmarks where post is null (due to match conditions)
-  const filteredBookmarks = bookmarks.filter(bookmark => bookmark.post !== null);
-  
-  // Calculate pagination based on filtered results
-  const total = filteredBookmarks.length;
-  const limit = query.limit || 10;
-  const page = query.page || 1;
-  const totalPage = Math.ceil(total / limit);
-  
-  const pagination = {
-    total,
-    limit,
-    page,
-    totalPage
-  };
-
-  return { data: filteredBookmarks, pagination };
+  return result;
 };
 
 export const BookmarkService = {

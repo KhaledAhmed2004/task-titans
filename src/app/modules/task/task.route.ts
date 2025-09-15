@@ -26,7 +26,7 @@ router.post(
 );
 
 // get all tasks
-router.get('/', auth(USER_ROLES.SUPER_ADMIN), TaskController.getAllTasks);
+router.get('/', TaskController.getAllTasks);
 
 // Get task stats
 router.get(
