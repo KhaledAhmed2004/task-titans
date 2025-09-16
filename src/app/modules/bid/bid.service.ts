@@ -5,6 +5,7 @@ import { TaskStatus } from '../task/task.interface';
 import { sendNotifications } from '../notification/notificationsHelper';
 import PaymentService from '../payment/payment.service';
 import mongoose from 'mongoose';
+import QueryBuilder from '../../builder/QueryBuilder';
 
 const createBid = async (bid: Bid, taskerId: string) => {
   // 1️⃣ Find the task
@@ -43,11 +44,34 @@ const getAllBids = async (query?: BidQuery) => {
   return await BidModel.find(filter);
 };
 
-const getAllBidsByTaskId = async (taskId: string) => {
+// const getAllBidsByTaskId = async (taskId: string) => {
+//   const task = await TaskModel.findById(taskId);
+//   if (!task) throw new Error('Task not found');
+
+//   return await BidModel.find({ taskId });
+// };
+
+const getAllBidsByTaskId = async (
+  taskId: string,
+  query: Record<string, any>
+) => {
+  // Ensure the task exists
   const task = await TaskModel.findById(taskId);
   if (!task) throw new Error('Task not found');
 
-  return await BidModel.find({ taskId });
+  // Build query with filters, pagination, sorting etc.
+  const queryBuilder = new QueryBuilder(BidModel.find({ taskId }), query)
+    .search(['amount', 'message']) // optional
+    .filter()
+    .dateFilter()
+    .sort()
+    .paginate()
+    .fields()
+    .populate(['taskerId'], { taskerId: 'name email' }); // ✅ correct field
+
+  const { data, pagination } = await queryBuilder.getFilteredResults();
+
+  return { data, pagination };
 };
 
 const getAllBidsByTaskIdWithTasker = async (taskId: string) => {

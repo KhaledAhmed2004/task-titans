@@ -36,15 +36,28 @@ const getAllBids = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// const getAllBidsByTaskId = catchAsync(async (req: Request, res: Response) => {
+//   const { taskId } = req.params;
+//   const result = await BidService.getAllBidsByTaskId(taskId);
+
+//   sendResponse(res, {
+//     statusCode: StatusCodes.OK,
+//     success: true,
+//     message: 'Bids for task retrieved successfully',
+//     data: result,
+//   });
+// });
+
 const getAllBidsByTaskId = catchAsync(async (req: Request, res: Response) => {
   const { taskId } = req.params;
-  const result = await BidService.getAllBidsByTaskId(taskId);
+  const result = await BidService.getAllBidsByTaskId(taskId, req.query);
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
     message: 'Bids for task retrieved successfully',
-    data: result,
+    data: result.data,
+    pagination: result.pagination,
   });
 });
 
