@@ -20,38 +20,80 @@ const sendMessageToDB = async (payload: any): Promise<IMessage> => {
   return response;
 };
 
+// const getMessageFromDB = async (
+//   user: JwtPayload,
+//   id: any,
+//   query: Record<string, any>
+// ): Promise<{ messages: IMessage[]; pagination: any; participant: any }> => {
+//   if (!mongoose.Types.ObjectId.isValid(id)) {
+//     throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid Chat ID');
+//   }
+
+//   const queryBuilder = new QueryBuilder(Message.find({ chatId: id }), query)
+//     .search(['text'])
+//     .filter()
+//     .sort()
+//     .paginate()
+//     .fields();
+
+//   const messages = await queryBuilder.modelQuery;
+//   const pagination = await queryBuilder.getPaginationInfo();
+
+//   const participant: any = await Chat.findById(id).populate({
+//     path: 'participants',
+//     select: 'name profile location',
+//     match: {
+//       _id: { $ne: user.id }, // exclude the logged-in user
+//     },
+//   });
+
+//   return {
+//     messages,
+//     pagination,
+//     participant: participant?.participants[0],
+//   };
+// };
+
 const getMessageFromDB = async (
   user: JwtPayload,
   id: any,
   query: Record<string, any>
 ): Promise<{ messages: IMessage[]; pagination: any; participant: any }> => {
+  // Validate chat ID
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid Chat ID');
   }
 
-  // ✅ use new QueryBuilder with chaining
+  // Build the query
   const queryBuilder = new QueryBuilder(Message.find({ chatId: id }), query)
-    .search(['text']) // search by text field (you can add more searchable fields if needed)
-    .filter()
-    .sort()
-    .paginate()
-    .fields();
+    .search(['text']) // search in message text
+    .filter() // apply filters if any
+    .sort() // sort by -createdAt by default
+    .paginate() // pagination (page & limit)
+    .fields(); // select fields
 
-  const messages = await queryBuilder.modelQuery;
+  // Fetch messages
+  let messages = await queryBuilder.modelQuery;
+
+  // Reverse messages so that oldest is first if your UI appends messages top -> bottom
+  messages = messages.reverse();
+
+  // Get pagination info
   const pagination = await queryBuilder.getPaginationInfo();
 
-  const participant: any = await Chat.findById(id).populate({
+  // Fetch the chat participant (exclude the logged-in user)
+  const chat = await Chat.findById(id).populate({
     path: 'participants',
     select: 'name profile location',
-    match: {
-      _id: { $ne: user.id }, // exclude the logged-in user
-    },
+    match: { _id: { $ne: user.id } },
   });
+
+  const participant = chat?.participants[0] || null;
 
   return {
     messages,
     pagination,
-    participant: participant?.participants[0],
+    participant,
   };
 };
 

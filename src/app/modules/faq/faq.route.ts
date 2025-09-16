@@ -7,7 +7,7 @@ import { FaqValidation } from './faq.validation';
 
 const router = express.Router();
 
-// Create a new FAQ (Only SUPER_ADMIN or ADMIN)
+// Create a new FAQ
 router.post(
   '/',
   validateRequest(FaqValidation.createFaqZodSchema),
@@ -15,16 +15,16 @@ router.post(
   FaqController.createFaq
 );
 
-// Get all FAQs (Public route)
+// Get all FAQs
 router.get('/', FaqController.getAllFaqs);
 
 // Get a single FAQ by ID
 router.get('/:id', FaqController.getFaqById);
 
-// Update FAQ (Only SUPER_ADMIN or ADMIN)
+// Update FAQ
 router.patch('/:id', auth(USER_ROLES.SUPER_ADMIN), FaqController.updateFaq);
 
-// Delete FAQ (Only SUPER_ADMIN)
+// Delete FAQ
 router.delete('/:id', auth(USER_ROLES.SUPER_ADMIN), FaqController.deleteFaq);
 
 export const FaqRoutes = router;

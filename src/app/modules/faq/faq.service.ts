@@ -1,5 +1,4 @@
-
-import { IFaq } from './faq.interface'; // Optional interface for FAQ
+import { IFaq } from './faq.interface';
 import ApiError from '../../../errors/ApiError';
 import { StatusCodes } from 'http-status-codes';
 import { Faq } from './faq.model';
@@ -39,14 +38,13 @@ const updateFaq = async (id: string, updateData: Partial<IFaq>) => {
 
 // Delete a FAQ
 const deleteFaq = async (id: string) => {
-  const deletedFaq = await Faq.findByIdAndDelete(id); 
+  const deletedFaq = await Faq.findByIdAndDelete(id);
   if (!deletedFaq) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'FAQ not found');
   }
   return deletedFaq;
 };
 
-// Export all functions in one object
 export const FaqService = {
   createFaq,
   getAllFaqs,
