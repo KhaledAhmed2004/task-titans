@@ -29,6 +29,7 @@ const getAllTasks = async (query: Record<string, unknown>) => {
   const taskQuery = new QueryBuilder(TaskModel.find(), query)
     .search(['title', 'description'])
     .filter()
+    .dateFilter()
     .sort()
     .paginate()
     .fields();
@@ -311,26 +312,29 @@ const completeTask = async (taskId: string, clientId: string) => {
       const pendingPayment = payments.find(
         payment => payment.status === PAYMENT_STATUS.PENDING
       );
-      
+
       if (pendingPayment) {
         // Check the actual Stripe status
         const stripe = require('../../../config/stripe').stripe;
         const paymentIntent = await stripe.paymentIntents.retrieve(
           pendingPayment.stripePaymentIntentId
         );
-        
+
         // Handle payment capture and processing
-        if (paymentIntent.status === 'requires_capture' || paymentIntent.status === 'succeeded') {
+        if (
+          paymentIntent.status === 'requires_capture' ||
+          paymentIntent.status === 'succeeded'
+        ) {
           try {
             let capturedPayment = paymentIntent;
-            
+
             // Only capture if it requires capture
             if (paymentIntent.status === 'requires_capture') {
               capturedPayment = await stripe.paymentIntents.capture(
                 pendingPayment.stripePaymentIntentId
               );
             }
-            
+
             if (capturedPayment.status === 'succeeded') {
               // Ensure pendingPayment has a valid _id
               if (!pendingPayment._id) {
@@ -339,35 +343,36 @@ const completeTask = async (taskId: string, clientId: string) => {
                   'Payment ID is missing'
                 );
               }
-              
+
               // Update payment status to HELD in database
               await PaymentModel.updatePaymentStatus(
                 pendingPayment._id,
                 PAYMENT_STATUS.HELD
               );
-              
+
               // Refresh the payments array to get the updated status
               const updatedPayments = await PaymentModel.getPaymentsByTask(
                 new mongoose.Types.ObjectId(taskId)
               );
-              
+
               // Find the now-held payment
               const heldPayment = updatedPayments.find(
                 payment => payment.status === PAYMENT_STATUS.HELD
               );
-              
+
               if (heldPayment) {
                 // Continue with the release process using the captured payment
-                const paymentRelease = await PaymentService.releaseEscrowPayment({
-                  paymentId: heldPayment._id!,
-                  releaseType: RELEASE_TYPE.COMPLETE,
-                  clientId: new mongoose.Types.ObjectId(clientId),
-                });
-                
+                const paymentRelease =
+                  await PaymentService.releaseEscrowPayment({
+                    paymentId: heldPayment._id!,
+                    releaseType: RELEASE_TYPE.COMPLETE,
+                    clientId: new mongoose.Types.ObjectId(clientId),
+                  });
+
                 // Update task status to completed
                 task.status = TaskStatus.COMPLETED;
                 await task.save();
-                
+
                 // Send notification to freelancer about payment release
                 if (task.assignedTo) {
                   const notificationData = {
@@ -380,13 +385,16 @@ const completeTask = async (taskId: string, clientId: string) => {
                   };
                   await sendNotifications(notificationData);
                 }
-                
+
                 return { task, paymentRelease };
               }
             }
           } catch (captureError: any) {
             // Handle the case where payment is already captured
-            if (captureError.message && captureError.message.includes('already been captured')) {
+            if (
+              captureError.message &&
+              captureError.message.includes('already been captured')
+            ) {
               // Payment is already captured, just update the database status
               if (!pendingPayment._id) {
                 throw new ApiError(
@@ -394,34 +402,35 @@ const completeTask = async (taskId: string, clientId: string) => {
                   'Payment ID is missing'
                 );
               }
-              
+
               await PaymentModel.updatePaymentStatus(
                 pendingPayment._id,
                 PAYMENT_STATUS.HELD
               );
-              
+
               // Refresh the payments array to get the updated status
               const updatedPayments = await PaymentModel.getPaymentsByTask(
                 new mongoose.Types.ObjectId(taskId)
               );
-              
+
               // Find the now-held payment
               const heldPayment = updatedPayments.find(
                 payment => payment.status === PAYMENT_STATUS.HELD
               );
-              
+
               if (heldPayment) {
                 // Continue with the release process
-                const paymentRelease = await PaymentService.releaseEscrowPayment({
-                  paymentId: heldPayment._id!,
-                  releaseType: RELEASE_TYPE.COMPLETE,
-                  clientId: new mongoose.Types.ObjectId(clientId),
-                });
-                
+                const paymentRelease =
+                  await PaymentService.releaseEscrowPayment({
+                    paymentId: heldPayment._id!,
+                    releaseType: RELEASE_TYPE.COMPLETE,
+                    clientId: new mongoose.Types.ObjectId(clientId),
+                  });
+
                 // Update task status to completed
                 task.status = TaskStatus.COMPLETED;
                 await task.save();
-                
+
                 // Send notification to freelancer about payment release
                 if (task.assignedTo) {
                   const notificationData = {
@@ -434,7 +443,7 @@ const completeTask = async (taskId: string, clientId: string) => {
                   };
                   await sendNotifications(notificationData);
                 }
-                
+
                 return { task, paymentRelease };
               }
             } else {
@@ -445,15 +454,19 @@ const completeTask = async (taskId: string, clientId: string) => {
             }
           }
         }
-        
+
         let errorMessage = 'Payment is not yet confirmed. ';
         let suggestions = [];
-        
+
         if (paymentIntent.status === 'requires_payment_method') {
           suggestions.push('Client needs to provide payment method');
         } else if (paymentIntent.status === 'requires_confirmation') {
-          suggestions.push('Use the test confirmation endpoint: POST /api/v1/payments/test/confirm-payment');
-          suggestions.push(`Body: {"client_secret": "${paymentIntent.client_secret}", "task_id": "${taskId}"}`);
+          suggestions.push(
+            'Use the test confirmation endpoint: POST /api/v1/payments/test/confirm-payment'
+          );
+          suggestions.push(
+            `Body: {"client_secret": "${paymentIntent.client_secret}", "task_id": "${taskId}"}`
+          );
         } else if (paymentIntent.status === 'requires_action') {
           suggestions.push('Payment requires additional authentication');
         } else if (paymentIntent.status === 'processing') {
@@ -461,15 +474,12 @@ const completeTask = async (taskId: string, clientId: string) => {
         } else {
           suggestions.push(`Payment status in Stripe: ${paymentIntent.status}`);
         }
-        
+
         errorMessage += 'Suggestions: ' + suggestions.join('; ');
-        
-        throw new ApiError(
-          StatusCodes.BAD_REQUEST,
-          errorMessage
-        );
+
+        throw new ApiError(StatusCodes.BAD_REQUEST, errorMessage);
       }
-      
+
       // Check for other payment statuses
       const paymentStatuses = payments.map(p => p.status).join(', ');
       throw new ApiError(

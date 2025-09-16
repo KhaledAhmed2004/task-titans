@@ -28,7 +28,37 @@ class QueryBuilder<T> {
     return this;
   }
 
-  // 🔎 Filtering
+  // // 🔎 Filtering
+  // filter() {
+  //   const queryObj = { ...this.query };
+  //   const excludeFields = [
+  //     'searchTerm',
+  //     'sort',
+  //     'page',
+  //     'limit',
+  //     'fields',
+  //     'timeFilter',
+  //     'start',
+  //     'end',
+  //     'category',
+  //   ];
+  //   excludeFields.forEach(el => delete queryObj[el]);
+
+  //   this.modelQuery = this.modelQuery.find(queryObj as FilterQuery<T>);
+
+  //   // Category filtering (single or multiple)
+  //   if (this?.query?.category) {
+  //     const categories = (this.query.category as string)
+  //       .split(',')
+  //       .map(cat => cat.trim());
+
+  //     this.modelQuery = this.modelQuery.find({
+  //       taskCategory: { $in: categories },
+  //     } as FilterQuery<T>);
+  //   }
+  //   return this;
+  // }
+
   filter() {
     const queryObj = { ...this.query };
     const excludeFields = [
@@ -40,22 +70,25 @@ class QueryBuilder<T> {
       'timeFilter',
       'start',
       'end',
-      'category',
+      'category', // we will handle this separately
     ];
     excludeFields.forEach(el => delete queryObj[el]);
 
     this.modelQuery = this.modelQuery.find(queryObj as FilterQuery<T>);
 
-    // Category filtering (single or multiple)
+    // ✅ Category filtering (support single or multiple)
     if (this?.query?.category) {
       const categories = (this.query.category as string)
         .split(',')
         .map(cat => cat.trim());
 
+      // Apply category filter
       this.modelQuery = this.modelQuery.find({
+        ...this.modelQuery.getFilter(), // keep previous filters
         taskCategory: { $in: categories },
       } as FilterQuery<T>);
     }
+
     return this;
   }
 
@@ -155,14 +188,14 @@ class QueryBuilder<T> {
 
   // 🎯 Populate with match conditions for filtering
   populateWithMatch(
-    path: string, 
-    matchConditions: Record<string, unknown> = {}, 
+    path: string,
+    matchConditions: Record<string, unknown> = {},
     selectFields?: string
   ) {
     this.modelQuery = this.modelQuery.populate({
       path,
       match: matchConditions,
-      select: selectFields ?? '-__v'
+      select: selectFields ?? '-__v',
     });
     return this;
   }
@@ -181,18 +214,18 @@ class QueryBuilder<T> {
             $or: searchableFields.map(field => ({
               [field]: {
                 $regex: searchTerm,
-                $options: 'i'
-              }
-            }))
+                $options: 'i',
+              },
+            })),
           },
-          additionalMatch
-        ]
+          additionalMatch,
+        ],
       };
 
       this.modelQuery = this.modelQuery.populate({
         path,
         match: searchConditions,
-        select: '-__v'
+        select: '-__v',
       });
     }
     return this;
@@ -206,13 +239,13 @@ class QueryBuilder<T> {
   // 📊 Get filtered results with custom pagination
   async getFilteredResults(populatedFieldsToCheck: string[] = []) {
     const results = await this.modelQuery;
-    
+
     // Filter out documents where specified populated fields are null
     const filteredResults = results.filter((doc: any) => {
       if (populatedFieldsToCheck.length === 0) {
         return true; // No filtering if no fields specified
       }
-      
+
       return populatedFieldsToCheck.every((fieldPath: string) => {
         const value = doc.get ? doc.get(fieldPath) : doc[fieldPath];
         return value !== null && value !== undefined;
@@ -229,12 +262,12 @@ class QueryBuilder<T> {
       total,
       limit,
       page,
-      totalPage
+      totalPage,
     };
 
     return {
       data: filteredResults,
-      pagination
+      pagination,
     };
   }
 
