@@ -201,7 +201,7 @@ const getAllTasksByTaskerBids = async (taskerId: string) => {
   const bids = await BidModel.find({ taskerId }).populate({
     path: 'taskId',
     model: 'Task',
-    select: 'title description status userId assignedTo',
+    select: 'title description status userId assignedTo taskCategory',
   });
 
   const result = bids.map(bid => ({
