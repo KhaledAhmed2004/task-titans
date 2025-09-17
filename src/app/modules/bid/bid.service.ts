@@ -67,7 +67,7 @@ const getAllBidsByTaskId = async (
     .sort()
     .paginate()
     .fields()
-    .populate(['taskerId'], { taskerId: 'name email' }); // ✅ correct field
+    .populate(['taskerId'], { taskerId: 'name' }); // ✅ correct field
 
   const { data, pagination } = await queryBuilder.getFilteredResults();
 

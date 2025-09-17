@@ -1,8 +1,6 @@
-import admin from 'firebase-admin';
-// import { logger } from '../shared/logger';
-// import config from '../config';
 import { logger } from '../../../shared/logger';
 import config from '../../../config';
+import admin from 'firebase-admin';
 
 // Decode Base64 Firebase service account
 const serviceAccountJson = Buffer.from(

@@ -6,22 +6,25 @@ const router = express.Router();
 
 router.get(
   '/',
-  auth(USER_ROLES.EMPLOYER, USER_ROLES.PROVIDER),
+  auth(USER_ROLES.TASKER, USER_ROLES.POSTER),
   NotificationController.getNotificationFromDB
 );
+
 router.get(
   '/admin',
-  auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+  auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.SUPER_ADMIN),
   NotificationController.adminNotificationFromDB
 );
+
 router.patch(
   '/',
-  auth(USER_ROLES.EMPLOYER, USER_ROLES.PROVIDER),
+  auth(USER_ROLES.TASKER, USER_ROLES.POSTER),
   NotificationController.readNotification
 );
+
 router.patch(
   '/admin',
-  auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
+  auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.SUPER_ADMIN),
   NotificationController.adminReadNotification
 );
 

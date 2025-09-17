@@ -12,6 +12,7 @@ import { RuleRoutes } from '../app/modules/rule/rule.route';
 import { CategoryRoutes } from '../app/modules/category/category.route';
 import { PaymentRoutes } from '../app/modules/payment/payment.routes';
 import { BookmarkRoutes } from '../app/modules/bookmark/bookmark.route';
+import { CommentRoutes } from '../app/modules/comments/comments.route';
 
 const router = express.Router();
 
@@ -67,6 +68,10 @@ const apiRoutes = [
   {
     path: '/bookmarks',
     route: BookmarkRoutes,
+  },
+  {
+    path: '/comments',
+    route: CommentRoutes,
   },
   // {
   //   path: '/disputes',

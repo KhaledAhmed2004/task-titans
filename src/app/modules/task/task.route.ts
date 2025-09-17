@@ -100,4 +100,7 @@ router.post(
   TaskController.submitDelivery
 );
 
+// Get similar tasks by taskId
+router.get('/:taskId/similar', TaskController.getSimilarTasks);
+
 export const TaskRoutes = router;

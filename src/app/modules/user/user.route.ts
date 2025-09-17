@@ -67,5 +67,7 @@ router.patch(
 
 // Get a specific user by ID
 router.get('/:id', auth(USER_ROLES.SUPER_ADMIN), UserController.getUserById);
+// Get a specific user by ID
+router.get('/:id/user', UserController.getUserDetailsById);
 
 export const UserRoutes = router;

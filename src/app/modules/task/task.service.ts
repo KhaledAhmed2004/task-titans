@@ -638,6 +638,25 @@ const submitDelivery = async (taskId: string, taskerId: string) => {
   return task;
 };
 
+const getSimilarTasks = async (taskId: string) => {
+  // Find the reference task first
+  const task = await TaskModel.findById(taskId);
+  if (!task) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
+  }
+
+  // Find other tasks in the same category, excluding this task
+  const similarTasks = await TaskModel.find({
+    _id: { $ne: taskId }, // exclude current task
+    taskCategory: task.taskCategory,
+    status: TaskStatus.OPEN, // only show open tasks
+  })
+    .limit(10) // limit number of similar tasks
+    .sort({ createdAt: -1 }); // newest first
+
+  return similarTasks;
+};
+
 export const TaskService = {
   createTask,
   getAllTasks,
@@ -651,4 +670,5 @@ export const TaskService = {
   completeTask,
   // cancelTask,
   submitDelivery,
+  getSimilarTasks,
 };

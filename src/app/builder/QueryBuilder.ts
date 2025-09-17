@@ -28,37 +28,7 @@ class QueryBuilder<T> {
     return this;
   }
 
-  // // 🔎 Filtering
-  // filter() {
-  //   const queryObj = { ...this.query };
-  //   const excludeFields = [
-  //     'searchTerm',
-  //     'sort',
-  //     'page',
-  //     'limit',
-  //     'fields',
-  //     'timeFilter',
-  //     'start',
-  //     'end',
-  //     'category',
-  //   ];
-  //   excludeFields.forEach(el => delete queryObj[el]);
-
-  //   this.modelQuery = this.modelQuery.find(queryObj as FilterQuery<T>);
-
-  //   // Category filtering (single or multiple)
-  //   if (this?.query?.category) {
-  //     const categories = (this.query.category as string)
-  //       .split(',')
-  //       .map(cat => cat.trim());
-
-  //     this.modelQuery = this.modelQuery.find({
-  //       taskCategory: { $in: categories },
-  //     } as FilterQuery<T>);
-  //   }
-  //   return this;
-  // }
-
+  // 🔎 Filtering
   filter() {
     const queryObj = { ...this.query };
     const excludeFields = [

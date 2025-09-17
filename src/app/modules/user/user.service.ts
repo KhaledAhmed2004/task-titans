@@ -243,7 +243,6 @@ const getUserById = async (id: string) => {
   return { user };
 };
 
-// user.service.ts
 const getUserDistribution = async () => {
   const totalUsers = await User.countDocuments();
   const totalTaskers = await User.countDocuments({ role: USER_ROLES.TASKER });
@@ -273,6 +272,16 @@ const getUserDistribution = async () => {
   };
 };
 
+const getUserDetailsById = async (id: string) => {
+  // 1️⃣ Find the user
+  const user = await User.findById(id).select('-password -authentication');
+  if (!user) {
+    throw new ApiError(StatusCodes.NOT_FOUND, "User doesn't exist!");
+  }
+
+  return user;
+};
+
 export const UserService = {
   createUserToDB,
   getUserProfileFromDB,
@@ -283,4 +292,5 @@ export const UserService = {
   getUserById,
   getUserStats,
   getUserDistribution,
+  getUserDetailsById,
 };

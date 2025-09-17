@@ -187,6 +187,19 @@ const submitDelivery = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getSimilarTasks = catchAsync(async (req: Request, res: Response) => {
+  const { taskId } = req.params;
+
+  const result = await TaskService.getSimilarTasks(taskId);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: 'Similar tasks retrieved successfully',
+    data: result,
+  });
+});
+
 export const TaskController = {
   createTask,
   getTaskStatistics,
@@ -200,4 +213,5 @@ export const TaskController = {
   completeTask,
   // cancelTask,
   submitDelivery,
+  getSimilarTasks,
 };

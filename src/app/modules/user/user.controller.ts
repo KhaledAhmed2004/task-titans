@@ -120,6 +120,19 @@ const getUserDistribution = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getUserDetailsById = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  const result = await UserService.getUserDetailsById(id);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'User details retrieved successfully',
+    data: result,
+  });
+});
+
 export const UserController = {
   createUser,
   getUserProfile,
@@ -130,4 +143,5 @@ export const UserController = {
   getUserById,
   getUserStats,
   getUserDistribution,
+  getUserDetailsById,
 };
