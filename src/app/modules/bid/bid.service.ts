@@ -67,7 +67,7 @@ const getAllBidsByTaskId = async (
     .sort()
     .paginate()
     .fields()
-    .populate(['taskerId'], { taskerId: 'name' }); // ✅ correct field
+    .populate(['taskerId'], { taskerId: 'name' });
 
   const { data, pagination } = await queryBuilder.getFilteredResults();
 
@@ -147,7 +147,7 @@ const acceptBid = async (bidId: string, clientId: string) => {
 
     // Update task with payment info and assign to freelancer
     task.status = TaskStatus.IN_PROGRESS; // Use new status instead of ASSIGNED
-    task.assignedTo = bid.taskerId?.toString() ?? '';
+    task.assignedTo = bid.taskerId;
     task.paymentIntentId = paymentResult.payment.stripePaymentIntentId;
     await task.save();
 
@@ -177,21 +177,41 @@ const acceptBid = async (bidId: string, clientId: string) => {
   }
 };
 
+// const getAllTasksByTaskerBids = async (taskerId: string) => {
+//   // 1️⃣ Find all bids by the tasker
+//   const bids = await BidModel.find({ taskerId }).populate({
+//     path: 'taskId',
+//     model: 'Task',
+//     select: 'title description status userId assignedTo', // select fields you want
+//   });
+
+//   // 2️⃣ Format response: include task info with the tasker's bid
+//   const result = bids.map(bid => ({
+//     bidId: bid._id,
+//     bidAmount: bid.amount,
+//     bidStatus: bid.status,
+//     task: bid.taskId,
+//     message: bid.message,
+//   }));
+
+//   return result;
+// };
+
 const getAllTasksByTaskerBids = async (taskerId: string) => {
-  // 1️⃣ Find all bids by the tasker
   const bids = await BidModel.find({ taskerId }).populate({
     path: 'taskId',
     model: 'Task',
-    select: 'title description status userId assignedTo', // select fields you want
+    select: 'title description status userId assignedTo',
   });
 
-  // 2️⃣ Format response: include task info with the tasker's bid
   const result = bids.map(bid => ({
     bidId: bid._id,
     bidAmount: bid.amount,
     bidStatus: bid.status,
     task: bid.taskId,
     message: bid.message,
+    createdAt: bid.createdAt,
+    updatedAt: bid.updatedAt,
   }));
 
   return result;
