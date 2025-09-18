@@ -28,7 +28,7 @@ router.post(
 // get all tasks
 router.get(
   '/',
-  auth(USER_ROLES.POSTER, USER_ROLES.TASKER),
+  auth(USER_ROLES.POSTER, USER_ROLES.TASKER, USER_ROLES.GUEST),
   TaskController.getAllTasks
 );
 

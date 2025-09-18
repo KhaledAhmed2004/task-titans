@@ -12,6 +12,18 @@ const createBid = async (bid: Bid, taskerId: string) => {
   const task = await TaskModel.findById(bid.taskId);
   if (!task) throw new Error('Task not found');
 
+  if (task.status === TaskStatus.COMPLETED) {
+    throw new Error('Cannot place bid: Task is already completed');
+  }
+
+  if (task.status === TaskStatus.CANCELLED) {
+    throw new Error('Cannot place bid: Task is already cancelled');
+  }
+
+  if (task.status === TaskStatus.IN_PROGRESS) {
+    throw new Error('Cannot place bid: Task is already accepted');
+  }
+
   // 2️⃣ Check if tasker has already bid
   const isBidExist = await BidModel.findOne({ taskId: bid.taskId, taskerId });
   if (isBidExist)
@@ -177,33 +189,15 @@ const acceptBid = async (bidId: string, clientId: string) => {
   }
 };
 
-// const getAllTasksByTaskerBids = async (taskerId: string) => {
-//   // 1️⃣ Find all bids by the tasker
-//   const bids = await BidModel.find({ taskerId }).populate({
-//     path: 'taskId',
-//     model: 'Task',
-//     select: 'title description status userId assignedTo', // select fields you want
-//   });
-
-//   // 2️⃣ Format response: include task info with the tasker's bid
-//   const result = bids.map(bid => ({
-//     bidId: bid._id,
-//     bidAmount: bid.amount,
-//     bidStatus: bid.status,
-//     task: bid.taskId,
-//     message: bid.message,
-//   }));
-
-//   return result;
-// };
-
 const getAllTasksByTaskerBids = async (taskerId: string) => {
+  // 1️⃣ Find all bids by the tasker
   const bids = await BidModel.find({ taskerId }).populate({
     path: 'taskId',
     model: 'Task',
     select: 'title description status userId assignedTo taskCategory',
   });
 
+  // 2️⃣ Format response: include task info with the tasker's bid
   const result = bids.map(bid => ({
     bidId: bid._id,
     bidAmount: bid.amount,
