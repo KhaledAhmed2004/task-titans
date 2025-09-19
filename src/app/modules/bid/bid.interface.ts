@@ -15,7 +15,7 @@ export type Bid = {
   amount: number;
   message?: string;
   status: BidStatusType;
-  createdAt: Date; // ✅ TypeScript now knows it exists
+  createdAt: Date;
   updatedAt: Date;
 };
 

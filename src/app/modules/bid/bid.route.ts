@@ -7,21 +7,25 @@ import { USER_ROLES } from '../../../enums/user';
 
 const router = Router();
 
-// Get all tasks a tasker has bid on (with their bids)
-router.get(
-  '/tasker/bids',
-  auth(USER_ROLES.TASKER),
-  BidController.getAllTasksByTaskerBids
-);
+/**
+ * =========================
+ * CREATE
+ * =========================
+ */
 
-// Create a new bid (Tasker)
+// Create a new bid for a task (Tasker)
 router.post(
   '/tasks/:taskId/bids',
   auth(USER_ROLES.TASKER),
   validateRequest(BidValidation.createBidZodSchema),
-  auth(USER_ROLES.TASKER),
   BidController.createBid
 );
+
+/**
+ * =========================
+ * READ
+ * =========================
+ */
 
 // Get all bids for a specific task (Client)
 router.get(
@@ -30,15 +34,27 @@ router.get(
   BidController.getAllBidsByTaskId
 );
 
-// Retrieve a specific bid by its ID
-// Accessible by the tasker who placed the bid or the poster (client) of the task
+// Get all tasks a tasker has bid on (with their bids)
+router.get(
+  '/tasker/bids',
+  auth(USER_ROLES.TASKER),
+  BidController.getAllTasksByTaskerBids
+);
+
+// Retrieve a specific bid by its ID (Tasker or Client)
 router.get(
   '/bids/:bidId',
   auth(USER_ROLES.TASKER, USER_ROLES.POSTER),
   BidController.getBidById
 );
 
-// Update bid by ID (Tasker can update their bid)
+/**
+ * =========================
+ * UPDATE
+ * =========================
+ */
+
+// Update bid by ID (Tasker)
 router.put(
   '/bids/:bidId',
   auth(USER_ROLES.TASKER),
@@ -46,8 +62,16 @@ router.put(
   BidController.updateBid
 );
 
+/** =========================
+ * DELETE
+ * ========================== */
+
 // Delete bid by ID (Tasker)
 router.delete('/bids/:bidId', auth(USER_ROLES.TASKER), BidController.deleteBid);
+
+/* =========================
+ * ACTIONS
+ * ========================= */
 
 // Accept a bid (Client)
 router.patch(
