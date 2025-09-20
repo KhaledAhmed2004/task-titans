@@ -9,7 +9,15 @@ const NotificationSchema = new Schema<INotification>(
     read: { type: Boolean, default: false },
     type: {
       type: String,
-      enum: ['ADMIN', 'BID', 'BOOKING', 'TASK', 'SYSTEM', 'DELIVERY_SUBMITTED'],
+      enum: [
+        'ADMIN',
+        'BID',
+        'BOOKING',
+        'TASK',
+        'BID_ACCEPTED',
+        'SYSTEM',
+        'DELIVERY_SUBMITTED',
+      ],
       default: 'SYSTEM',
     },
     referenceId: { type: Schema.Types.ObjectId },
