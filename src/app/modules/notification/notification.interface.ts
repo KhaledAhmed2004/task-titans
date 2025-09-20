@@ -3,6 +3,7 @@ import { Model, Types } from 'mongoose';
 export type NotificationType =
   | 'ADMIN'
   | 'BID'
+  | 'BID_ACCEPTED'
   | 'BOOKING'
   | 'TASK'
   | 'SYSTEM'

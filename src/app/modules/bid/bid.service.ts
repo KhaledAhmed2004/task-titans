@@ -178,15 +178,31 @@ const getBidById = async (bidId: string) => {
 };
 
 const acceptBid = async (bidId: string, clientId: string) => {
-  const bid = await BidModel.findById(bidId);
-  if (!bid) throw new Error('Bid not found');
+  // 1️⃣ Validate bidId
+  if (!mongoose.isValidObjectId(bidId))
+    throw new ApiError(400, 'Invalid bidId');
 
+  // 2️⃣ Find the bid by its ID
+  const bid = await BidModel.findById(bidId);
+  if (!bid) throw new ApiError(404, 'Bid not found');
+
+  // 3️⃣ Find the task associated with the bid
   const task = await TaskModel.findById(bid.taskId);
-  if (!task) throw new Error('Task not found');
-  // if (task.userId.toString() !== clientId) throw new Error('Not authorized');
+  if (!task) throw new ApiError(404, 'Task not found');
+
+  // 4️⃣ Check if the client is authorized to accept this bid
+  if (task.userId.toString() !== clientId) {
+    throw new ApiError(
+      StatusCodes.FORBIDDEN,
+      'You are not authorized to accept this bid'
+    );
+  }
+
+  // 5️⃣ Ensure the bid is still pending
   if (bid.status !== BidStatus.PENDING) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Bid already processed');
   }
+  // 6️⃣ Ensure the task is open for accepting bids
   if (task.status !== TaskStatus.OPEN) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
@@ -195,7 +211,7 @@ const acceptBid = async (bidId: string, clientId: string) => {
   }
 
   try {
-    // Create escrow payment for the accepted bid
+    // 7️⃣ Create escrow payment for the accepted bid
     const paymentData = {
       taskId: new mongoose.Types.ObjectId(task._id),
       posterId: new mongoose.Types.ObjectId(clientId),
@@ -206,33 +222,33 @@ const acceptBid = async (bidId: string, clientId: string) => {
 
     const paymentResult = await PaymentService.createEscrowPayment(paymentData);
 
-    // Accept selected bid
+    // 8️⃣ Accept the selected bid
     bid.status = BidStatus.ACCEPTED;
     await bid.save();
 
-    // Update task with payment info and assign to freelancer
-    task.status = TaskStatus.IN_PROGRESS; // Use new status instead of ASSIGNED
+    // 9️⃣ Update the task: assign freelancer, update status, store payment info
+    task.status = TaskStatus.IN_PROGRESS;
     task.assignedTo = bid.taskerId;
     task.paymentIntentId = paymentResult.payment.stripePaymentIntentId;
     await task.save();
 
-    // Reject other bids
+    // 🔟 Reject all other bids for this task
     await BidModel.updateMany(
       { taskId: task._id, _id: { $ne: bid._id } },
       { $set: { status: BidStatus.REJECTED } }
     );
 
-    // // Send notifications
-    // const acceptedNotification = {
-    //   text: `Congratulations! Your bid for "${task.title}" has been accepted. Payment is now in escrow.`,
-    //   title: 'Bid Accepted',
-    //   receiver: bid.taskerId?.toString() ?? '',
-    //   type: 'BID_ACCEPTED',
-    //   referenceId: bid._id,
-    //   read: false,
-    // };
+    // 1️⃣1️⃣ Send notifications
+    const acceptedNotification = {
+      text: `Congratulations! Your bid for "${task.title}" has been accepted. Payment is now in escrow.`,
+      title: 'Bid Accepted',
+      receiver: bid.taskerId,
+      type: 'BID_ACCEPTED',
+      referenceId: bid._id,
+      read: false,
+    };
 
-    // await sendNotifications(acceptedNotification);
+    await sendNotifications(acceptedNotification);
 
     return { bid, task, payment: paymentResult };
   } catch (error) {
