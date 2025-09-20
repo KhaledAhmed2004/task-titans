@@ -25,8 +25,9 @@ export type Task = {
   taskBudget: number;
   taskLocation: string;
   status: TaskStatusType;
-  userId: string;
-  assignedTo?: string;
+  userId: Types.ObjectId;
+  assignedTo?: Types.ObjectId;
+  isDeleted: boolean;
   paymentIntentId?: string; // Stripe payment intent ID for escrow
 };
 

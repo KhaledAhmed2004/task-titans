@@ -24,54 +24,24 @@ const createBid = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-const getAllBids = catchAsync(async (req: Request, res: Response) => {
-  const query = req.query;
-  const result = await BidService.getAllBids(query as any);
+const getAllTasksByTaskerBids = catchAsync(
+  async (req: Request, res: Response) => {
+    const user = req?.user as JwtPayload;
+    const taskerId = user.id;
 
-  sendResponse(res, {
-    statusCode: StatusCodes.OK,
-    success: true,
-    message: 'Bids retrieved successfully',
-    data: result,
-  });
-});
-
-// const getAllBidsByTaskId = catchAsync(async (req: Request, res: Response) => {
-//   const { taskId } = req.params;
-//   const result = await BidService.getAllBidsByTaskId(taskId);
-
-//   sendResponse(res, {
-//     statusCode: StatusCodes.OK,
-//     success: true,
-//     message: 'Bids for task retrieved successfully',
-//     data: result,
-//   });
-// });
-
-const getAllBidsByTaskId = catchAsync(async (req: Request, res: Response) => {
-  const { taskId } = req.params;
-  const result = await BidService.getAllBidsByTaskId(taskId, req.query);
-
-  sendResponse(res, {
-    statusCode: StatusCodes.OK,
-    success: true,
-    message: 'Bids for task retrieved successfully',
-    data: result.data,
-    pagination: result.pagination,
-  });
-});
-
-const getBidById = catchAsync(async (req: Request, res: Response) => {
-  const { bidId } = req.params;
-  const result = await BidService.getBidById(bidId);
-
-  sendResponse(res, {
-    statusCode: StatusCodes.OK,
-    success: true,
-    message: 'Bid retrieved successfully',
-    data: result,
-  });
-});
+    const result = await BidService.getAllTasksByTaskerBids(
+      taskerId,
+      req.query
+    );
+    sendResponse(res, {
+      statusCode: StatusCodes.OK,
+      success: true,
+      message: 'Tasks with your bids retrieved successfully',
+      data: result.data,
+      pagination: result.pagination,
+    });
+  }
+);
 
 const updateBid = catchAsync(async (req: Request, res: Response) => {
   const { bidId } = req.params;
@@ -104,6 +74,34 @@ const deleteBid = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getAllBidsByTaskId = catchAsync(async (req: Request, res: Response) => {
+  const { taskId } = req.params;
+
+  const result = await BidService.getAllBidsByTaskId(taskId, req.query);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: result.data.length
+      ? 'Bids for task retrieved successfully'
+      : 'No bids found for this task',
+    data: result.data,
+    pagination: result.pagination,
+  });
+});
+
+const getBidById = catchAsync(async (req: Request, res: Response) => {
+  const { bidId } = req.params;
+  const result = await BidService.getBidById(bidId);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: 'Bid retrieved successfully',
+    data: result,
+  });
+});
+
 const acceptBid = catchAsync(async (req: Request, res: Response) => {
   const { bidId } = req.params;
   const user = req?.user as JwtPayload;
@@ -119,25 +117,8 @@ const acceptBid = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-const getAllTasksByTaskerBids = catchAsync(
-  async (req: Request, res: Response) => {
-    const user = req?.user as JwtPayload;
-    const taskerId = user.id;
-
-    const result = await BidService.getAllTasksByTaskerBids(taskerId);
-
-    sendResponse(res, {
-      statusCode: StatusCodes.OK,
-      success: true,
-      message: 'Tasks with your bids retrieved successfully',
-      data: result,
-    });
-  }
-);
-
 export const BidController = {
   createBid,
-  getAllBids,
   getAllBidsByTaskId,
   getBidById,
   updateBid,

@@ -12,6 +12,7 @@ import PaymentService from '../payment/payment.service';
 import { PaymentModel } from '../payment/payment.model';
 import { PAYMENT_STATUS, RELEASE_TYPE } from '../payment/payment.interface';
 import mongoose from 'mongoose';
+import { Bookmark } from '../bookmark/bookmark.model';
 
 const createTask = async (task: Task) => {
   // Validate category
@@ -24,9 +25,9 @@ const createTask = async (task: Task) => {
   return result;
 };
 
-const getAllTasks = async (query: Record<string, unknown>) => {
-  // Build query with QueryBuilder for search, filter, pagination
-  const taskQuery = new QueryBuilder(TaskModel.find(), query)
+const getAllTasks = async (query: Record<string, unknown>, userId?: string) => {
+  // Step 1: Build query (always lean for performance)
+  const taskQuery = new QueryBuilder(TaskModel.find().lean(), query)
     .search(['title', 'description'])
     .filter()
     .dateFilter()
@@ -34,16 +35,51 @@ const getAllTasks = async (query: Record<string, unknown>) => {
     .paginate()
     .fields();
 
-  const tasks = await taskQuery.modelQuery;
-  const paginationInfo = await taskQuery.getPaginationInfo();
+  // Step 2: Prepare promises (tasks + pagination)
+  const promises: Promise<any>[] = [
+    taskQuery.modelQuery, // already lean()
+    taskQuery.getPaginationInfo(),
+  ];
+
+  // Add bookmark query only if logged in
+  if (userId) {
+    promises.push(
+      Bookmark.find({ user: userId })
+        .select('post -_id') // only select needed field
+        .lean() // lightweight result
+    );
+  }
+
+  // Step 3: Run all queries in parallel
+  const results = await Promise.all(promises);
+
+  const tasks: Task[] = results[0];
+  const paginationInfo = results[1];
+  const bookmarks = userId ? results[2] : [];
+
+  // Step 4: Early return if no tasks
+  if (!tasks.length) {
+    return {
+      pagination: paginationInfo,
+      data: [],
+    };
+  }
+
+  // Step 5: Convert bookmarks into Set for O(1) lookup
+  const bookmarkedIds = new Set((bookmarks as any[]).map(b => String(b.post)));
+
+  // Step 6: Enrich tasks
+  const enrichedTasks = tasks.map((task: Task) => ({
+    ...task,
+    isBookmarked: bookmarkedIds.has(String(task._id)),
+  }));
 
   return {
     pagination: paginationInfo,
-    data: tasks,
+    data: enrichedTasks,
   };
 };
 
-// Get a single task by ID
 const getTaskById = async (taskId: string) => {
   const result = await TaskModel.findById(taskId);
   return result;
@@ -268,7 +304,14 @@ const completeTask = async (taskId: string, clientId: string) => {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
   }
 
-  if (task.userId !== clientId) {
+  // if (task.userId !== clientId) {
+  //   throw new ApiError(
+  //     StatusCodes.FORBIDDEN,
+  //     'Only task owner can complete the task'
+  //   );
+  // }
+
+  if (task.userId.toString() !== clientId) {
     throw new ApiError(
       StatusCodes.FORBIDDEN,
       'Only task owner can complete the task'

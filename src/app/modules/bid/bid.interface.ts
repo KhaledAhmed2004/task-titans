@@ -15,6 +15,8 @@ export type Bid = {
   amount: number;
   message?: string;
   status: BidStatusType;
+  createdAt: Date;
+  updatedAt: Date;
 };
 
 export type BidUpdate = {

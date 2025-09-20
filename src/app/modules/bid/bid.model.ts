@@ -17,6 +17,7 @@ const BidSchema = new mongoose.Schema<Bid>(
     message: { type: String, required: false },
     status: { type: String, enum: Object.values(BidStatus), required: true },
   },
+
   {
     timestamps: true,
   }

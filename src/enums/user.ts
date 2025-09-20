@@ -2,6 +2,7 @@ export enum USER_ROLES {
   SUPER_ADMIN = 'SUPER_ADMIN',
   POSTER = 'POSTER',
   TASKER = 'TASKER',
+  GUEST = 'GUEST',
 }
 
 export enum USER_STATUS {

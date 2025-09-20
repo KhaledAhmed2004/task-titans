@@ -1,22 +1,20 @@
 import z from 'zod';
-import { BidStatus } from './bid.interface';
-
-const bidStatusEnum = z.enum([
-  BidStatus.PENDING,
-  BidStatus.ACCEPTED,
-  BidStatus.REJECTED,
-]);
 
 const createBidZodSchema = z.object({
   body: z.object({
-    amount: z.number({ required_error: 'Amount is required' }),
+    amount: z
+      .number({ required_error: 'Amount is required' })
+      .positive({ message: 'Amount must be greater than 0' }),
     message: z.string().optional(),
   }),
 });
 
 const updateBidZodSchema = z.object({
   body: z.object({
-    amount: z.number().optional(),
+    amount: z
+      .number()
+      .positive({ message: 'Amount must be greater than 0' })
+      .optional(),
     message: z.string().optional(),
   }),
 });

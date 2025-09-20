@@ -30,17 +30,15 @@ const TaskSchema = new mongoose.Schema<Task>(
       enum: Object.values(TaskStatus),
       default: TaskStatus.OPEN,
     },
-    userId: {
-      type: String,
-      required: true,
-    },
-    assignedTo: {
-      type: String,
-      required: false,
-    },
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    assignedTo: { type: Schema.Types.ObjectId, ref: 'User' },
     paymentIntentId: {
       type: String,
       required: false,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
     },
   },
   {

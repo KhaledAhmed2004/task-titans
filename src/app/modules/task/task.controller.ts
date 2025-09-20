@@ -29,8 +29,10 @@ const createTask = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getAllTasks = catchAsync(async (req: Request, res: Response) => {
+  const user = req.user as JwtPayload;
+  const userId = user.id;
   const query = req.query;
-  const result = await TaskService.getAllTasks(query);
+  const result = await TaskService.getAllTasks(query, userId);
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,
