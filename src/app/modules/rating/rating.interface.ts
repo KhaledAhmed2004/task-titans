@@ -6,6 +6,4 @@ export interface IRating extends Document {
   givenTo: mongoose.Types.ObjectId; // user who receives the rating
   rating: number; // 1 to 5
   message?: string;
-  createdAt: Date;
-  updatedAt: Date;
 }

@@ -8,10 +8,10 @@ const BidSchema = new mongoose.Schema<Bid>(
       ref: 'Task',
       required: true,
     },
-    taskerId: { 
-      type: mongoose.Schema.Types.ObjectId, 
-      ref: 'User', 
-      required: true 
+    taskerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
     },
     amount: { type: Number, required: true },
     message: { type: String, required: false },
