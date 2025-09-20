@@ -179,16 +179,17 @@ const getBidById = async (bidId: string) => {
 
 const acceptBid = async (bidId: string, clientId: string) => {
   // 1️⃣ Validate bidId
-  if (!mongoose.isValidObjectId(bidId))
-    throw new ApiError(400, 'Invalid bidId');
+  if (!mongoose.isValidObjectId(bidId)) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid bidId');
+  }
 
   // 2️⃣ Find the bid by its ID
   const bid = await BidModel.findById(bidId);
-  if (!bid) throw new ApiError(404, 'Bid not found');
+  if (!bid) throw new ApiError(StatusCodes.NOT_FOUND, 'Bid not found');
 
   // 3️⃣ Find the task associated with the bid
   const task = await TaskModel.findById(bid.taskId);
-  if (!task) throw new ApiError(404, 'Task not found');
+  if (!task) throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
 
   // 4️⃣ Check if the client is authorized to accept this bid
   if (task.userId.toString() !== clientId) {
@@ -202,6 +203,7 @@ const acceptBid = async (bidId: string, clientId: string) => {
   if (bid.status !== BidStatus.PENDING) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Bid already processed');
   }
+
   // 6️⃣ Ensure the task is open for accepting bids
   if (task.status !== TaskStatus.OPEN) {
     throw new ApiError(
@@ -210,8 +212,12 @@ const acceptBid = async (bidId: string, clientId: string) => {
     );
   }
 
+  // 7️⃣ Start a MongoDB session for transaction
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    // 7️⃣ Create escrow payment for the accepted bid
+    // 8️⃣ Create escrow payment for the accepted bid
     const paymentData = {
       taskId: new mongoose.Types.ObjectId(task._id),
       posterId: new mongoose.Types.ObjectId(clientId),
@@ -222,23 +228,28 @@ const acceptBid = async (bidId: string, clientId: string) => {
 
     const paymentResult = await PaymentService.createEscrowPayment(paymentData);
 
-    // 8️⃣ Accept the selected bid
+    // 9️⃣ Accept the selected bid
     bid.status = BidStatus.ACCEPTED;
-    await bid.save();
+    await bid.save({ session });
 
-    // 9️⃣ Update the task: assign freelancer, update status, store payment info
+    // 🔟 Update the task: assign freelancer, update status, store payment info
     task.status = TaskStatus.IN_PROGRESS;
     task.assignedTo = bid.taskerId;
     task.paymentIntentId = paymentResult.payment.stripePaymentIntentId;
-    await task.save();
+    await task.save({ session });
 
-    // 🔟 Reject all other bids for this task
+    // 1️⃣1️⃣ Reject all other bids for this task
     await BidModel.updateMany(
       { taskId: task._id, _id: { $ne: bid._id } },
-      { $set: { status: BidStatus.REJECTED } }
+      { $set: { status: BidStatus.REJECTED } },
+      { session }
     );
 
-    // 1️⃣1️⃣ Send notifications
+    // 1️⃣2️⃣ Commit the transaction to finalize all changes
+    await session.commitTransaction();
+    session.endSession();
+
+    // 1️⃣3️⃣ Send notifications to the accepted freelancer
     const acceptedNotification = {
       text: `Congratulations! Your bid for "${task.title}" has been accepted. Payment is now in escrow.`,
       title: 'Bid Accepted',
@@ -252,9 +263,16 @@ const acceptBid = async (bidId: string, clientId: string) => {
 
     return { bid, task, payment: paymentResult };
   } catch (error) {
+    // ❌ Rollback transaction if anything fails
+    await session.abortTransaction();
+    session.endSession();
+
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error occurred';
-    throw new Error(`Failed to accept bid: ${errorMessage}`);
+    throw new ApiError(
+      StatusCodes.INTERNAL_SERVER_ERROR,
+      `Failed to accept bid: ${errorMessage}`
+    );
   }
 };
 
