@@ -7,6 +7,7 @@ import PaymentService from '../payment/payment.service';
 import mongoose from 'mongoose';
 import QueryBuilder from '../../builder/QueryBuilder';
 import ApiError from '../../../errors/ApiError';
+import { StatusCodes } from 'http-status-codes';
 
 const createBid = async (bid: Bid, taskerId: string) => {
   // 1️⃣ Find the task
@@ -107,7 +108,7 @@ const updateBid = async (
 };
 
 const deleteBid = async (bidId: string, taskerId: string) => {
-  // ✅ Check if bidId is valid
+  // 1️⃣ Check if bidId is valid
   if (!mongoose.Types.ObjectId.isValid(bidId)) {
     throw new Error('Invalid bid ID format');
   }
@@ -115,20 +116,20 @@ const deleteBid = async (bidId: string, taskerId: string) => {
   const bid = await BidModel.findById(bidId);
   if (!bid) throw new Error('Bid not found');
 
-  // ✅ Check if taskerId provided
+  // 2️⃣ Check if taskerId provided
   if (!taskerId) throw new Error('Tasker ID missing');
 
-  // ✅ Ensure only the owner can delete
+  // 3️⃣ Ensure only the owner can delete
   if (!bid.taskerId || bid.taskerId.toString() !== taskerId) {
     throw new Error('Not authorized');
   }
 
-  // ✅ Only pending bids can be deleted
+  // 4️⃣ Only pending bids can be deleted
   if (bid.status !== BidStatus.PENDING) {
     throw new Error('Cannot delete a bid that is not pending');
   }
 
-  // ✅ Try delete with concurrency safety
+  // 5️⃣ Try delete with concurrency safety
   const deletedBid = await BidModel.findByIdAndDelete(bidId);
   if (!deletedBid) {
     throw new Error('Bid already deleted');
@@ -165,20 +166,14 @@ const getAllBidsByTaskId = async (
   return { data, pagination };
 };
 
-const getAllBidsByTaskIdWithTasker = async (taskId: string) => {
-  const task = await TaskModel.findById(taskId);
-  if (!task) throw new Error('Task not found');
-
-  return await BidModel.find({ taskId }).populate({
-    path: 'taskerId',
-    model: 'User',
-    select: 'name email image location phone role verified',
-  });
-};
-
 const getBidById = async (bidId: string) => {
+  // 1️⃣ Validate bidId
+  if (!mongoose.isValidObjectId(bidId))
+    throw new ApiError(400, 'Invalid bidId');
+  // 2️⃣ Find bid by ID
   const bid = await BidModel.findById(bidId);
-  if (!bid) throw new Error('Bid not found');
+  if (!bid) throw new ApiError(404, 'Bid not found');
+
   return bid;
 };
 
@@ -189,6 +184,15 @@ const acceptBid = async (bidId: string, clientId: string) => {
   const task = await TaskModel.findById(bid.taskId);
   if (!task) throw new Error('Task not found');
   // if (task.userId.toString() !== clientId) throw new Error('Not authorized');
+  if (bid.status !== BidStatus.PENDING) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Bid already processed');
+  }
+  if (task.status !== TaskStatus.OPEN) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Task is not open for accepting bids'
+    );
+  }
 
   try {
     // Create escrow payment for the accepted bid
@@ -238,10 +242,20 @@ const acceptBid = async (bidId: string, clientId: string) => {
   }
 };
 
+const getAllBidsByTaskIdWithTasker = async (taskId: string) => {
+  const task = await TaskModel.findById(taskId);
+  if (!task) throw new Error('Task not found');
+
+  return await BidModel.find({ taskId }).populate({
+    path: 'taskerId',
+    model: 'User',
+    select: 'name email image location phone role verified',
+  });
+};
 export const BidService = {
   createBid,
-  getAllBidsByTaskId,
   getAllBidsByTaskIdWithTasker,
+  getAllBidsByTaskId,
   getBidById,
   updateBid,
   deleteBid,

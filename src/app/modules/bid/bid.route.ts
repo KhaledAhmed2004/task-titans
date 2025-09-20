@@ -7,11 +7,9 @@ import { USER_ROLES } from '../../../enums/user';
 
 const router = Router();
 
-/**
- * =========================
- * CREATE
- * =========================
- */
+// =========================
+//  CREATE
+// =========================
 
 // Create a new bid for a task (Tasker)
 router.post(
@@ -21,11 +19,9 @@ router.post(
   BidController.createBid
 );
 
-/**
- * =========================
- * READ
- * =========================
- */
+// =========================
+//  READ
+// =========================
 
 // Get all bids for a specific task (Client)
 router.get(
@@ -48,11 +44,9 @@ router.get(
   BidController.getBidById
 );
 
-/**
- * =========================
- * UPDATE
- * =========================
- */
+// =========================
+//  UPDATE
+// =========================
 
 // Update bid by ID (Tasker)
 router.put(
@@ -62,16 +56,16 @@ router.put(
   BidController.updateBid
 );
 
-/** =========================
- * DELETE
- * ========================== */
+// =========================
+//  DELETE
+// =========================
 
 // Delete bid by ID (Tasker)
 router.delete('/bids/:bidId', auth(USER_ROLES.TASKER), BidController.deleteBid);
 
-/* =========================
- * ACTIONS
- * ========================= */
+// =========================
+//  ACTIONS
+// =========================
 
 // Accept a bid (Client)
 router.patch(
