@@ -31,13 +31,11 @@ const ratingSchema: Schema<IRating> = new Schema(
     },
   },
   {
-    timestamps: true, // createdAt & updatedAt automatically added
+    timestamps: true,
   }
 );
 
-/**
- * Optional: Ensure one user cannot rate same task multiple times
- */
+// Optional: Ensure one user cannot rate same task multiple times
 ratingSchema.index({ taskId: 1, givenBy: 1 }, { unique: true });
 
 export const Rating: Model<IRating> = mongoose.model<IRating>(

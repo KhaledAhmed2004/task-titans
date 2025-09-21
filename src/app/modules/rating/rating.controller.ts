@@ -2,11 +2,14 @@ import { Request, Response } from 'express';
 import { RatingService } from './rating.service';
 import sendResponse from '../../../shared/sendResponse';
 import catchAsync from '../../../shared/catchAsync';
+import { JwtPayload } from 'jsonwebtoken';
 
 const createRating = catchAsync(async (req: Request, res: Response) => {
+  const user = req?.user as JwtPayload;
+  const userId = user?._id;
   const data = {
     taskId: req.body.taskId,
-    givenBy: req?.user?.id,
+    givenBy: userId,
     givenTo: req.body.givenTo,
     rating: req.body.rating,
     message: req.body.message,
@@ -31,7 +34,9 @@ const getAllRatings = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getMyRatings = catchAsync(async (req: Request, res: Response) => {
-  const result = await RatingService.getMyRatings(req?.user?._id);
+  const user = req?.user as JwtPayload;
+  const userId = user?._id;
+  const result = await RatingService.getMyRatings(userId);
   sendResponse(res, {
     success: true,
     statusCode: 200,
@@ -40,7 +45,9 @@ const getMyRatings = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getMyRatingStats = catchAsync(async (req: Request, res: Response) => {
-  const result = await RatingService.getMyRatingStats(req?.user?._id);
+  const user = req?.user as JwtPayload;
+  const userId = user?._id;
+  const result = await RatingService.getMyRatingStats(userId);
   sendResponse(res, {
     success: true,
     statusCode: 200,

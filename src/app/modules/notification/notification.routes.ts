@@ -36,15 +36,14 @@ router.get(
 router.patch(
   '/admin/:id/read',
   auth(USER_ROLES.SUPER_ADMIN),
-  NotificationController.adminReadNotification
+  NotificationController.adminMarkNotificationAsRead
 );
 
 // Mark all admin notifications as read
 router.patch(
   '/admin/read-all',
   auth(USER_ROLES.SUPER_ADMIN),
-  NotificationController.adminReadAllNotifications
+  NotificationController.adminMarkAllNotificationsAsRead
 );
-
 
 export const NotificationRoutes = router;

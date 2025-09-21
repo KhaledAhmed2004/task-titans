@@ -49,67 +49,53 @@ const readAllNotifications = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Fetch admin notifications with query, pagination, unread count
-const adminNotificationFromDB = async (query: Record<string, unknown>) => {
-  const notificationQuery = new QueryBuilder<INotification>(
-    Notification.find({ type: 'ADMIN' }),
-    query
-  )
-    .search(['title', 'text'])
-    .filter()
-    .dateFilter()
-    .sort()
-    .paginate()
-    .fields();
+const adminNotificationFromDB = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = await NotificationService.adminNotificationFromDB(req.query);
 
-  const { data, pagination } = await notificationQuery.getFilteredResults();
-
-  const unreadCount = await Notification.countDocuments({
-    type: 'ADMIN',
-    isRead: false,
-  });
-
-  return {
-    data,
-    pagination,
-    unreadCount,
-  };
-};
-
-// Mark a single admin notification as read
-const adminMarkNotificationAsReadIntoDB = async (notificationId: string) => {
-  const notification = await Notification.findOneAndUpdate(
-    { _id: notificationId, type: 'ADMIN' },
-    { isRead: true },
-    { new: true }
-  );
-
-  if (!notification) {
-    throw new Error('Admin notification not found');
+    sendResponse(res, {
+      statusCode: StatusCodes.OK,
+      success: true,
+      message: 'Admin notifications retrieved successfully',
+      data: result,
+    });
   }
+);
 
-  return notification;
-};
+const adminMarkNotificationAsRead = catchAsync(
+  async (req: Request, res: Response) => {
+    const notification =
+      await NotificationService.adminMarkNotificationAsReadIntoDB(
+        req.params.id
+      );
 
-// Mark all admin notifications as read
-const adminMarkAllNotificationsAsRead = async () => {
-  const result = await Notification.updateMany(
-    { type: 'ADMIN', isRead: false },
-    { isRead: true }
-  );
+    sendResponse(res, {
+      statusCode: StatusCodes.OK,
+      success: true,
+      message: 'Admin notification marked as read successfully',
+      data: notification,
+    });
+  }
+);
 
-  return {
-    modifiedCount: result.modifiedCount,
-    message: 'All admin notifications marked as read',
-  };
-};
+const adminMarkAllNotificationsAsRead = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = await NotificationService.adminMarkAllNotificationsAsRead();
+
+    sendResponse(res, {
+      statusCode: StatusCodes.OK,
+      success: true,
+      message: result.message,
+      data: { updated: result.modifiedCount },
+    });
+  }
+);
 
 export const NotificationController = {
   adminNotificationFromDB,
   getNotificationFromDB,
   readAllNotifications,
   readNotification,
-  adminMarkNotificationAsReadIntoDB,
-  adminMarkAllNotificationsAsRead,
+  adminMarkNotificationAsRead,
   adminMarkAllNotificationsAsRead,
 };

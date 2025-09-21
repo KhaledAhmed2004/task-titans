@@ -7,11 +7,7 @@ import { RatingValidation } from './rating.validation';
 
 const router = express.Router();
 
-/**
- * Route: POST /ratings/
- * Description: Create a new rating (given by POSTER or TASKER)
- * Access: POSTER, TASKER
- */
+// Create a new rating
 router.post(
   '/',
   auth(USER_ROLES.POSTER, USER_ROLES.TASKER),
@@ -19,11 +15,7 @@ router.post(
   RatingController.createRating
 );
 
-/**
- * Route: GET /ratings/
- * Description: Get all ratings with filters and pagination
- * Access: SUPER_ADMIN only
- */
+// Get all ratings with filters and pagination
 router.get(
   '/',
   auth(USER_ROLES.SUPER_ADMIN),
@@ -31,33 +23,21 @@ router.get(
   RatingController.getAllRatings
 );
 
-/**
- * Route: GET /ratings/my-ratings
- * Description: Get all ratings given by the current authenticated user
- * Access: POSTER, TASKER
- */
+// Get all ratings given by the current authenticated user
 router.get(
   '/my-ratings',
   auth(USER_ROLES.POSTER, USER_ROLES.TASKER),
   RatingController.getMyRatings
 );
 
-/**
- * Route: GET /ratings/my-stats
- * Description: Get current user's rating statistics (average, total count, etc.)
- * Access: POSTER, TASKER
- */
+// Get current user's rating statistics (average, total count, etc.)
 router.get(
   '/my-stats',
   auth(USER_ROLES.POSTER, USER_ROLES.TASKER),
   RatingController.getMyRatingStats
 );
 
-/**
- * Route: GET /ratings/:id
- * Description: Get a specific rating by its ID
- * Access: POSTER, TASKER
- */
+// Get a specific rating by its ID
 router.get(
   '/:id',
   auth(USER_ROLES.POSTER, USER_ROLES.TASKER),
@@ -65,11 +45,7 @@ router.get(
   RatingController.getSingleRating
 );
 
-/**
- * Route: PATCH /ratings/:id
- * Description: Update a specific rating by ID
- * Access: POSTER, TASKER
- */
+// Update a specific rating by ID
 router.patch(
   '/:id',
   auth(USER_ROLES.POSTER, USER_ROLES.TASKER),
@@ -78,11 +54,7 @@ router.patch(
   RatingController.updateRating
 );
 
-/**
- * Route: DELETE /ratings/:id
- * Description: Delete a specific rating by ID
- * Access: POSTER, TASKER
- */
+// Delete a specific rating by ID
 router.delete(
   '/:id',
   auth(USER_ROLES.POSTER, USER_ROLES.TASKER),
@@ -90,11 +62,7 @@ router.delete(
   RatingController.deleteRating
 );
 
-/**
- * Route: GET /ratings/user/:userId
- * Description: Get all ratings for a specific user
- * Access: POSTER, TASKER
- */
+// Get all ratings for a specific user
 router.get(
   '/user/:userId',
   auth(USER_ROLES.POSTER, USER_ROLES.TASKER),
@@ -102,22 +70,14 @@ router.get(
   RatingController.getUserRatings
 );
 
-/**
- * Route: GET /ratings/user/:userId/stats
- * Description: Get rating statistics (average, total count, etc.) for a specific user
- * Access: Public / Authenticated
- */
+// Get rating statistics (average, total count, etc.) for a specific user
 router.get(
   '/user/:userId/stats',
   validateRequest(RatingValidation.userIdParamZodSchema),
   RatingController.getUserRatingStats
 );
 
-/**
- * Route: GET /ratings/task/:taskId
- * Description: Get all ratings for a specific task
- * Access: Public / Authenticated
- */
+// Get all ratings for a specific task
 router.get(
   '/task/:taskId',
   validateRequest(RatingValidation.taskIdParamZodSchema),

@@ -66,26 +66,66 @@ export const markAllNotificationsAsRead = async (userId: string) => {
   };
 };
 
-// get notifications for admin
-const adminNotificationFromDB = async () => {
-  const result = await Notification.find({ type: 'ADMIN' });
-  return result;
+// Fetch admin notifications with query, pagination, unread count
+const adminNotificationFromDB = async (query: Record<string, unknown>) => {
+  const notificationQuery = new QueryBuilder<INotification>(
+    Notification.find({ type: 'ADMIN' }),
+    query
+  )
+    .search(['title', 'text'])
+    .filter()
+    .dateFilter()
+    .sort()
+    .paginate()
+    .fields();
+
+  const { data, pagination } = await notificationQuery.getFilteredResults();
+
+  const unreadCount = await Notification.countDocuments({
+    type: 'ADMIN',
+    isRead: false,
+  });
+
+  return {
+    data,
+    pagination,
+    unreadCount,
+  };
 };
 
-// read notifications only for admin
-const adminReadNotificationToDB = async (): Promise<INotification | null> => {
-  const result: any = await Notification.updateMany(
-    { type: 'ADMIN', read: false },
-    { $set: { read: true } },
+// Mark a single admin notification as read
+const adminMarkNotificationAsReadIntoDB = async (notificationId: string) => {
+  const notification = await Notification.findOneAndUpdate(
+    { _id: notificationId, type: 'ADMIN' },
+    { isRead: true },
     { new: true }
   );
-  return result;
+
+  if (!notification) {
+    throw new Error('Admin notification not found');
+  }
+
+  return notification;
+};
+
+// Mark all admin notifications as read
+const adminMarkAllNotificationsAsRead = async () => {
+  const result = await Notification.updateMany(
+    { type: 'ADMIN', isRead: false },
+    { isRead: true }
+  );
+
+  return {
+    modifiedCount: result.modifiedCount,
+    message: 'All admin notifications marked as read',
+  };
 };
 
 export const NotificationService = {
   adminNotificationFromDB,
   getNotificationFromDB,
   markNotificationAsReadIntoDB,
-  adminReadNotificationToDB,
+  adminMarkNotificationAsReadIntoDB,
   markAllNotificationsAsRead,
+  adminMarkAllNotificationsAsRead,
 };
