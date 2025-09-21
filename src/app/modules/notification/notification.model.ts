@@ -3,10 +3,10 @@ import { INotification } from './notification.interface';
 
 const NotificationSchema = new Schema<INotification>(
   {
+    title: { type: String },
     text: { type: String, required: true },
     receiver: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    title: { type: String },
-    read: { type: Boolean, default: false },
+    isRead: { type: Boolean, default: false },
     type: {
       type: String,
       enum: [

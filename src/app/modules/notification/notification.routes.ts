@@ -4,32 +4,47 @@ import { USER_ROLES } from '../../../enums/user';
 import { NotificationController } from './notification.controller';
 const router = express.Router();
 
-// Fetch user notifications & unread count
+// Fetch notifications + unread count
 router.get(
   '/',
   auth(USER_ROLES.TASKER, USER_ROLES.POSTER),
   NotificationController.getNotificationFromDB
 );
 
-// Fetch admin notifications
-router.get(
-  '/admin',
-  auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.SUPER_ADMIN),
-  NotificationController.adminNotificationFromDB
-);
-
-// Mark user notifications as read
+// Mark a notification as read
 router.patch(
-  '/',
+  '/:id/read',
   auth(USER_ROLES.TASKER, USER_ROLES.POSTER),
   NotificationController.readNotification
 );
 
-// Mark admin notifications as read
+// Mark all notifications as read
 router.patch(
+  '/read-all',
+  auth(USER_ROLES.TASKER, USER_ROLES.POSTER),
+  NotificationController.readAllNotifications
+);
+
+// Fetch admin notifications + unread count
+router.get(
   '/admin',
-  auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.SUPER_ADMIN),
+  auth(USER_ROLES.SUPER_ADMIN),
+  NotificationController.adminNotificationFromDB
+);
+
+// Mark a single admin notification as read
+router.patch(
+  '/admin/:id/read',
+  auth(USER_ROLES.SUPER_ADMIN),
   NotificationController.adminReadNotification
 );
+
+// Mark all admin notifications as read
+router.patch(
+  '/admin/read-all',
+  auth(USER_ROLES.SUPER_ADMIN),
+  NotificationController.adminReadAllNotifications
+);
+
 
 export const NotificationRoutes = router;

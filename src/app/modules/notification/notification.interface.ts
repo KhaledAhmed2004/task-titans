@@ -13,7 +13,7 @@ export type INotification = {
   text: string;
   receiver: Types.ObjectId;
   title?: string;
-  read: boolean;
+  isRead: boolean;
   type?: NotificationType;
   referenceId?: Types.ObjectId;
 };

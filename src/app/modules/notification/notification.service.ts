@@ -26,7 +26,7 @@ const getNotificationFromDB = async (
   // 3️⃣ Count unread notifications separately
   const unreadCount = await Notification.countDocuments({
     receiver: user.id,
-    read: false,
+    isRead: false,
   });
 
   // 4️⃣ Return structured response
@@ -37,15 +37,33 @@ const getNotificationFromDB = async (
   };
 };
 
-// read notifications only for user
-const readNotificationToDB = async (
-  user: JwtPayload
-): Promise<INotification | undefined> => {
-  const result: any = await Notification.updateMany(
-    { receiver: user.id, read: false },
-    { $set: { read: true } }
+const markNotificationAsReadIntoDB = async (
+  notificationId: string,
+  userId: string
+) => {
+  const notification = await Notification.findOneAndUpdate(
+    { _id: notificationId, receiver: userId },
+    { isRead: true },
+    { new: true }
   );
-  return result;
+
+  if (!notification) {
+    throw new Error('Notification not found');
+  }
+
+  return notification;
+};
+
+export const markAllNotificationsAsRead = async (userId: string) => {
+  const result = await Notification.updateMany(
+    { receiver: userId, isRead: false }, // only unread notifications
+    { isRead: true }
+  );
+
+  return {
+    modifiedCount: result.modifiedCount, // number of notifications updated
+    message: 'All notifications marked as read',
+  };
 };
 
 // get notifications for admin
@@ -67,6 +85,7 @@ const adminReadNotificationToDB = async (): Promise<INotification | null> => {
 export const NotificationService = {
   adminNotificationFromDB,
   getNotificationFromDB,
-  readNotificationToDB,
+  markNotificationAsReadIntoDB,
   adminReadNotificationToDB,
+  markAllNotificationsAsRead,
 };
