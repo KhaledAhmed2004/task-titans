@@ -95,14 +95,19 @@ const updateBid = async (
   if (bid.status !== BidStatus.PENDING)
     throw new Error('Cannot update a bid that is not pending');
 
-  // 4️⃣ Extra safety: Validate updated amount
+  // 4️⃣ Reject empty payloads
+  if (!bidUpdate.amount && !bidUpdate.message) {
+    throw new Error('No fields provided to update');
+  }
+
+  // 5️⃣ Extra safety: Validate updated amount
   if (bidUpdate.amount !== undefined && bidUpdate.amount <= 0)
     throw new Error('Amount must be greater than 0');
 
-  // 5️⃣ Apply the updates
+  // 6️⃣ Apply the updates
   Object.assign(bid, bidUpdate);
 
-  // 6️⃣ Save the bid and return
+  // 7️⃣ Save the bid and return  
   await bid.save();
   return bid;
 };
@@ -113,23 +118,33 @@ const deleteBid = async (bidId: string, taskerId: string) => {
     throw new Error('Invalid bid ID format');
   }
 
+  // 2️⃣ Find the bid
   const bid = await BidModel.findById(bidId);
   if (!bid) throw new Error('Bid not found');
 
-  // 2️⃣ Check if taskerId provided
+  // 3️⃣ Check if taskerId is provided
   if (!taskerId) throw new Error('Tasker ID missing');
 
-  // 3️⃣ Ensure only the owner can delete
+  // 4️⃣ Ensure only the bid owner can delete
   if (!bid.taskerId || bid.taskerId.toString() !== taskerId) {
     throw new Error('Not authorized');
   }
 
-  // 4️⃣ Only pending bids can be deleted
+  // 5️⃣ Only pending bids can be deleted
   if (bid.status !== BidStatus.PENDING) {
     throw new Error('Cannot delete a bid that is not pending');
   }
 
-  // 5️⃣ Try delete with concurrency safety
+  // 6️⃣ Fetch the associated task
+  const task = await TaskModel.findById(bid.taskId);
+  if (!task) throw new Error('Associated task not found');
+
+  // 7️⃣ Ensure the task is still open
+  if (task.status !== TaskStatus.OPEN) {
+    throw new Error('Cannot delete bid because the task is no longer open');
+  }
+
+  // 8️⃣ Try delete with concurrency safety
   const deletedBid = await BidModel.findByIdAndDelete(bidId);
   if (!deletedBid) {
     throw new Error('Bid already deleted');
@@ -228,9 +243,19 @@ const acceptBid = async (bidId: string, clientId: string) => {
 
     const paymentResult = await PaymentService.createEscrowPayment(paymentData);
 
-    // 9️⃣ Accept the selected bid
-    bid.status = BidStatus.ACCEPTED;
-    await bid.save({ session });
+    // 9️⃣ Accept the selected bid atomically to prevent race conditions
+    const acceptedBid = await BidModel.findOneAndUpdate(
+      { _id: bid._id, status: BidStatus.PENDING },
+      { $set: { status: BidStatus.ACCEPTED } },
+      { session, new: true }
+    );
+
+    if (!acceptedBid) {
+      throw new ApiError(
+        StatusCodes.CONFLICT,
+        'Bid was already processed by another client'
+      );
+    }
 
     // 🔟 Update the task: assign freelancer, update status, store payment info
     task.status = TaskStatus.IN_PROGRESS;
@@ -259,7 +284,11 @@ const acceptBid = async (bidId: string, clientId: string) => {
       read: false,
     };
 
-    await sendNotifications(acceptedNotification);
+    try {
+      await sendNotifications(acceptedNotification);
+    } catch (err) {
+      console.error('Failed to send notification for accepted bid:', err);
+    }
 
     return { bid, task, payment: paymentResult };
   } catch (error) {

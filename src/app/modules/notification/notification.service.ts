@@ -1,24 +1,40 @@
 import { JwtPayload } from 'jsonwebtoken';
 import { INotification } from './notification.interface';
 import { Notification } from './notification.model';
+import QueryBuilder from '../../builder/QueryBuilder';
 
 // get notifications
-const getNotificationFromDB = async ( user: JwtPayload): Promise<INotification> => {
+const getNotificationFromDB = async (
+  user: JwtPayload,
+  query: Record<string, unknown>
+) => {
+  // 1️⃣ Initialize QueryBuilder for user's notifications
+  const notificationQuery = new QueryBuilder<INotification>(
+    Notification.find({ receiver: user.id }),
+    query
+  )
+    .search(['title', 'text'])
+    .filter()
+    .dateFilter()
+    .sort()
+    .paginate()
+    .fields();
 
-  const result = await Notification.find({ receiver: user.id })
-    .select("title text read createdAt");
+  // 2️⃣ Execute the query and get filtered & paginated results
+  const { data, pagination } = await notificationQuery.getFilteredResults();
 
+  // 3️⃣ Count unread notifications separately
   const unreadCount = await Notification.countDocuments({
     receiver: user.id,
     read: false,
   });
 
-  const data: any = {
-    result,
+  // 4️⃣ Return structured response
+  return {
+    data,
+    pagination,
     unreadCount,
   };
-
-  return data;
 };
 
 // read notifications only for user

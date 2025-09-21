@@ -4,6 +4,7 @@ import { Types } from 'mongoose';
 import ApiError from '../../../errors/ApiError';
 import { StatusCodes } from 'http-status-codes';
 import QueryBuilder from '../../builder/QueryBuilder';
+import { TaskModel } from '../task/task.model';
 
 interface ToggleBookmarkResult {
   message: string;
@@ -14,32 +15,47 @@ const toggleBookmarkIntoDB = async (
   userId: string,
   postId: string
 ): Promise<ToggleBookmarkResult> => {
-  const isBookmarkExist = await Bookmark.findOne({
-    user: userId,
-    post: postId,
-  });
+  // 1️⃣ Fetch post and existing bookmark in parallel
+  const [post, existingBookmark] = await Promise.all([
+    TaskModel.findOne({ _id: postId, isDeleted: false }),
+    Bookmark.findOne({ user: userId, post: postId }),
+  ]);
 
-  if (isBookmarkExist) {
-    await Bookmark.findByIdAndDelete(isBookmarkExist._id);
+  // 2️⃣ If post doesn't exist, throw error
+  if (!post) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Post does not exist');
+  }
+
+  // 3️⃣ Remove bookmark or create new bookmark in parallel-safe way
+  if (existingBookmark) {
+    // Atomic deletion
+    const removedBookmark = await Bookmark.findOneAndDelete({
+      _id: existingBookmark._id,
+    });
     return {
       message: 'Bookmark removed successfully',
-      bookmark: isBookmarkExist,
+      bookmark: removedBookmark,
+    };
+  } else {
+    // Atomic creation using upsert
+    const newBookmark = await Bookmark.findOneAndUpdate(
+      { user: userId, post: postId }, // filter
+      { user: userId, post: postId }, // update
+      { new: true, upsert: true } // create if not exists
+    );
+
+    if (!newBookmark) {
+      throw new ApiError(
+        StatusCodes.EXPECTATION_FAILED,
+        'Failed to add bookmark'
+      );
+    }
+
+    return {
+      message: 'Bookmark added successfully',
+      bookmark: newBookmark,
     };
   }
-
-  const newBookmark = await Bookmark.create({
-    user: new Types.ObjectId(userId),
-    post: new Types.ObjectId(postId),
-  });
-
-  if (!newBookmark) {
-    throw new ApiError(
-      StatusCodes.EXPECTATION_FAILED,
-      'Failed to add bookmark'
-    );
-  }
-
-  return { message: 'Bookmark added successfully', bookmark: newBookmark };
 };
 
 const getUserBookmarksFromDB = async (
@@ -88,7 +104,7 @@ const getUserBookmarksFromDB = async (
 
   // Get filtered results with custom pagination
   const result = await queryBuilder.getFilteredResults(['post']);
-  
+
   return result;
 };
 

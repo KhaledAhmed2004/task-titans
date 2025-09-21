@@ -8,13 +8,14 @@ import { JwtPayload } from 'jsonwebtoken';
 const getNotificationFromDB = catchAsync(
   async (req: Request, res: Response) => {
     const user = req.user as JwtPayload;
-    const result = await NotificationService.getNotificationFromDB(user);
+    const result = await NotificationService.getNotificationFromDB(user, req.query);
 
     sendResponse(res, {
       statusCode: StatusCodes.OK,
       success: true,
       message: 'Notifications Retrieved Successfully',
-      data: result,
+      data: result.data,
+      pagination: result.pagination,
     });
   }
 );
