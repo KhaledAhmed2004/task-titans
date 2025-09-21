@@ -75,7 +75,10 @@ const updateRating = catchAsync(async (req: Request, res: Response) => {
 });
 
 const deleteRating = catchAsync(async (req: Request, res: Response) => {
-  const result = await RatingService.deleteRating(req.params.id);
+  const user = req.user as JwtPayload;
+  const userId = user?.id;
+
+  const result = await RatingService.deleteRating(req.params.id, userId);
   sendResponse(res, {
     success: true,
     statusCode: 200,

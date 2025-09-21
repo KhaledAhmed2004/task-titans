@@ -4,17 +4,63 @@ import { IRating } from './rating.interface';
 import { StatusCodes } from 'http-status-codes';
 import ApiError from '../../../errors/ApiError';
 import QueryBuilder from '../../builder/QueryBuilder';
+import { TaskModel } from '../task/task.model';
 
 const createRating = async (payload: Partial<IRating>): Promise<IRating> => {
+  //1️⃣ Check if the user is rating themselves
+  if (payload.givenBy?.toString() === payload.givenTo?.toString()) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'You cannot rate yourself');
+  }
+
+  // 2️⃣ Check if the user has already rated this task
   const existingRating = await Rating.findOne({
     taskId: payload.taskId,
     givenBy: payload.givenBy,
   });
 
   if (existingRating) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'You have already rated this task');
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'You have already rated this task'
+    );
   }
 
+  // 3️⃣ Check if task exists
+  const task = await TaskModel.findById(payload.taskId);
+  if (!task) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
+  }
+
+  // 4️⃣ Only completed tasks can be rated
+  if (task.status !== 'completed') {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'You can only rate after task completion'
+    );
+  }
+
+  // 5️⃣ Ensure both users are participants of this task
+  const posterId = task.userId.toString();
+  const assignedId = task.assignedTo?.toString() || '';
+
+  const participants = [posterId, assignedId];
+
+  // 6️⃣ Check if both users are participants of this task
+  if (!participants.includes(payload.givenBy?.toString() || '')) {
+    throw new ApiError(
+      StatusCodes.FORBIDDEN,
+      'You are not a participant of this task'
+    );
+  }
+
+  if (!participants.includes(payload.givenTo?.toString() || '')) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Rated user is not a participant of this task'
+    );
+  }
+
+  // 6️⃣ All checks passed → create rating
   return await Rating.create(payload);
 };
 
@@ -80,9 +126,24 @@ const updateRating = async (id: string, payload: Partial<IRating>) => {
   return rating;
 };
 
-const deleteRating = async (id: string) => {
-  const rating = await Rating.findByIdAndDelete(id);
-  if (!rating) throw new ApiError(StatusCodes.NOT_FOUND, 'Rating not found');
+const deleteRating = async (ratingId: string, userId: string) => {
+  // 1️⃣ Find the rating by ID
+  const rating = await Rating.findById(ratingId);
+  if (!rating) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Rating not found');
+  }
+
+  // 2️⃣ Ownership check: Only the creator can delete
+  if (rating.givenBy.toString() !== userId) {
+    throw new ApiError(
+      StatusCodes.FORBIDDEN,
+      'You can only delete your own rating'
+    );
+  }
+
+  // 3️⃣ Delete using deleteOne()
+  await Rating.deleteOne({ _id: ratingId });
+
   return rating;
 };
 
