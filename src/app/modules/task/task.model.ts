@@ -25,6 +25,8 @@ const TaskSchema = new mongoose.Schema<Task>(
       type: String,
       required: true,
     },
+    latitude: { type: Number },
+    longitude: { type: Number },
     status: {
       type: String,
       enum: Object.values(TaskStatus),

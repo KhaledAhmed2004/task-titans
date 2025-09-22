@@ -24,6 +24,8 @@ export type Task = {
   taskImage?: string[];
   taskBudget: number;
   taskLocation: string;
+  latitude: number; 
+  longitude: number; 
   status: TaskStatusType;
   userId: Types.ObjectId;
   assignedTo?: Types.ObjectId;

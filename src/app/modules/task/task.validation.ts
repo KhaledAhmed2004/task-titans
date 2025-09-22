@@ -7,6 +7,8 @@ const createTaskZodSchema = z.object({
   taskImage: z.array(z.string()).optional(),
   taskBudget: z.number({ required_error: 'Task budget is required' }),
   taskLocation: z.string({ required_error: 'Task location is required' }),
+  latitude: z.number({ required_error: 'Latitude is required' }),
+  longitude: z.number({ required_error: 'Longitude is required' }),
 });
 
 const updateTaskZodSchema = z.object({
@@ -16,6 +18,8 @@ const updateTaskZodSchema = z.object({
   taskImage: z.array(z.string()).optional(),
   taskBudget: z.number().optional(),
   taskLocation: z.string().optional(),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
   status: z.string().optional(),
   dueDate: z.string().optional(),
   priority: z.string().optional(),

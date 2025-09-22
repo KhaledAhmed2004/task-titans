@@ -6,7 +6,7 @@ import { JwtPayload } from 'jsonwebtoken';
 
 const createRating = catchAsync(async (req: Request, res: Response) => {
   const user = req?.user as JwtPayload;
-  const userId = user?._id;
+  const userId = user?.id;
   const data = {
     taskId: req.body.taskId,
     givenBy: userId,
@@ -35,7 +35,7 @@ const getAllRatings = catchAsync(async (req: Request, res: Response) => {
 
 const getMyRatings = catchAsync(async (req: Request, res: Response) => {
   const user = req?.user as JwtPayload;
-  const userId = user?._id;
+  const userId = user?.id;
   const result = await RatingService.getMyRatings(userId);
   sendResponse(res, {
     success: true,
@@ -46,7 +46,7 @@ const getMyRatings = catchAsync(async (req: Request, res: Response) => {
 
 const getMyRatingStats = catchAsync(async (req: Request, res: Response) => {
   const user = req?.user as JwtPayload;
-  const userId = user?._id;
+  const userId = user?.id;
   const result = await RatingService.getMyRatingStats(userId);
   sendResponse(res, {
     success: true,

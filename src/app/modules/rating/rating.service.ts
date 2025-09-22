@@ -1,67 +1,100 @@
-import { Types } from 'mongoose';
+import mongoose, { Types } from 'mongoose';
 import { Rating } from './rating.model';
 import { IRating } from './rating.interface';
 import { StatusCodes } from 'http-status-codes';
 import ApiError from '../../../errors/ApiError';
 import QueryBuilder from '../../builder/QueryBuilder';
 import { TaskModel } from '../task/task.model';
+import { User } from '../user/user.model';
 
 const createRating = async (payload: Partial<IRating>): Promise<IRating> => {
-  //1️⃣ Check if the user is rating themselves
-  if (payload.givenBy?.toString() === payload.givenTo?.toString()) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'You cannot rate yourself');
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // 1️⃣ Prevent self-rating
+    if (payload.givenBy?.toString() === payload.givenTo?.toString()) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'You cannot rate yourself');
+    }
+
+    // 2️⃣ Prevent duplicate rating for the same task by the same user
+    const existingRating = await Rating.findOne({
+      taskId: payload.taskId,
+      givenBy: payload.givenBy,
+    }).session(session);
+    if (existingRating) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'You have already rated this task'
+      );
+    }
+
+    // 3️⃣ Check if task exists
+    const task = await TaskModel.findById(payload.taskId).session(session);
+    if (!task) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
+    }
+
+    // 4️⃣ Only completed tasks can be rated
+    if (task.status !== 'completed') {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'You can only rate after task completion'
+      );
+    }
+
+    // 5️⃣ Ensure both users are participants
+    const posterId = task.userId.toString();
+    const assignedId = task.assignedTo?.toString() || '';
+    const participants = [posterId, assignedId];
+
+    if (!participants.includes(payload.givenBy?.toString() || '')) {
+      throw new ApiError(
+        StatusCodes.FORBIDDEN,
+        'You are not a participant of this task'
+      );
+    }
+    if (!participants.includes(payload.givenTo?.toString() || '')) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'Rated user is not a participant of this task'
+      );
+    }
+
+    // 6️⃣ Create rating
+    const rating = await Rating.create([payload], { session });
+
+    // 7️⃣ Update rated user's averageRating & ratingsCount incrementally
+    if (payload.givenTo && payload.rating !== undefined) {
+      const user = await User.findById(payload.givenTo).session(session);
+      if (user) {
+        const newRatingsCount = user.ratingsCount + 1;
+        const newAverageRating =
+          (user.averageRating * user.ratingsCount + payload.rating) /
+          newRatingsCount;
+
+        await User.findByIdAndUpdate(
+          payload.givenTo,
+          {
+            ratingsCount: newRatingsCount,
+            averageRating: newAverageRating,
+          },
+          { session }
+        );
+      }
+    }
+
+    // ✅ Commit transaction
+    await session.commitTransaction();
+    session.endSession();
+
+    return rating[0]; // Because create with array returns an array
+  } catch (err) {
+    // ❌ Abort transaction on error
+    await session.abortTransaction();
+    session.endSession();
+    throw err;
   }
-
-  // 2️⃣ Check if the user has already rated this task
-  const existingRating = await Rating.findOne({
-    taskId: payload.taskId,
-    givenBy: payload.givenBy,
-  });
-
-  if (existingRating) {
-    throw new ApiError(
-      StatusCodes.BAD_REQUEST,
-      'You have already rated this task'
-    );
-  }
-
-  // 3️⃣ Check if task exists
-  const task = await TaskModel.findById(payload.taskId);
-  if (!task) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
-  }
-
-  // 4️⃣ Only completed tasks can be rated
-  if (task.status !== 'completed') {
-    throw new ApiError(
-      StatusCodes.BAD_REQUEST,
-      'You can only rate after task completion'
-    );
-  }
-
-  // 5️⃣ Ensure both users are participants of this task
-  const posterId = task.userId.toString();
-  const assignedId = task.assignedTo?.toString() || '';
-
-  const participants = [posterId, assignedId];
-
-  // 6️⃣ Check if both users are participants of this task
-  if (!participants.includes(payload.givenBy?.toString() || '')) {
-    throw new ApiError(
-      StatusCodes.FORBIDDEN,
-      'You are not a participant of this task'
-    );
-  }
-
-  if (!participants.includes(payload.givenTo?.toString() || '')) {
-    throw new ApiError(
-      StatusCodes.BAD_REQUEST,
-      'Rated user is not a participant of this task'
-    );
-  }
-
-  // 6️⃣ All checks passed → create rating
-  return await Rating.create(payload);
 };
 
 const getAllRatings = async (query: any) => {

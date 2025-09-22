@@ -14,6 +14,8 @@ export type IUser = {
   status: USER_STATUS;
   verified: boolean;
   deviceTokens?: string[];
+  averageRating: number;
+  ratingsCount: number;
   authentication?: {
     isResetPassword: boolean;
     oneTimeCode: number;

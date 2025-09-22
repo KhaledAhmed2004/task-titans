@@ -16,7 +16,7 @@ const userSchema = new Schema<IUser>(
     role: {
       type: String,
       enum: Object.values(USER_ROLES),
-      required: true,
+      default: USER_ROLES.POSTER, // Default to POSTER when user doesn't specify
     },
     email: {
       type: String,
@@ -62,6 +62,14 @@ const userSchema = new Schema<IUser>(
     deviceTokens: {
       type: [String],
       default: [],
+    },
+    averageRating: {
+      type: Number,
+      default: 0,
+    },
+    ratingsCount: {
+      type: Number,
+      default: 0,
     },
     authentication: {
       type: {
