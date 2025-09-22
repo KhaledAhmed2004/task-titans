@@ -133,9 +133,8 @@ const getAllTasksByUser = async (
     .paginate() // pagination
     .fields(); // field selection
 
-    // 🔹 Execute query with population
-  let tasks = await taskQuery.modelQuery
-    .populate('taskCategory', 'name') // <-- populate category name
+  // 🔹 Execute query with population
+  let tasks = await taskQuery.modelQuery.populate('taskCategory', 'name'); // <-- populate category name
 
   // 🔹 Add rating info: assigned worker → poster
   const tasksWithRating = await Promise.all(
@@ -154,10 +153,20 @@ const getAllTasksByUser = async (
         }
       }
 
+      // 🔹 Payment status
+      const payment = await PaymentModel.findOne({ taskId: task._id });
+      const paymentStatus = payment ? payment.status : 'not created';
+
       return {
-        ...task.toObject(),
+        _id: task._id,
+        title: task.title,
+        taskCategory: task.taskCategory.name,
+        taskLocation: task.taskLocation,
+        taskBudget: task.taskBudget,
+        status: task.status,
+        createdAt: task.createdAt,
         ratingFromTasker: ratingValue,
-         taskCategory: task.taskCategory.name,
+        paymentStatus,
       };
     })
   );
