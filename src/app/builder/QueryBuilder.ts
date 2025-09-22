@@ -41,6 +41,9 @@ class QueryBuilder<T> {
       'start',
       'end',
       'category', // we will handle this separately
+      'latitude', // we will handle this separately
+      'longitude', // we will handle this separately
+      'distance', // we will handle this separately
     ];
     excludeFields.forEach(el => delete queryObj[el]);
 
@@ -56,6 +59,76 @@ class QueryBuilder<T> {
       this.modelQuery = this.modelQuery.find({
         ...this.modelQuery.getFilter(), // keep previous filters
         taskCategory: { $in: categories },
+      } as FilterQuery<T>);
+    }
+
+    return this;
+  }
+
+  // 📍 Location-based filtering using MongoDB geospatial query
+  locationFilter() {
+    if (this?.query?.latitude && this?.query?.longitude && this?.query?.distance) {
+      const lat = parseFloat(this.query.latitude as string);
+      const lng = parseFloat(this.query.longitude as string);
+      const distance = parseFloat(this.query.distance as string);
+
+      // Validate coordinates
+      if (isNaN(lat) || isNaN(lng) || isNaN(distance)) {
+        throw new Error('Invalid latitude, longitude, or distance values');
+      }
+
+      if (lat < -90 || lat > 90) {
+        throw new Error('Latitude must be between -90 and 90 degrees');
+      }
+
+      if (lng < -180 || lng > 180) {
+        throw new Error('Longitude must be between -180 and 180 degrees');
+      }
+
+      if (distance <= 0) {
+        throw new Error('Distance must be greater than 0');
+      }
+
+      // Use MongoDB's $geoWithin with $centerSphere for distance-based filtering
+      // Convert distance from kilometers to radians (divide by Earth's radius in km)
+      const distanceInRadians = distance / 6371;
+
+      this.modelQuery = this.modelQuery.find({
+        $and: [
+          { latitude: { $exists: true, $ne: null } },
+          { longitude: { $exists: true, $ne: null } },
+          {
+            $expr: {
+              $lte: [
+                {
+                  $multiply: [
+                    6371, // Earth's radius in kilometers
+                    {
+                      $acos: {
+                        $add: [
+                          {
+                            $multiply: [
+                              { $sin: { $multiply: [{ $degreesToRadians: lat }, 1] } },
+                              { $sin: { $multiply: [{ $degreesToRadians: '$latitude' }, 1] } }
+                            ]
+                          },
+                          {
+                            $multiply: [
+                              { $cos: { $multiply: [{ $degreesToRadians: lat }, 1] } },
+                              { $cos: { $multiply: [{ $degreesToRadians: '$latitude' }, 1] } },
+                              { $cos: { $multiply: [{ $degreesToRadians: { $subtract: [lng, '$longitude'] } }, 1] } }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                },
+                distance
+              ]
+            }
+          }
+        ]
       } as FilterQuery<T>);
     }
 

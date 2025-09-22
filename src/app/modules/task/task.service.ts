@@ -31,6 +31,7 @@ const getAllTasks = async (query: Record<string, unknown>, userId?: string) => {
   const taskQuery = new QueryBuilder(TaskModel.find().lean(), query)
     .search(['title', 'description'])
     .filter()
+    .locationFilter() // Add location-based filtering
     .dateFilter()
     .sort()
     .paginate()

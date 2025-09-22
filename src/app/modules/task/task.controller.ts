@@ -97,7 +97,7 @@ const deleteTask = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Get all tasks of the current logged-in user
+// Get all tasks
 const getMyTasks = catchAsync(async (req: Request, res: Response) => {
   const user = req.user as JwtPayload;
   const userId = user.id;
