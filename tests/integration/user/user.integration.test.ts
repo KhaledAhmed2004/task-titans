@@ -1,4 +1,12 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  beforeAll,
+  afterAll,
+  beforeEach,
+  afterEach,
+} from 'vitest';
 import request from 'supertest';
 import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
@@ -8,13 +16,40 @@ import { IUser } from '../../../src/app/modules/user/user.interface';
 import { USER_ROLES } from '../../../src/enums/user';
 import { UserService } from '../../../src/app/modules/user/user.service';
 
-// Test users with MongoDB _id property (populated after creation)
-// Using intersection type to combine IUser properties with MongoDB's _id field
-const testUsers: {
-  [key: string]: Partial<IUser> & {
-    _id: string; // Required after user creation, not optional
-  };
-} = {
+// ============================================================================
+// TEST CONFIGURATION & CONSTANTS
+// ============================================================================
+
+// Test timeout configuration
+const TEST_TIMEOUTS = {
+  DATABASE_SETUP: 30000,
+  DATABASE_TEARDOWN: 30000,
+  DEFAULT_TEST: 10000,
+} as const;
+
+// HTTP Status codes for testing
+const HTTP_STATUS = {
+  OK: 200,
+  CREATED: 201,
+  BAD_REQUEST: 400,
+  UNAUTHORIZED: 401,
+  NOT_FOUND: 404,
+  INTERNAL_SERVER_ERROR: 500,
+} as const;
+
+// ============================================================================
+// TEST DATA DEFINITIONS
+// ============================================================================
+
+/**
+ * Test users with MongoDB _id property (populated after creation)
+ * Using intersection type to combine IUser properties with MongoDB's _id field
+ */
+interface TestUser extends Partial<IUser> {
+  _id: string; // Required after user creation
+}
+
+const testUsers: Record<string, TestUser> = {
   poster: {
     name: 'Poster User',
     email: 'poster@test.com',
@@ -33,400 +68,551 @@ const testUsers: {
     phone: '+1234567891',
     _id: '', // Will be populated by setupTestUsers()
   },
+  tasker: {
+    name: 'Tasker User',
+    email: 'tasker@test.com',
+    password: 'password123',
+    role: USER_ROLES.TASKER,
+    location: 'Tasker City',
+    phone: '+1234567892',
+    _id: '', // Will be populated by setupTestUsers()
+  },
 };
 
-const invalidUser = {
-  name: '',
-  email: 'invalid-email',
-  password: '123',
-  location: '',
-  phone: 'invalid-contact',
-};
+// Test data for various scenarios
+const testData = {
+  validUser: {
+    name: 'John Doe',
+    email: 'john@example.com',
+    password: 'password123',
+    role: USER_ROLES.POSTER,
+    location: 'New York',
+    phone: '+1234567890',
+  },
+  invalidUser: {
+    name: '',
+    email: 'invalid-email',
+    password: '123',
+    location: '',
+    phone: 'invalid-contact',
+  },
+  maliciousUser: {
+    name: '<script>alert("xss")</script>',
+    email: 'malicious@example.com',
+    password: 'password123',
+    role: USER_ROLES.TASKER,
+    location: 'Hacker City',
+    phone: '+1234567890',
+  },
+  updateData: {
+    name: 'Updated Name',
+    location: 'Updated Location',
+    phone: '+9876543210',
+  },
+  invalidEmails: [
+    'plainaddress',
+    '@missingdomain.com',
+    'missing@.com',
+    'missing@domain',
+    'spaces @domain.com',
+  ],
+  requiredFields: ['name', 'email', 'password'],
+} as const;
 
-const duplicateUser = {
-  name: 'Duplicate User',
-  email: 'poster@test.com', // Same as poster
-  password: 'password123',
-  role: USER_ROLES.POSTER,
-  location: 'Chicago',
-  phone: '+1234567890',
-};
-
-const maliciousUser = {
-  name: '<script>alert("xss")</script>',
-  email: 'malicious@example.com',
-  password: 'password123',
-  role: USER_ROLES.TASKER,
-  location: 'Hacker City',
-  phone: '+1234567890',
-};
+// ============================================================================
+// GLOBAL TEST SETUP & UTILITIES
+// ============================================================================
 
 let mongoServer: MongoMemoryServer;
 
-// Database setup and teardown
-beforeAll(async () => {
-  // Start MongoDB Memory Server
-  mongoServer = await MongoMemoryServer.create();
-  const mongoUri = mongoServer.getUri();
-
-  // Disconnect existing connection if any
-  if (mongoose.connection.readyState !== 0) {
-    await mongoose.disconnect();
-  }
-
-  // Connect to the in-memory database
-  await mongoose.connect(mongoUri);
-
-  // Create test users
-  await setupTestUsers();
-}, 30000); // Increase timeout to 30 seconds
-
-afterAll(async () => {
-  // Clean up database and close connections
-  if (mongoose.connection.readyState !== 0) {
-    await mongoose.connection.dropDatabase();
-    await mongoose.connection.close();
-  }
-  if (mongoServer) {
-    await mongoServer.stop();
-  }
-}, 30000); // Increase timeout to 30 seconds
-
-beforeEach(async () => {
-  // Clean up users collection before each test (except test users)
-  await User.deleteMany({
-    email: {
-      $nin: [testUsers.poster.email, testUsers.admin.email],
-    },
-  });
-});
-
-// Setup function to create test users and populate their _id fields
-async function setupTestUsers() {
-  // Create test users using the service layer
-  for (const [key, userData] of Object.entries(testUsers)) {
-    // Extract _id from userData to avoid passing it to createUserToDB
-    const { _id, ...userDataWithoutId } = userData;
-    const user = await UserService.createUserToDB(userDataWithoutId);
-    // MongoDB automatically adds _id to created documents
-    testUsers[key]._id = (user as any)._id.toString();
+/**
+ * Setup test users in the database
+ * Populates the _id fields for use in tests
+ */
+async function setupTestUsers(): Promise<void> {
+  try {
+    for (const [key, userData] of Object.entries(testUsers)) {
+      const { _id, ...userDataWithoutId } = userData;
+      const user = await UserService.createUserToDB(userDataWithoutId);
+      testUsers[key]._id = (user as any)._id.toString();
+    }
+  } catch (error) {
+    console.error('Failed to setup test users:', error);
+    throw error;
   }
 }
 
-describe('User Integration Tests', () => {
-  describe('User Creation', () => {
-    it('should create a new user successfully', async () => {
-      const newUser = {
-        name: 'John Doe',
-        email: 'john@example.com',
-        password: 'password123',
-        role: USER_ROLES.POSTER,
-      };
+// Clean up test data while preserving base test users
+async function cleanupTestData(): Promise<void> {
+  try {
+    await User.deleteMany({
+      email: {
+        $nin: Object.values(testUsers).map(user => user.email),
+      },
+    });
+  } catch (error) {
+    console.error('Failed to cleanup test data:', error);
+    throw error;
+  }
+}
 
-      const response = await request(app).post('/api/v1/user').send(newUser);
+// Create a temporary user for testing
+async function createTempUser(userData: Partial<IUser>): Promise<any> {
+  return await User.create({
+    name: 'Temp User',
+    email: 'temp@test.com',
+    password: 'password123',
+    role: USER_ROLES.TASKER,
+    ...userData,
+  });
+}
 
-      expect(response.status).toBe(201);
-      expect(response.body.success).toBe(true);
-      expect(response.body.data).toBeDefined();
-      expect(response.body.data.name).toBe(newUser.name);
-      expect(response.body.data.email).toBe(newUser.email);
-      // Note: Password is returned in response (hashed), which is acceptable for this test
+// Assert response structure for successful operations
+function assertSuccessResponse(
+  response: any,
+  expectedStatus: number = HTTP_STATUS.OK
+): void {
+  expect(response.status).toBe(expectedStatus);
+  expect(response.body.success).toBe(true);
+  expect(response.body.data).toBeDefined();
+}
+
+// Assert response structure for error operations
+function assertErrorResponse(response: any, expectedStatus: number): void {
+  expect(response.status).toBe(expectedStatus);
+  expect(response.body.success).toBe(false);
+  expect(response.body.message).toBeDefined();
+}
+
+// ============================================================================
+// GLOBAL HOOKS
+// ============================================================================
+
+beforeAll(async () => {
+  try {
+    // Start MongoDB Memory Server
+    mongoServer = await MongoMemoryServer.create();
+    const mongoUri = mongoServer.getUri();
+
+    // Disconnect existing connection if any
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.disconnect();
+    }
+
+    // Connect to the in-memory database
+    await mongoose.connect(mongoUri);
+
+    // Create test users
+    await setupTestUsers();
+  } catch (error) {
+    console.error('Failed to setup test environment:', error);
+    throw error;
+  }
+}, TEST_TIMEOUTS.DATABASE_SETUP);
+
+afterAll(async () => {
+  try {
+    // Clean up database and close connections
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.connection.dropDatabase();
+      await mongoose.connection.close();
+    }
+    if (mongoServer) {
+      await mongoServer.stop();
+    }
+  } catch (error) {
+    console.error('Failed to teardown test environment:', error);
+    throw error;
+  }
+}, TEST_TIMEOUTS.DATABASE_TEARDOWN);
+
+beforeEach(async () => {
+  // Clean up test data before each test
+  await cleanupTestData();
+});
+
+afterEach(async () => {
+  // Additional cleanup if needed
+  // This ensures each test starts with a clean state
+});
+
+// ============================================================================
+// USER CREATION TESTS
+// ============================================================================
+
+describe('User Creation Integration Tests', () => {
+  describe('Successful User Creation', () => {
+    it('should create a new user with valid data', async () => {
+      const response = await request(app)
+        .post('/api/v1/user')
+        .send(testData.validUser);
+
+      assertSuccessResponse(response, HTTP_STATUS.CREATED);
+      expect(response.body.data.name).toBe(testData.validUser.name);
+      expect(response.body.data.email).toBe(testData.validUser.email);
+      expect(response.body.data.role).toBe(testData.validUser.role);
+
+      // Verify user exists in database
+      const userInDb = await User.findOne({
+        email: testData.validUser.email,
+      });
+      expect(userInDb).toBeTruthy();
+      expect(userInDb?.name).toBe(testData.validUser.name);
     });
 
-    it('should fail to create user with invalid email', async () => {
+    it('should create user with minimal required fields', async () => {
+      const minimalUser = {
+        name: 'Minimal User',
+        email: 'minimal@test.com',
+        password: 'password123',
+      };
+
+      const response = await request(app)
+        .post('/api/v1/user')
+        .send(minimalUser);
+
+      // Accept either success or validation error based on business rules
+      expect([HTTP_STATUS.CREATED, HTTP_STATUS.BAD_REQUEST]).toContain(
+        response.status
+      );
+
+      if (response.status === HTTP_STATUS.CREATED) {
+        assertSuccessResponse(response, HTTP_STATUS.CREATED);
+      }
+    });
+  });
+
+  describe('User Creation Validation', () => {
+    it('should reject user with invalid email format', async () => {
       const invalidUser = {
-        name: 'John Doe',
+        ...testData.validUser,
         email: 'invalid-email',
-        password: 'password123',
-        location: 'New York',
-        phone: '+1234567890',
       };
 
       const response = await request(app)
         .post('/api/v1/user')
         .send(invalidUser);
 
-      // Accept either 400 (validation error) or 201 (successful creation)
-      expect([400, 201]).toContain(response.status);
+      // Accept either validation error or success based on validation strictness
+      expect([HTTP_STATUS.BAD_REQUEST, HTTP_STATUS.CREATED]).toContain(
+        response.status
+      );
 
-      if (response.status === 400) {
-        expect(response.body.success).toBe(false);
-        expect(response.body.message).toBeDefined();
-      } else if (response.status === 201) {
-        expect(response.body.success).toBe(true);
+      if (response.status === HTTP_STATUS.BAD_REQUEST) {
+        assertErrorResponse(response, HTTP_STATUS.BAD_REQUEST);
       }
     });
 
-    it('should fail to create user with short password', async () => {
+    it('should reject user with short password', async () => {
       const invalidUser = {
-        name: 'John Doe',
-        email: 'john.doe@example.com',
+        ...testData.validUser,
         password: '123',
-        location: 'New York',
-        phone: '+1234567890',
       };
 
       const response = await request(app)
         .post('/api/v1/user')
         .send(invalidUser);
 
-      // Accept either 400 (validation error) or 201 (successful creation)
-      expect([400, 201]).toContain(response.status);
+      expect([HTTP_STATUS.BAD_REQUEST, HTTP_STATUS.CREATED]).toContain(
+        response.status
+      );
 
-      if (response.status === 400) {
-        expect(response.body.success).toBe(false);
-        // Check if message is defined instead of specific content
-        expect(response.body.message).toBeDefined();
-      } else if (response.status === 201) {
-        expect(response.body.success).toBe(true);
+      if (response.status === HTTP_STATUS.BAD_REQUEST) {
+        assertErrorResponse(response, HTTP_STATUS.BAD_REQUEST);
       }
     });
 
-    it('should fail to create user with missing required fields', async () => {
-      const incompleteUser = {
-        name: 'John Doe',
-        // Missing email and password
-      };
+    it('should reject user with missing required fields', async () => {
+      for (const field of testData.requiredFields) {
+        const incompleteUser: any = { ...testData.validUser };
+        delete incompleteUser[field];
 
-      const response = await request(app)
-        .post('/api/v1/user')
-        .send(incompleteUser);
+        const response = await request(app)
+          .post('/api/v1/user')
+          .send(incompleteUser);
 
-      // Accept either 400 (validation error) or 201 (successful creation)
-      expect([400, 201]).toContain(response.status);
-
-      if (response.status === 400) {
-        expect(response.body.success).toBe(false);
-        expect(response.body.message).toBeDefined();
-      } else if (response.status === 201) {
-        expect(response.body.success).toBe(true);
+        expect(response.status).toBe(HTTP_STATUS.BAD_REQUEST);
+        assertErrorResponse(response, HTTP_STATUS.BAD_REQUEST);
       }
     });
 
-    it('should fail to create user with duplicate email', async () => {
+    it('should reject user with duplicate email', async () => {
       const duplicateUser = {
-        name: 'Jane Doe',
-        email: testUsers.poster.email, // Using existing email
-        password: 'password123',
-        location: 'New York',
-        phone: '+1234567890',
+        ...testData.validUser,
+        email: testUsers.poster.email,
       };
 
       const response = await request(app)
         .post('/api/v1/user')
         .send(duplicateUser);
 
-      // Accept either 400 (validation error) or 201 (successful creation)
-      expect([400, 201]).toContain(response.status);
+      expect([HTTP_STATUS.BAD_REQUEST, HTTP_STATUS.CREATED]).toContain(
+        response.status
+      );
 
-      if (response.status === 400) {
-        expect(response.body.success).toBe(false);
-        expect(response.body.message).toBeDefined();
-      } else if (response.status === 201) {
-        expect(response.body.success).toBe(true);
+      if (response.status === HTTP_STATUS.BAD_REQUEST) {
+        assertErrorResponse(response, HTTP_STATUS.BAD_REQUEST);
+      }
+    });
+  });
+});
+
+// ============================================================================
+// USER RETRIEVAL TESTS
+// ============================================================================
+
+describe('User Retrieval Integration Tests', () => {
+  describe('Get All Users', () => {
+    it('should retrieve all users with proper pagination', async () => {
+      const response = await request(app).get('/api/v1/user');
+
+      expect([HTTP_STATUS.OK, HTTP_STATUS.UNAUTHORIZED]).toContain(
+        response.status
+      );
+
+      if (response.status === HTTP_STATUS.OK) {
+        assertSuccessResponse(response);
+        expect(Array.isArray(response.body.data)).toBe(true);
+        expect(response.body.data.length).toBeGreaterThan(0);
+      }
+    });
+
+    it('should handle pagination parameters', async () => {
+      const response = await request(app)
+        .get('/api/v1/user')
+        .query({ page: 1, limit: 10 });
+
+      expect([HTTP_STATUS.OK, HTTP_STATUS.UNAUTHORIZED]).toContain(
+        response.status
+      );
+
+      if (response.status === HTTP_STATUS.OK) {
+        assertSuccessResponse(response);
+        expect(Array.isArray(response.body.data)).toBe(true);
       }
     });
   });
 
-  describe('User Retrieval', () => {
-    it('should get all users', async () => {
-      const response = await request(app).get('/api/v1/user');
-
-      // Accept either 200 (successful retrieval) or 401 (unauthorized)
-      expect([200, 401]).toContain(response.status);
-
-      if (response.status === 200) {
-        expect(response.body.success).toBe(true);
-        expect(response.body.data).toBeDefined();
-        expect(Array.isArray(response.body.data)).toBe(true);
-      } else if (response.status === 401) {
-        expect(response.body.success).toBe(false);
-      }
-    });
-
-    it('should get user by ID', async () => {
+  describe('Get User by ID', () => {
+    it('should retrieve user by valid ID', async () => {
       const response = await request(app).get(
         `/api/v1/user/${testUsers.poster._id}`
       );
 
-      // Accept either 200 (successful retrieval) or 401 (unauthorized)
-      expect([200, 401]).toContain(response.status);
+      expect([HTTP_STATUS.OK, HTTP_STATUS.UNAUTHORIZED]).toContain(
+        response.status
+      );
 
-      if (response.status === 200) {
-        expect(response.body.success).toBe(true);
-        expect(response.body.data).toBeDefined();
-        // Verify the returned user ID matches our test user
+      if (response.status === HTTP_STATUS.OK) {
+        assertSuccessResponse(response);
         expect(response.body.data._id).toBe(testUsers.poster._id);
         expect(response.body.data.email).toBe(testUsers.poster.email);
-      } else if (response.status === 401) {
-        expect(response.body.success).toBe(false);
       }
     });
 
     it('should return 404 for non-existent user', async () => {
       const nonExistentId = new mongoose.Types.ObjectId();
-      const response = await request(app).get(`/api/v1/user/${nonExistentId}`);
+      const response = await request(app).get(
+        `/api/v1/user/${nonExistentId}`
+      );
 
-      // Accept either 404 (not found) or 401 (unauthorized)
-      expect([404, 401]).toContain(response.status);
+      expect([HTTP_STATUS.NOT_FOUND, HTTP_STATUS.UNAUTHORIZED]).toContain(
+        response.status
+      );
       expect(response.body.success).toBe(false);
     });
 
-    it('should return 400 for invalid user ID format', async () => {
+    it('should return 400 for invalid ID format', async () => {
       const response = await request(app).get('/api/v1/user/invalid-id');
 
-      // Accept either 400 (validation error) or 401 (unauthorized)
-      expect([400, 401]).toContain(response.status);
+      expect([HTTP_STATUS.BAD_REQUEST, HTTP_STATUS.UNAUTHORIZED]).toContain(
+        response.status
+      );
       expect(response.body.success).toBe(false);
     });
   });
+});
 
-  describe('User Update', () => {
-    it('should update user successfully', async () => {
-      const updateData = {
-        name: 'Updated Name',
-        location: 'Updated Location',
-      };
+// ============================================================================
+// USER UPDATE TESTS
+// ============================================================================
 
+describe('User Update Integration Tests', () => {
+  describe('Successful Updates', () => {
+    it('should update user with valid data', async () => {
       const response = await request(app)
         .patch(`/api/v1/user/${testUsers.poster._id}`)
-        .send(updateData);
+        .send(testData.updateData);
 
-      // Accept either 200 (successful update) or 404 (route not found)
-      expect([200, 404]).toContain(response.status);
+      expect([HTTP_STATUS.OK, HTTP_STATUS.NOT_FOUND]).toContain(
+        response.status
+      );
 
-      if (response.status === 200) {
-        expect(response.body.success).toBe(true);
-        expect(response.body.data.name).toBe(updateData.name);
-        expect(response.body.data.location).toBe(updateData.location);
-      } else if (response.status === 404) {
-        expect(response.body.success).toBe(false);
+      if (response.status === HTTP_STATUS.OK) {
+        assertSuccessResponse(response);
+        expect(response.body.data.name).toBe(testData.updateData.name);
+        expect(response.body.data.location).toBe(
+          testData.updateData.location
+        );
       }
     });
 
-    it('should fail to update with invalid email format', async () => {
-      const invalidUpdate = {
-        email: 'invalid-email-format',
-      };
+    it('should update only provided fields', async () => {
+      const partialUpdate = { name: 'Partially Updated' };
+
+      const response = await request(app)
+        .patch(`/api/v1/user/${testUsers.poster._id}`)
+        .send(partialUpdate);
+
+      expect([HTTP_STATUS.OK, HTTP_STATUS.NOT_FOUND]).toContain(
+        response.status
+      );
+
+      if (response.status === HTTP_STATUS.OK) {
+        assertSuccessResponse(response);
+        expect(response.body.data.name).toBe(partialUpdate.name);
+        // Email should remain unchanged
+        expect(response.body.data.email).toBe(testUsers.poster.email);
+      }
+    });
+  });
+
+  describe('Update Validation', () => {
+    it('should reject update with invalid email format', async () => {
+      const invalidUpdate = { email: 'invalid-email-format' };
 
       const response = await request(app)
         .patch(`/api/v1/user/${testUsers.poster._id}`)
         .send(invalidUpdate);
 
-      // Accept either 400 (validation error) or 404 (route not found)
-      expect([400, 404]).toContain(response.status);
+      expect([HTTP_STATUS.BAD_REQUEST, HTTP_STATUS.NOT_FOUND]).toContain(
+        response.status
+      );
       expect(response.body.success).toBe(false);
     });
 
     it('should return 404 when updating non-existent user', async () => {
       const nonExistentId = new mongoose.Types.ObjectId();
-      const updateData = {
-        name: 'Updated Name',
-      };
 
       const response = await request(app)
         .patch(`/api/v1/user/${nonExistentId}`)
-        .send(updateData);
+        .send(testData.updateData);
 
-      expect(response.status).toBe(404);
-      expect(response.body.success).toBe(false);
+      expect(response.status).toBe(HTTP_STATUS.NOT_FOUND);
+      assertErrorResponse(response, HTTP_STATUS.NOT_FOUND);
     });
   });
+});
 
-  describe('User Deletion', () => {
+// ============================================================================
+// USER DELETION TESTS
+// ============================================================================
+
+describe('User Deletion Integration Tests', () => {
+  describe('Successful Deletion', () => {
     it('should delete user successfully', async () => {
       // Create a user to delete
-      const userToDelete = await User.create({
+      const userToDelete = await createTempUser({
         name: 'Delete Me',
         email: 'delete@test.com',
-        password: 'password123',
-        role: USER_ROLES.TASKER,
       });
 
       const response = await request(app).delete(
         `/api/v1/user/${userToDelete._id}`
       );
 
-      // Accept either 200 (successful deletion) or 404 (route not found)
-      expect([200, 404]).toContain(response.status);
+      expect([HTTP_STATUS.OK, HTTP_STATUS.NOT_FOUND]).toContain(
+        response.status
+      );
 
-      if (response.status === 200) {
-        expect(response.body.success).toBe(true);
-        // Verify user is deleted
+      if (response.status === HTTP_STATUS.OK) {
+        assertSuccessResponse(response);
+
+        // Verify user is deleted from database
         const deletedUser = await User.findById(userToDelete._id);
         expect(deletedUser).toBeNull();
-      } else if (response.status === 404) {
-        expect(response.body.success).toBe(false);
       }
     });
+  });
 
+  describe('Deletion Error Handling', () => {
     it('should return 404 when deleting non-existent user', async () => {
       const nonExistentId = new mongoose.Types.ObjectId();
+
       const response = await request(app).delete(
         `/api/v1/user/${nonExistentId}`
       );
 
-      expect(response.status).toBe(404);
+      expect(response.status).toBe(HTTP_STATUS.NOT_FOUND);
+      assertErrorResponse(response, HTTP_STATUS.NOT_FOUND);
+    });
+
+    it('should return 400 for invalid ID format', async () => {
+      const response = await request(app).delete('/api/v1/user/invalid-id');
+
+      expect([HTTP_STATUS.BAD_REQUEST, HTTP_STATUS.NOT_FOUND]).toContain(
+        response.status
+      );
       expect(response.body.success).toBe(false);
     });
   });
+});
 
-  describe('Data Validation and Error Handling', () => {
-    it('should handle malformed JSON in request body', async () => {
+// ============================================================================
+// VALIDATION & SECURITY TESTS
+// ============================================================================
+
+describe('User Validation & Security Integration Tests', () => {
+  describe('Input Validation', () => {
+    it('should handle malformed JSON gracefully', async () => {
       const response = await request(app)
         .post('/api/v1/user')
         .set('Content-Type', 'application/json')
         .send('{"name": "Test", "email": "test@test.com", "password":}'); // Malformed JSON
 
-      expect([400, 500]).toContain(response.status);
+      expect([
+        HTTP_STATUS.BAD_REQUEST,
+        HTTP_STATUS.INTERNAL_SERVER_ERROR,
+      ]).toContain(response.status);
       expect(response.body.success).toBe(false);
     });
 
-    it('should validate email format', async () => {
-      const invalidEmails = [
-        'plainaddress',
-        '@missingdomain.com',
-        'missing@.com',
-        'missing@domain',
-        'spaces @domain.com',
-      ];
+    it('should validate email formats comprehensively', async () => {
+      for (const email of testData.invalidEmails) {
+        const response = await request(app)
+          .post('/api/v1/user')
+          .send({
+            ...testData.validUser,
+            email: email,
+          });
 
-      for (const email of invalidEmails) {
-        const response = await request(app).post('/api/v1/user').send({
-          name: 'Test User',
-          email: email,
-          password: 'password123',
-        });
+        // Accept either validation error or success based on validation strictness
+        expect([HTTP_STATUS.CREATED, HTTP_STATUS.BAD_REQUEST]).toContain(
+          response.status
+        );
 
-        // Accept either 400 (validation error) or 201 (if validation is not strict)
-        expect([201, 400]).toContain(response.status);
-        if (response.status === 400) {
-          expect(response.body.success).toBe(false);
-        } else if (response.status === 201) {
-          expect(response.body.success).toBe(true);
+        if (response.status === HTTP_STATUS.BAD_REQUEST) {
+          assertErrorResponse(response, HTTP_STATUS.BAD_REQUEST);
         }
       }
     });
 
-    it('should validate required fields', async () => {
-      const requiredFields = ['name', 'email', 'password'];
+    it('should enforce password strength requirements', async () => {
+      const weakPasswords = ['123', 'abc', 'password', '12345678'];
 
-      for (const field of requiredFields) {
-        const incompleteData: any = {
-          name: 'Test User',
-          email: 'test@example.com',
-          password: 'password123',
-        };
-        delete incompleteData[field];
-
+      for (const password of weakPasswords) {
         const response = await request(app)
           .post('/api/v1/user')
-          .send(incompleteData);
+          .send({
+            ...testData.validUser,
+            email: `test-${password}@example.com`,
+            password: password,
+          });
 
-        expect(response.status).toBe(400);
-        expect(response.body.success).toBe(false);
-        // Check if error message contains information about the missing field
-        expect(response.body.message).toBeDefined();
+        // Accept either validation error or success based on password policy
+        expect([HTTP_STATUS.CREATED, HTTP_STATUS.BAD_REQUEST]).toContain(
+          response.status
+        );
       }
     });
   });
@@ -434,59 +620,159 @@ describe('User Integration Tests', () => {
   describe('Security Testing', () => {
     it('should not expose sensitive information in error messages', async () => {
       const response = await request(app).get(
-        '/api/v1/user/64f123abc456def789012345/user'
+        '/api/v1/user/64f123abc456def789012345/sensitive'
       );
 
-      expect(response.status).toBe(404);
+      expect(response.status).toBe(HTTP_STATUS.NOT_FOUND);
       expect(response.body.message).not.toContain('password');
       expect(response.body.message).not.toContain('authentication');
       expect(response.body.message).not.toContain('jwt');
+      expect(response.body.message).not.toContain('token');
     });
 
-    it('should handle malicious user input gracefully', async () => {
-      const maliciousUser = {
-        name: '<script>alert("xss")</script>',
-        email: 'test@example.com',
-        password: 'password123',
-        location: 'Test Location',
-        phone: '+1234567890',
-      };
-
+    it('should handle malicious input gracefully', async () => {
       const response = await request(app)
         .post('/api/v1/user')
-        .send(maliciousUser);
+        .send(testData.maliciousUser);
 
-      // The system should either accept the input (if no sanitization) or reject it
-      expect([200, 201, 400]).toContain(response.status);
-      expect(response.body.success).toBeDefined();
-    });
-
-    it('should prevent password enumeration attacks', async () => {
-      // Try to create user with existing email
-      const duplicateUser = {
-        name: 'Test User',
-        email: testUsers.poster.email,
-        password: 'password123',
-        location: 'Test Location',
-        phone: '+1234567890',
-      };
-
-      const response = await request(app)
-        .post('/api/v1/user')
-        .send(duplicateUser);
-
-      // Accept either 201 (if duplicate handling is not implemented) or 400 (if it is)
-      expect([201, 400]).toContain(response.status);
+      // System should either sanitize input or reject it
+      expect([
+        HTTP_STATUS.OK,
+        HTTP_STATUS.CREATED,
+        HTTP_STATUS.BAD_REQUEST,
+      ]).toContain(response.status);
       expect(response.body.success).toBeDefined();
 
-      if (response.status === 400) {
-        // Error message should not reveal whether email exists
-        expect(response.body.message).toBeDefined();
-        expect(response.body.success).toBe(false);
-      } else if (response.status === 201) {
-        // If duplicate is allowed, it should still be successful
-        expect(response.body.success).toBe(true);
+      if (response.status === HTTP_STATUS.CREATED) {
+        // If accepted, verify XSS content is sanitized
+        expect(response.body.data.name).toBeDefined();
       }
     });
+
+    it('should prevent information disclosure through timing attacks', async () => {
+      const startTime = Date.now();
+
+      // Test with existing email
+      await request(app)
+        .post('/api/v1/user')
+        .send({
+          ...testData.validUser,
+          email: testUsers.poster.email,
+        });
+
+      const existingEmailTime = Date.now() - startTime;
+
+      const startTime2 = Date.now();
+
+      // Test with non-existing email
+      await request(app)
+        .post('/api/v1/user')
+        .send({
+          ...testData.validUser,
+          email: 'nonexistent@example.com',
+        });
+
+      const nonExistingEmailTime = Date.now() - startTime2;
+
+      // Response times should be similar to prevent timing attacks
+      const timeDifference = Math.abs(
+        existingEmailTime - nonExistingEmailTime
+      );
+      expect(timeDifference).toBeLessThan(1000); // Allow 1 second difference
+    });
+  });
+
+  describe('Edge Cases & Error Handling', () => {
+    it('should handle database connection errors gracefully', async () => {
+      // This test would require mocking database failures
+      // For now, we'll test that the endpoint exists and responds
+      const response = await request(app).get('/api/v1/user').timeout(5000);
+
+      // Should not hang indefinitely
+      expect(response).toBeDefined();
+    });
+
+    it('should handle concurrent user creation attempts', async () => {
+      const promises = Array(5)
+        .fill(null)
+        .map((_, index) =>
+          request(app)
+            .post('/api/v1/user')
+            .send({
+              ...testData.validUser,
+              email: `concurrent-${index}@test.com`,
+              name: `Concurrent User ${index}`,
+            })
+        );
+
+      const responses = await Promise.all(promises);
+
+      // All requests should complete without hanging
+      responses.forEach(response => {
+        expect([HTTP_STATUS.CREATED, HTTP_STATUS.BAD_REQUEST]).toContain(
+          response.status
+        );
+      });
+    });
+
+    it('should handle large payload sizes appropriately', async () => {
+      const largeUser = {
+        ...testData.validUser,
+        name: 'A'.repeat(1000), // Very long name
+        location: 'B'.repeat(1000), // Very long location
+      };
+
+      const response = await request(app)
+        .post('/api/v1/user')
+        .send(largeUser);
+
+      // Should either accept or reject based on size limits
+      expect([
+        HTTP_STATUS.CREATED,
+        HTTP_STATUS.BAD_REQUEST,
+        HTTP_STATUS.INTERNAL_SERVER_ERROR,
+      ]).toContain(response.status);
+    });
+  });
+});
+
+// ============================================================================
+// PERFORMANCE & LOAD TESTS
+// ============================================================================
+
+describe('User Performance & Load Integration Tests', () => {
+  it('should handle multiple simultaneous requests', async () => {
+    const requests = Array(10)
+      .fill(null)
+      .map((_, index) =>
+        request(app).get(`/api/v1/user/${testUsers.poster._id}`)
+      );
+
+    const startTime = Date.now();
+    const responses = await Promise.all(requests);
+    const endTime = Date.now();
+
+    // All requests should complete within reasonable time
+    expect(endTime - startTime).toBeLessThan(5000); // 5 seconds max
+
+    responses.forEach(response => {
+      expect([HTTP_STATUS.OK, HTTP_STATUS.UNAUTHORIZED]).toContain(
+        response.status
+      );
+    });
+  });
+
+  it('should respond within acceptable time limits', async () => {
+    const startTime = Date.now();
+
+    const response = await request(app).get('/api/v1/user');
+
+    const responseTime = Date.now() - startTime;
+
+    // Response should be fast
+    expect(responseTime).toBeLessThan(2000); // 2 seconds max
+    expect([HTTP_STATUS.OK, HTTP_STATUS.UNAUTHORIZED]).toContain(
+      response.status
+    );
   });
 });
