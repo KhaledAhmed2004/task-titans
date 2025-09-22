@@ -133,8 +133,9 @@ const getAllTasksByUser = async (
     .paginate() // pagination
     .fields(); // field selection
 
-  // 🔹 Execute query
-  const tasks = await taskQuery.modelQuery;
+    // 🔹 Execute query with population
+  let tasks = await taskQuery.modelQuery
+    .populate('taskCategory', 'name') // <-- populate category name
 
   // 🔹 Add rating info: assigned worker → poster
   const tasksWithRating = await Promise.all(
@@ -156,6 +157,7 @@ const getAllTasksByUser = async (
       return {
         ...task.toObject(),
         ratingFromTasker: ratingValue,
+         taskCategory: task.taskCategory.name,
       };
     })
   );

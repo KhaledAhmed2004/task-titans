@@ -84,10 +84,17 @@ const loginUserFromDB = async (
     );
   }
 
-  if (
-    password &&
-    !(await User.isMatchPassword(password, isExistUser.password))
-  ) {
+  // if (
+  //   password &&
+  //   !(await User.isMatchPassword(password, isExistUser.password))
+  // ) {
+  //   throw new ApiError(StatusCodes.BAD_REQUEST, 'Password is incorrect!');
+  // }
+  if (!password) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Password is required!');
+  }
+
+  if (!(await User.isMatchPassword(password, isExistUser.password))) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Password is incorrect!');
   }
 
