@@ -38,6 +38,13 @@ const TaskSchema = new mongoose.Schema<Task>(
       type: String,
       required: false,
     },
+    ratings: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'Rating',
+      },
+    ],
+
     isDeleted: {
       type: Boolean,
       default: false,

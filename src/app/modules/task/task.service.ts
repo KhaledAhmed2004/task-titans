@@ -13,6 +13,7 @@ import { PaymentModel } from '../payment/payment.model';
 import { PAYMENT_STATUS, RELEASE_TYPE } from '../payment/payment.interface';
 import mongoose from 'mongoose';
 import { Bookmark } from '../bookmark/bookmark.model';
+import { Rating } from '../rating';
 
 const createTask = async (task: Task) => {
   // Validate category
@@ -135,13 +136,37 @@ const getAllTasksByUser = async (
   // 🔹 Execute query
   const tasks = await taskQuery.modelQuery;
 
+  // 🔹 Add rating info: assigned worker → poster
+  const tasksWithRating = await Promise.all(
+    tasks.map(async (task: any) => {
+      let ratingValue: string | number = 'not giving';
+
+      if (task.assignedTo) {
+        const rating = await Rating.findOne({
+          taskId: task._id,
+          givenBy: task.assignedTo,
+          givenTo: task.userId, // poster
+        });
+
+        if (rating) {
+          ratingValue = rating.rating;
+        }
+      }
+
+      return {
+        ...task.toObject(),
+        ratingFromTasker: ratingValue,
+      };
+    })
+  );
+
   // 🔹 Get pagination info
   const paginationInfo = await taskQuery.getPaginationInfo();
 
   // 🔹 Return combined result
   return {
     pagination: paginationInfo,
-    data: { tasks },
+    data: { tasks: tasksWithRating },
   };
 };
 

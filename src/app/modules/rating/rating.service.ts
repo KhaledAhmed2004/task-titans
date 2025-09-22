@@ -64,6 +64,13 @@ const createRating = async (payload: Partial<IRating>): Promise<IRating> => {
     // 6️⃣ Create rating
     const rating = await Rating.create([payload], { session });
 
+    // 6️⃣ Push rating ref into Task
+    await TaskModel.findByIdAndUpdate(
+      payload.taskId,
+      { $push: { ratings: rating[0]._id } },
+      { session }
+    );
+
     // 7️⃣ Update rated user's averageRating & ratingsCount incrementally
     if (payload.givenTo && payload.rating !== undefined) {
       const user = await User.findById(payload.givenTo).session(session);
