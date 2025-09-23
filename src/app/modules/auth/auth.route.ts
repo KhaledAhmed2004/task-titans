@@ -1,4 +1,5 @@
 import express from 'express';
+import passport from '../../../config/passport';
 import { USER_ROLES } from '../../../enums/user';
 import auth from '../../middlewares/auth';
 import validateRequest from '../../middlewares/validateRequest';
@@ -10,6 +11,27 @@ router.post(
   '/login',
   validateRequest(AuthValidation.createLoginZodSchema),
   AuthController.loginUser
+);
+
+// Google OAuth routes
+router.get(
+  '/google',
+  (req, res, next) => {
+    console.log('🚀 Google OAuth route hit - initiating authentication');
+    next();
+  },
+  passport.authenticate('google', { scope: ['profile', 'email'] })
+);
+
+router.get(
+  '/google/callback',
+  (req, res, next) => {
+    console.log('🔄 Google OAuth callback route hit');
+    console.log('Query params:', req.query);
+    next();
+  },
+  passport.authenticate('google', { session: false }),
+  AuthController.googleCallback
 );
 
 router.post(
@@ -44,5 +66,8 @@ router.post(
 );
 
 router.post('/resend-verify-email', AuthController.resendVerifyEmail);
+
+
+
 
 export const AuthRoutes = router;

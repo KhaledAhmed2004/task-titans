@@ -92,6 +92,47 @@ const resendVerifyEmail = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const googleCallback = catchAsync(async (req: Request, res: Response) => {
+  console.log('🔥 Google OAuth callback reached!');
+  console.log('Request user:', req.user);
+  console.log('Request query:', req.query);
+  console.log('Request params:', req.params);
+  
+  try {
+    const user = req.user as any; // User from passport strategy
+    console.log('📝 User from passport strategy:', user);
+
+    if (!user) {
+      console.error('❌ No user data received from passport');
+      return sendResponse(res, {
+        success: false,
+        statusCode: StatusCodes.UNAUTHORIZED,
+        message: 'Google authentication failed. No user data received.',
+      });
+    }
+
+    console.log('🚀 Calling AuthService.googleLoginToDB with user:', user._id);
+    const result = await AuthService.googleLoginToDB(user);
+    console.log('✅ AuthService.googleLoginToDB result:', result);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'Google login successful.',
+      data: result.createToken,
+    });
+  } catch (error) {
+    console.error('💥 Google OAuth callback error:', error);
+
+    sendResponse(res, {
+      success: false,
+      statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+      message: 'Authentication failed.',
+      data: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
 export const AuthController = {
   verifyEmail,
   logoutUser,
@@ -100,4 +141,5 @@ export const AuthController = {
   resetPassword,
   changePassword,
   resendVerifyEmail,
+  googleCallback,
 };

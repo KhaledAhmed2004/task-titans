@@ -71,6 +71,10 @@ const userSchema = new Schema<IUser>(
       type: Number,
       default: 0,
     },
+    googleId: {
+      type: String,
+      sparse: true, // allows multiple null values but unique non-null values
+    },
     authentication: {
       type: {
         isResetPassword: {

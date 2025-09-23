@@ -341,6 +341,48 @@ const resendVerifyEmailToDB = async (email: string) => {
   return { otp }; // optional: just for logging/debugging
 };
 
+// Google OAuth login
+const googleLoginToDB = async (user: any) => {
+  console.log('🔍 GoogleLoginToDB called with user:', user);
+  
+  // Check if user exists and is active
+  if (!user) {
+    console.error('❌ No user provided to googleLoginToDB');
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Google authentication failed!');
+  }
+
+  console.log('📊 User details:', {
+    id: user._id,
+    email: user.email,
+    name: user.name,
+    status: user.status,
+    verified: user.verified,
+    googleId: user.googleId
+  });
+
+  // Check user status
+  if (user.status === USER_STATUS.DELETE) {
+    console.error('❌ User account is deleted');
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Your account has been deactivated. Contact support.'
+    );
+  }
+
+  console.log('🔑 Creating JWT token for user:', user._id);
+  
+  // Create JWT token
+  const createToken = jwtHelper.createToken(
+    { id: user._id, role: user.role, email: user.email },
+    config.jwt.jwt_secret as Secret,
+    config.jwt.jwt_expire_in as string
+  );
+
+  console.log('✅ JWT token created successfully');
+  
+  return { createToken };
+};
+
 export const AuthService = {
   verifyEmailToDB,
   loginUserFromDB,
@@ -349,4 +391,5 @@ export const AuthService = {
   changePasswordToDB,
   resendVerifyEmailToDB,
   logoutUserFromDB,
+  googleLoginToDB,
 };

@@ -16,6 +16,7 @@ export type IUser = {
   deviceTokens?: string[];
   averageRating: number;
   ratingsCount: number;
+  googleId?: string;
   authentication?: {
     isResetPassword: boolean;
     oneTimeCode: number;
