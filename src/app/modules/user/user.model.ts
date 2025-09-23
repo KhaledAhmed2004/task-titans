@@ -27,7 +27,10 @@ const userSchema = new Schema<IUser>(
     },
     password: {
       type: String,
-      required: true,
+      required: function(this: IUser) {
+        // Password is not required for OAuth users (users with googleId)
+        return !this.googleId;
+      },
       minlength: 8,
       select: false, // hide password by default
     },
@@ -123,11 +126,13 @@ userSchema.pre('save', async function (next) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Email already exist!');
   }
 
-  //password hash
-  this.password = await bcrypt.hash(
-    this.password,
-    Number(config.bcrypt_salt_rounds)
-  );
+  //password hash - only hash if password is provided (not for OAuth users)
+  if (this.password) {
+    this.password = await bcrypt.hash(
+      this.password,
+      Number(config.bcrypt_salt_rounds)
+    );
+  }
   next();
 });
 

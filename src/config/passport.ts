@@ -31,11 +31,10 @@ passport.use(
         if (!user) {
           console.log('Creating new user for Google OAuth');
           try {
-            // Create new user with Google OAuth data
+            // Create new user with Google OAuth data - no password needed
             user = await User.create({
               name: profile.displayName || 'Google User',
               email,
-              password: 'google_oauth_password_123', // placeholder password for OAuth users (meets minlength requirement)
               verified: true,
               googleId: profile.id,
               location: '', // default empty location

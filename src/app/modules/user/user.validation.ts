@@ -8,8 +8,9 @@ const createUserZodSchema = z.object({
     dateOfBirth: z.string().optional(),
     location: z.string().optional(),
     phone: z.string().optional(),
-    password: z.string().min(8, 'Password must be at least 8 characters long'),
+    password: z.string().min(8, 'Password must be at least 8 characters long').optional(), // Make password optional for OAuth users
     image: z.string().optional(),
+    googleId: z.string().optional(), // Add googleId field for OAuth users
   }),
 });
 
