@@ -17,7 +17,6 @@ router.post(
 router.get(
   '/google',
   (req, res, next) => {
-    console.log('🚀 Google OAuth route hit - initiating authentication');
     next();
   },
   passport.authenticate('google', { scope: ['profile', 'email'] })
@@ -26,8 +25,6 @@ router.get(
 router.get(
   '/google/callback',
   (req, res, next) => {
-    console.log('🔄 Google OAuth callback route hit');
-    console.log('Query params:', req.query);
     next();
   },
   passport.authenticate('google', { session: false }),
@@ -66,8 +63,5 @@ router.post(
 );
 
 router.post('/resend-verify-email', AuthController.resendVerifyEmail);
-
-
-
 
 export const AuthRoutes = router;

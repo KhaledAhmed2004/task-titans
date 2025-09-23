@@ -93,14 +93,8 @@ const resendVerifyEmail = catchAsync(async (req: Request, res: Response) => {
 });
 
 const googleCallback = catchAsync(async (req: Request, res: Response) => {
-  console.log('🔥 Google OAuth callback reached!');
-  console.log('Request user:', req.user);
-  console.log('Request query:', req.query);
-  console.log('Request params:', req.params);
-  
   try {
-    const user = req.user as any; // User from passport strategy
-    console.log('📝 User from passport strategy:', user);
+    const user = req.user as any;
 
     if (!user) {
       console.error('❌ No user data received from passport');
@@ -111,9 +105,7 @@ const googleCallback = catchAsync(async (req: Request, res: Response) => {
       });
     }
 
-    console.log('🚀 Calling AuthService.googleLoginToDB with user:', user._id);
     const result = await AuthService.googleLoginToDB(user);
-    console.log('✅ AuthService.googleLoginToDB result:', result);
 
     sendResponse(res, {
       success: true,

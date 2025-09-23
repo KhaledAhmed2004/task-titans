@@ -18,12 +18,7 @@ app.use(Morgan.errorHandler);
 //body parser
 app.use(
   cors({
-    origin: [
-      'http://localhost:5173',
-      'http://localhost:5000',
-      'http://localhost:3000',
-      'http://localhost:3001',
-    ],
+    origin: "*",
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     credentials: true, // if you need cookies/auth
   })
@@ -31,6 +26,7 @@ app.use(
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
 app.use(passport.initialize());
 
 //file retrieve

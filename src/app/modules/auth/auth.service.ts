@@ -343,22 +343,14 @@ const resendVerifyEmailToDB = async (email: string) => {
 
 // Google OAuth login
 const googleLoginToDB = async (user: any) => {
-  console.log('🔍 GoogleLoginToDB called with user:', user);
-  
   // Check if user exists and is active
   if (!user) {
     console.error('❌ No user provided to googleLoginToDB');
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'Google authentication failed!');
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Google authentication failed!'
+    );
   }
-
-  console.log('📊 User details:', {
-    id: user._id,
-    email: user.email,
-    name: user.name,
-    status: user.status,
-    verified: user.verified,
-    googleId: user.googleId
-  });
 
   // Check user status
   if (user.status === USER_STATUS.DELETE) {
@@ -369,8 +361,6 @@ const googleLoginToDB = async (user: any) => {
     );
   }
 
-  console.log('🔑 Creating JWT token for user:', user._id);
-  
   // Create JWT token
   const createToken = jwtHelper.createToken(
     { id: user._id, role: user.role, email: user.email },
@@ -379,7 +369,7 @@ const googleLoginToDB = async (user: any) => {
   );
 
   console.log('✅ JWT token created successfully');
-  
+
   return { createToken };
 };
 
