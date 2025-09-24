@@ -14,6 +14,7 @@ import { PaymentRoutes } from '../app/modules/payment/payment.routes';
 import { BookmarkRoutes } from '../app/modules/bookmark/bookmark.route';
 import { CommentRoutes } from '../app/modules/comments/comments.route';
 import { NotificationRoutes } from '../app/modules/notification/notification.routes';
+import { BannerRoutes } from '../app/modules/banner/banner.route';
 
 const router = express.Router();
 
@@ -77,6 +78,10 @@ const apiRoutes = [
   {
     path: '/notifications',
     route: NotificationRoutes,
+  },
+  {
+    path: '/banners',
+    route: BannerRoutes,
   },
   // {
   //   path: '/disputes',

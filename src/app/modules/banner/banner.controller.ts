@@ -1,82 +1,83 @@
-// src/modules/banner/banner.controller.ts
+import { Request, Response } from 'express';
+import { StatusCodes } from 'http-status-codes';
+import sendResponse from '../../../shared/sendResponse';
+import catchAsync from '../../../shared/catchAsync';
+import { BannerService } from './banner.service';
+
+// ======== CREATE ==============
+const createBanner = catchAsync(async (req: Request, res: Response) => {
+  const bannerData = req.body;
+
+  const result = await BannerService.createBanner(bannerData);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.CREATED,
+    success: true,
+    message: 'Banner created successfully',
+    data: result,
+  });
+});
+
+// ======== READ ==============
+const getAllBanners = catchAsync(async (req: Request, res: Response) => {
+  const result = await BannerService.getAllBanners(req.query);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: result.data.length
+      ? 'Banners retrieved successfully'
+      : 'No banners found',
+    data: result.data,
+    pagination: result.pagination,
+  });
+});
+
+const getBannerById = catchAsync(async (req: Request, res: Response) => {
+  const { bannerId } = req.params;
+  const result = await BannerService.getBannerById(bannerId);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: 'Banner retrieved successfully',
+    data: result,
+  });
+});
+
+// ======== UPDATE ==============
+const updateBanner = catchAsync(async (req: Request, res: Response) => {
+  const { bannerId } = req.params;
+  const bannerUpdate = req.body;
+
+  const result = await BannerService.updateBanner(bannerId, bannerUpdate);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: 'Banner updated successfully',
+    data: result,
+  });
+});
+
+// ========= DELETE =============
+const deleteBanner = catchAsync(async (req: Request, res: Response) => {
+  const { bannerId } = req.params;
+
+  const result = await BannerService.deleteBanner(bannerId);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: 'Banner deleted successfully',
+    data: result,
+  });
+});
+
 export const BannerController = {
-  async create(req: Request, res: Response) {
-    try {
-      const created = await BannerService.createBanner(req.body);
-      return res.status(201).json({ success: true, data: created });
-    } catch (err) {
-      console.error('create banner error', err);
-      return res
-        .status(500)
-        .json({ success: false, message: 'Internal server error' });
-    }
-  },
-
-  async list(req: Request, res: Response) {
-    try {
-      const { active } = req.query as any;
-      const filter: any = {};
-      if (active === 'true') filter.isActive = true;
-      if (active === 'false') filter.isActive = false;
-
-      const banners = await BannerService.getBanners(filter);
-      return res.json({ success: true, data: banners });
-    } catch (err) {
-      console.error('list banners error', err);
-      return res
-        .status(500)
-        .json({ success: false, message: 'Internal server error' });
-    }
-  },
-
-  async getById(req: Request, res: Response) {
-    try {
-      const { id } = req.params;
-      const banner = await BannerService.getBannerById(id);
-      if (!banner)
-        return res
-          .status(404)
-          .json({ success: false, message: 'Banner not found' });
-      return res.json({ success: true, data: banner });
-    } catch (err) {
-      console.error('get banner error', err);
-      return res
-        .status(500)
-        .json({ success: false, message: 'Internal server error' });
-    }
-  },
-
-  async update(req: Request, res: Response) {
-    try {
-      const { id } = req.params;
-      const updated = await BannerService.updateBanner(id, req.body);
-      if (!updated)
-        return res
-          .status(404)
-          .json({ success: false, message: 'Banner not found or invalid id' });
-      return res.json({ success: true, data: updated });
-    } catch (err) {
-      console.error('update banner error', err);
-      return res
-        .status(500)
-        .json({ success: false, message: 'Internal server error' });
-    }
-  },
-
-  async remove(req: Request, res: Response) {
-    try {
-      const { id } = req.params;
-      const deleted = await BannerService.deleteBanner(id);
-      if (!deleted)
-        return res
-          .status(404)
-          .json({ success: false, message: 'Banner not found or invalid id' });
-      return res.json({ success: true, message: 'Banner deleted' });
-    } catch (err) {
-      console.error('delete banner error', err);
-      return res
-        .status(500)
-        .json({ success: false, message: 'Internal server error' });
-    }
-  },
+  createBanner,
+  getAllBanners,
+  getBannerById,
+  updateBanner,
+  deleteBanner,
 };
