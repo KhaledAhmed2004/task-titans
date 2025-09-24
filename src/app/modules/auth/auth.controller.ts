@@ -98,30 +98,27 @@ const googleCallback = catchAsync(async (req: Request, res: Response) => {
 
     if (!user) {
       console.error('❌ No user data received from passport');
-      return sendResponse(res, {
-        success: false,
-        statusCode: StatusCodes.UNAUTHORIZED,
-        message: 'Google authentication failed. No user data received.',
-      });
+      return res.redirect(
+        `https://environment-essentials-chose-telescope.trycloudflare.com/auth/error?message=Google authentication failed. No user data received.`
+      );
     }
 
     const result = await AuthService.googleLoginToDB(user);
 
-    sendResponse(res, {
-      success: true,
-      statusCode: StatusCodes.OK,
-      message: 'Google login successful.',
-      data: result.createToken,
-    });
+    // Redirect to frontend with token as query parameter
+    return res.redirect(
+      `https://environment-essentials-chose-telescope.trycloudflare.com/auth/success?token=${result.createToken}`
+    );
   } catch (error) {
     console.error('💥 Google OAuth callback error:', error);
 
-    sendResponse(res, {
-      success: false,
-      statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
-      message: 'Authentication failed.',
-      data: error instanceof Error ? error.message : 'Unknown error',
-    });
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
+    return res.redirect(
+      `https://environment-essentials-chose-telescope.trycloudflare.com/auth/error?message=${encodeURIComponent(
+        errorMessage
+      )}`
+    );
   }
 });
 

@@ -341,13 +341,6 @@ const completeTask = async (taskId: string, clientId: string) => {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
   }
 
-  // if (task.userId !== clientId) {
-  //   throw new ApiError(
-  //     StatusCodes.FORBIDDEN,
-  //     'Only task owner can complete the task'
-  //   );
-  // }
-
   if (task.userId.toString() !== clientId) {
     throw new ApiError(
       StatusCodes.FORBIDDEN,
