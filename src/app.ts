@@ -23,7 +23,7 @@ app.use(
       'http://localhost:3000',
       'http://localhost:3001',
       'http://localhost:5174',
-      'https://environment-essentials-chose-telescope.trycloudflare.com',
+      'https://lauren-electoral-convicted-ruled.trycloudflare.com',
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     credentials: true, // if you need cookies/auth
