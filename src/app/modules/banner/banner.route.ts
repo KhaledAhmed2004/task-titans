@@ -20,16 +20,16 @@ router.post(
 // ======== READ ==============
 
 // Get all banners (Public)
-router.get('/banners', BannerController.getAllBanners);
+router.get('/', BannerController.getAllBanners);
 
 // Get a single banner by ID (Public)
-router.get('/banners/:bannerId', BannerController.getBannerById);
+router.get('/:bannerId', BannerController.getBannerById);
 
 // ======== UPDATE ==============
 
 // Update banner by ID (Admin only)
 router.put(
-  '/banners/:bannerId',
+  '/:bannerId',
   auth(USER_ROLES.SUPER_ADMIN),
   validateRequest(BannerValidation.updateBannerZodSchema),
   BannerController.updateBanner
@@ -39,7 +39,7 @@ router.put(
 
 // Delete banner by ID (Admin only)
 router.delete(
-  '/banners/:bannerId',
+  '/:bannerId',
   auth(USER_ROLES.SUPER_ADMIN),
   BannerController.deleteBanner
 );

@@ -249,7 +249,7 @@ const deleteReport = async (reportId: string): Promise<IReport | null> => {
 const resolveReport = async (reportId: string): Promise<IReport | null> => {
   const resolvedReport = await Report.findByIdAndUpdate(
     reportId,
-    { status: 'resolved' }, // or REPORT_STATUS.RESOLVED
+    { status: REPORT_STATUS.RESOLVED },
     { new: true, runValidators: true }
   );
 

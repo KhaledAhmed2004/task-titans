@@ -4,6 +4,7 @@ import { TaskValidation } from './task.validation';
 import { USER_ROLES } from '../../../enums/user';
 import auth from '../../middlewares/auth';
 import fileUploadHandler from '../../middlewares/fileUploadHandler';
+import validateRequest from '../../middlewares/validateRequest';
 import { NextFunction, Request, Response } from 'express';
 
 const router = Router();
@@ -90,12 +91,13 @@ router.patch(
   TaskController.completeTask
 );
 
-// // Cancel task
-// router.patch(
-//   '/:taskId/cancel',
-//   auth(USER_ROLES.POSTER),
-//   TaskController.cancelTask
-// );
+// Cancel task
+router.patch(
+  '/:taskId/cancel',
+  auth(USER_ROLES.POSTER),
+  validateRequest(TaskValidation.cancelTaskZodSchema),
+  TaskController.cancelTask
+);
 
 // Submit delivery for a task (by Tasker)
 router.post(

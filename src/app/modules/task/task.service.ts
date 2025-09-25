@@ -14,6 +14,25 @@ import { PAYMENT_STATUS, RELEASE_TYPE } from '../payment/payment.interface';
 import mongoose from 'mongoose';
 import { Bookmark } from '../bookmark/bookmark.model';
 import { Rating } from '../rating';
+import { DisputeType } from '../dispute/dispute.interface';
+
+// Temporary DisputeService implementation until the full service is uncommented
+const DisputeService = {
+  createDispute: async (clientId: string, disputeData: any) => {
+    // For now, just return a mock dispute object
+    // This should be replaced with the actual implementation when DisputeService is uncommented
+    return {
+      _id: new mongoose.Types.ObjectId(),
+      taskId: disputeData.taskId,
+      type: disputeData.type,
+      title: disputeData.title,
+      description: disputeData.description,
+      posterClaim: disputeData.posterClaim,
+      status: 'open',
+      createdAt: new Date(),
+    };
+  }
+};
 
 const createTask = async (task: Task) => {
   // Validate category
@@ -597,87 +616,99 @@ const completeTask = async (taskId: string, clientId: string) => {
 };
 
 // Cancel task before delivery
-// const cancelTask = async (
-//   taskId: string,
-//   clientId: string,
-//   reason?: string
-// ) => {
-//   const task = await TaskModel.findById(taskId);
-//   if (!task) {
-//     throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
-//   }
+const cancelTask = async (
+  taskId: string,
+  clientId: string,
+  reason?: string
+) => {
+  const task = await TaskModel.findById(taskId);
+  if (!task) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
+  }
 
-//   // Only poster can cancel
-//   if (task.userId !== clientId) {
-//     throw new ApiError(
-//       StatusCodes.FORBIDDEN,
-//       'Only task owner can cancel the task'
-//     );
-//   }
+  // Only poster can cancel
+  if (task.userId.toString() !== clientId.toString()) {
+    throw new ApiError(
+      StatusCodes.FORBIDDEN,
+      'Only the task owner can cancel the task'
+    );
+  }
 
-//   try {
-//     // ❌ Prevent cancel if already finalized
-//     if ([TaskStatus.COMPLETED, TaskStatus.CANCELLED, TaskStatus.DISPUTED].includes(task.status)) {
-//       throw new ApiError(
-//         StatusCodes.BAD_REQUEST,
-//         'Task cannot be cancelled in current status'
-//       );
-//     }
+  try {
+    // Prevent cancel if already finalized
+    if (
+      [
+        TaskStatus.COMPLETED,
+        TaskStatus.CANCELLED,
+        TaskStatus.DISPUTED,
+      ].includes(task.status as any)
+    ) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'Task cannot be cancelled in current status'
+      );
+    }
 
-//     // ✅ If delivery already submitted (UNDER_REVIEW) → escalate to dispute
-//     if (task.status === TaskStatus.UNDER_REVIEW) {
-//       const dispute = await DisputeService.createDispute(clientId, {
-//         taskId,
-//         type: DisputeType.TASK_CANCELLATION,
-//         title: `Task Cancellation Request: ${task.title}`,
-//         description: `Poster requested to cancel task after delivery submission.`,
-//         posterClaim: reason || 'Task cancellation requested by poster',
-//       });
+    // ✅ If delivery already submitted (UNDER_REVIEW) → escalate to dispute
+    if (task.status === TaskStatus.UNDER_REVIEW) {
+      const dispute = await DisputeService.createDispute(clientId, {
+        taskId,
+        type: DisputeType.TASK_CANCELLATION,
+        title: `Task Cancellation Request: ${task.title}`,
+        description: `Poster requested to cancel task after delivery submission.`,
+        posterClaim: reason || 'Task cancellation requested by poster',
+      });
 
-//       task.status = TaskStatus.DISPUTED;
-//       await task.save();
+      task.status = TaskStatus.DISPUTED;
+      await task.save();
 
-//       return {
-//         task,
-//         dispute,
-//         message: 'Dispute created for task cancellation after delivery submission',
-//       };
-//     }
+      return {
+        task,
+        dispute,
+        message:
+          'Dispute created for task cancellation after delivery submission',
+      };
+    }
 
-//     // Direct cancellation - refund payment
-//     if (task.paymentIntentId) {
-//       await PaymentService.refundEscrowPayment(taskId, clientId, reason);
-//     }
+    // Direct cancellation - refund payment if exists
+    const payment = await PaymentModel.findOne({ 
+      taskId: new mongoose.Types.ObjectId(taskId),
+      status: { $in: [PAYMENT_STATUS.PENDING, PAYMENT_STATUS.HELD] }
+    });
 
-//     // Update task status
-//     task.status = TaskStatus.CANCELLED;
-//     await task.save();
+    if (payment) {
+      await PaymentService.refundEscrowPayment(payment._id.toString(), reason);
+    }
 
-//     // Send notification to freelancer if assigned
-//     if (task.assignedTo) {
-//       const notificationData = {
-//         text: `Task "${task.title}" has been cancelled by the poster. ${
-//           reason ? `Reason: ${reason}` : ''
-//         }`,
-//         title: 'Task Cancelled',
-//         receiver: task.assignedTo,
-//         type: 'TASK_CANCELLED',
-//         referenceId: task._id,
-//         read: false,
-//       };
-//       await sendNotifications(notificationData);
-//     }
+    // Update task status
+    task.status = TaskStatus.CANCELLED;
+    await task.save();
 
-//     return { task, message: 'Task cancelled and payment refunded' };
-//   } catch (error) {
-//     const errorMessage =
-//       error instanceof Error ? error.message : 'Unknown error occurred';
-//     throw new ApiError(
-//       StatusCodes.INTERNAL_SERVER_ERROR,
-//       `Failed to cancel task: ${errorMessage}`
-//     );
-//   }
-// };
+    // Send notification to freelancer if assigned
+    if (task.assignedTo) {
+      const notificationData = {
+        text: `Task "${task.title}" has been cancelled by the poster. ${
+          reason ? `Reason: ${reason}` : ''
+        }`,
+        title: 'Task Cancelled',
+        receiver: task.assignedTo,
+        type: 'TASK_CANCELLED',
+        referenceId: task._id,
+        read: false,
+      };
+      await sendNotifications(notificationData);
+    }
+
+    return { task, message: 'Task cancelled and payment refunded' };
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error occurred';
+    throw new ApiError(
+      StatusCodes.INTERNAL_SERVER_ERROR,
+      `Failed to cancel task: ${errorMessage}`
+    );
+  }
+};
 
 const submitDelivery = async (taskId: string, taskerId: string) => {
   const task = await TaskModel.findById(taskId);
@@ -741,7 +772,7 @@ export const TaskService = {
   getLastSixMonthsCompletionStats,
   getMyTaskById,
   completeTask,
-  // cancelTask,
+  cancelTask,
   submitDelivery,
   getSimilarTasks,
 };

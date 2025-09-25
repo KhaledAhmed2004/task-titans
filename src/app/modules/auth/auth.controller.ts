@@ -31,6 +31,7 @@ const loginUser = catchAsync(async (req: Request, res: Response) => {
 
 const logoutUser = catchAsync(async (req: Request, res: Response) => {
   const { deviceToken } = req.body;
+  console.log('deviceToken', deviceToken);
   const user = req.user as JwtPayload;
 
   await AuthService.logoutUserFromDB(user, deviceToken);
@@ -105,7 +106,7 @@ const googleCallback = catchAsync(async (req: Request, res: Response) => {
 
     const result = await AuthService.googleLoginToDB(user);
 
-    // Redirect to frontend with token as query parameter
+    // Redirect to frontend with token as query parameter in fronted url
     return res.redirect(
       `https://environment-essentials-chose-telescope.trycloudflare.com/auth/success?token=${result.createToken}`
     );
