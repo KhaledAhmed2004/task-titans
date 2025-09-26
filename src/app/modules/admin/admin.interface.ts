@@ -1,15 +1,14 @@
+// Dashboard Stats Interface
 export interface IDashboardStats {
-  allUsers: IStatistic;
-  posts: IStatistic;
-  revenue: IStatistic;
+  allUsers: IStatisticSummary;
+  posts: IStatisticSummary;
+  revenue: IStatisticSummary;
 }
 
-export interface IStatistic {
+// Only the fields you actually want to expose
+export interface IStatisticSummary {
   total: number;
-  thisMonthCount: number;
-  lastMonthCount: number;
-  monthlyGrowth: number;
-  formattedGrowth: string;
+  formattedGrowth: string; // e.g., '+12.34%'
   growthType: 'increase' | 'decrease' | 'no_change';
 }
 

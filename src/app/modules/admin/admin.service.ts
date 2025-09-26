@@ -3,33 +3,8 @@ import { PaymentModel } from '../payment/payment.model';
 import { User } from '../user/user.model';
 import { TaskModel } from '../task/task.model';
 import httpStatus from 'http-status';
-import {
-  IDashboardStats,
-  IStatistic,
-  IMonthlyGrowthFilter,
-} from './admin.interface';
-import AggregationBuilder from '../../builder/AggregationBuilder';
-
-// Alternative dynamic approach using AggregationBuilder
-const calculateMonthlyGrowthDynamic = async (
-  Model: any,
-  options: { sumField?: string; filter?: IMonthlyGrowthFilter } = {}
-): Promise<IStatistic> => {
-  try {
-    const aggregationBuilder = new AggregationBuilder(Model);
-    return await aggregationBuilder.calculateMonthlyGrowth({
-      sumField: options.sumField,
-      filter: options.filter || {},
-    });
-  } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown error occurred';
-    throw new ApiError(
-      httpStatus.INTERNAL_SERVER_ERROR,
-      `Failed to calculate monthly growth dynamically: ${errorMessage}`
-    );
-  }
-};
+import { IDashboardStats } from './admin.interface';
+import { calculateGrowthDynamic } from '../../builder/AggregationBuilder';
 
 // Main function to get dashboard statistics
 const getDashboardStats = async (): Promise<IDashboardStats> => {
@@ -42,14 +17,34 @@ const getDashboardStats = async (): Promise<IDashboardStats> => {
       );
     }
 
-    // Use dynamic AggregationBuilder approach
-    const [allUsers, posts, revenue] = await Promise.all([
-      calculateMonthlyGrowthDynamic(User),
-      calculateMonthlyGrowthDynamic(TaskModel),
-      calculateMonthlyGrowthDynamic(PaymentModel, { sumField: 'platformFee' }),
+    // ===== Use dynamic growth calculation for different models =====
+    const [allUsersStats, postsStats, revenueStats] = await Promise.all([
+      // Weekly user growth
+      calculateGrowthDynamic(User, { period: 'month' }),
+
+      // Monthly task growth
+      calculateGrowthDynamic(TaskModel, { period: 'month' }),
+
+      // Yearly revenue growth (summing 'platformFee')
+      calculateGrowthDynamic(PaymentModel, {
+        period: 'month',
+        sumField: 'platformFee',
+      }),
     ]);
 
-    return { allUsers, posts, revenue };
+    // return { allUsers, posts, revenue };
+        // Pick only total, formattedGrowth & growthType
+    const pickStats = (stats: any) => ({
+      total: stats.total,
+      formattedGrowth: stats.formattedGrowth,
+      growthType: stats.growthType,
+    });
+
+    return {
+      allUsers: pickStats(allUsersStats),
+      posts: pickStats(postsStats),
+      revenue: pickStats(revenueStats),
+    };
   } catch (error) {
     if (error instanceof ApiError) {
       throw error;

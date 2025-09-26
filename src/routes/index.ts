@@ -16,6 +16,7 @@ import { CommentRoutes } from '../app/modules/comments/comments.route';
 import { NotificationRoutes } from '../app/modules/notification/notification.routes';
 import { BannerRoutes } from '../app/modules/banner/banner.route';
 import { DashboardRoutes } from '../app/modules/admin/admin.route';
+import { HomePageEditRoutes } from '../app/modules/homePageEdit/homePageEdit.route';
 
 const router = express.Router();
 
@@ -87,6 +88,10 @@ const apiRoutes = [
   {
     path: '/dashboard',
     route: DashboardRoutes
+  },
+  {
+    path: '/homepage-edit',
+    route: HomePageEditRoutes,
   },
   // {
   //   path: '/disputes',

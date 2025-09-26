@@ -1,4 +1,3 @@
-
 import { BannerModel } from './banner.model';
 import QueryBuilder from '../../builder/QueryBuilder';
 import ApiError from '../../../errors/ApiError';

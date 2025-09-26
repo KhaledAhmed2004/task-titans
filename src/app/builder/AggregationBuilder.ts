@@ -1,16 +1,19 @@
 import { Model, PipelineStage } from 'mongoose';
+import httpStatus from 'http-status';
+import ApiError from '../../errors/ApiError';
 
-interface IMonthlyGrowthOptions {
+interface IGrowthOptions {
   sumField?: string; // Field to sum for revenue calculations
   filter?: Record<string, any>; // Additional filters
   groupBy?: string; // Field to group by (optional)
+  period?: 'week' | 'month' | 'year'; // Growth period
 }
 
 interface IStatistic {
   total: number;
-  thisMonthCount: number;
-  lastMonthCount: number;
-  monthlyGrowth: number;
+  thisPeriodCount: number;
+  lastPeriodCount: number;
+  growth: number;
   formattedGrowth: string;
   growthType: 'increase' | 'decrease' | 'no_change';
 }
@@ -23,123 +26,157 @@ class AggregationBuilder<T> {
     this.model = model;
   }
 
-  // Add match stage to pipeline
+  // ====== PIPELINE BUILDERS ======
   match(conditions: Record<string, any>) {
     this.pipeline.push({ $match: conditions });
     return this;
   }
 
-  // Add group stage to pipeline
   group(groupSpec: Record<string, any>) {
     this.pipeline.push({ $group: groupSpec });
     return this;
   }
 
-  // Add project stage to pipeline
   project(projectSpec: Record<string, any>) {
     this.pipeline.push({ $project: projectSpec });
     return this;
   }
 
-  // Add sort stage to pipeline
   sort(sortSpec: Record<string, any>) {
     this.pipeline.push({ $sort: sortSpec });
     return this;
   }
 
-  // Add limit stage to pipeline
   limit(limitValue: number) {
     this.pipeline.push({ $limit: limitValue });
     return this;
   }
 
-  // Execute the aggregation pipeline
+  reset() {
+    this.pipeline = [];
+    return this;
+  }
+
+  getPipeline() {
+    return this.pipeline;
+  }
+
   async execute(): Promise<any[]> {
     return await this.model.aggregate(this.pipeline);
   }
 
-  // Dynamic monthly growth calculation
-  async calculateMonthlyGrowth(options: IMonthlyGrowthOptions = {}): Promise<IStatistic> {
-    const { sumField, filter = {}, groupBy } = options;
-    
+  // ====== PERIOD CALCULATOR ======
+  private getPeriodDates(period: 'week' | 'month' | 'year') {
     const now = new Date();
-    const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+    let startThis: Date, startLast: Date, endLast: Date;
 
-    // Build aggregation pipelines dynamically
-    const buildPipeline = (dateFilter?: Record<string, any>) => {
-      const pipeline: PipelineStage[] = [];
-      
-      // Match stage with filters
-      const matchConditions = { ...filter };
-      if (dateFilter) {
-        matchConditions.createdAt = dateFilter;
-      }
-      pipeline.push({ $match: matchConditions });
+    switch (period) {
+      case 'week':
+        const day = now.getDay(); // Sunday = 0
+        startThis = new Date(now);
+        startThis.setDate(now.getDate() - day);
+        startThis.setHours(0, 0, 0, 0);
 
-      // Group stage
-      const groupSpec: Record<string, any> = {
-        _id: groupBy ? `$${groupBy}` : null,
-      };
+        startLast = new Date(startThis);
+        startLast.setDate(startThis.getDate() - 7);
 
-      if (sumField) {
-        groupSpec.total = { $sum: `$${sumField}` };
-      } else {
-        groupSpec.total = { $sum: 1 }; // Count documents
-      }
+        endLast = new Date(startThis);
+        endLast.setDate(startThis.getDate() - 1);
+        endLast.setHours(23, 59, 59, 999);
+        break;
 
-      pipeline.push({ $group: groupSpec });
+      case 'month':
+        startThis = new Date(now.getFullYear(), now.getMonth(), 1);
+        startLast = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        endLast = new Date(now.getFullYear(), now.getMonth(), 0);
+        break;
 
-      // If groupBy is specified, sum all groups
-      if (groupBy) {
-        pipeline.push({
-          $group: {
-            _id: null,
-            total: { $sum: '$total' }
-          }
-        });
-      }
+      case 'year':
+        startThis = new Date(now.getFullYear(), 0, 1);
+        startLast = new Date(now.getFullYear() - 1, 0, 1);
+        endLast = new Date(now.getFullYear() - 1, 11, 31);
+        break;
 
-      return pipeline;
-    };
-
-    // Execute three aggregations in parallel
-    const [thisMonthResult, lastMonthResult, totalResult] = await Promise.all([
-      this.model.aggregate(buildPipeline({ $gte: startOfThisMonth })),
-      this.model.aggregate(buildPipeline({ $gte: startOfLastMonth, $lte: endOfLastMonth })),
-      this.model.aggregate(buildPipeline())
-    ]);
-
-    const thisMonthCount = thisMonthResult[0]?.total || 0;
-    const lastMonthCount = lastMonthResult[0]?.total || 0;
-    const total = totalResult[0]?.total || 0;
-
-    // Calculate growth
-    let monthlyGrowth = 0;
-    let growthType: 'increase' | 'decrease' | 'no_change' = 'no_change';
-
-    if (lastMonthCount > 0) {
-      monthlyGrowth = ((thisMonthCount - lastMonthCount) / lastMonthCount) * 100;
-      growthType = monthlyGrowth > 0 ? 'increase' : monthlyGrowth < 0 ? 'decrease' : 'no_change';
-    } else if (thisMonthCount > 0 && lastMonthCount === 0) {
-      monthlyGrowth = 100;
-      growthType = 'increase';
+      default:
+        throw new Error('Unsupported period');
     }
 
-    const formattedGrowth = (monthlyGrowth > 0 ? '+' : '') + monthlyGrowth.toFixed(2) + '%';
-
-    return {
-      total,
-      thisMonthCount,
-      lastMonthCount,
-      monthlyGrowth: Math.abs(monthlyGrowth),
-      formattedGrowth,
-      growthType,
-    };
+    return { startThis, startLast, endLast };
   }
 
-  // Get revenue breakdown by different criteria
+  // ====== GENERIC GROWTH CALCULATION ======
+  async calculateGrowth(options: IGrowthOptions = {}): Promise<IStatistic> {
+    try {
+      const { sumField, filter = {}, groupBy, period = 'month' } = options;
+      const { startThis, startLast, endLast } = this.getPeriodDates(period);
+
+      const buildPipeline = (dateFilter?: Record<string, any>) => {
+        const pipeline: PipelineStage[] = [];
+        const matchConditions = { ...filter };
+        if (dateFilter) matchConditions.createdAt = dateFilter;
+
+        pipeline.push({ $match: matchConditions });
+
+        const groupSpec: Record<string, any> = {
+          _id: groupBy ? `$${groupBy}` : null,
+        };
+        groupSpec.total = sumField ? { $sum: `$${sumField}` } : { $sum: 1 };
+        pipeline.push({ $group: groupSpec });
+
+        if (groupBy) {
+          pipeline.push({ $group: { _id: null, total: { $sum: '$total' } } });
+        }
+
+        return pipeline;
+      };
+
+      const [thisPeriodResult, lastPeriodResult, totalResult] =
+        await Promise.all([
+          this.model.aggregate(buildPipeline({ $gte: startThis })),
+          this.model.aggregate(
+            buildPipeline({ $gte: startLast, $lte: endLast })
+          ),
+          this.model.aggregate(buildPipeline()),
+        ]);
+
+      const thisPeriodCount = thisPeriodResult[0]?.total || 0;
+      const lastPeriodCount = lastPeriodResult[0]?.total || 0;
+      const total = totalResult[0]?.total || 0;
+
+      // Growth calculation
+      let growth = 0;
+      let growthType: 'increase' | 'decrease' | 'no_change' = 'no_change';
+
+      if (lastPeriodCount > 0) {
+        growth = ((thisPeriodCount - lastPeriodCount) / lastPeriodCount) * 100;
+        growthType =
+          growth > 0 ? 'increase' : growth < 0 ? 'decrease' : 'no_change';
+      } else if (thisPeriodCount > 0 && lastPeriodCount === 0) {
+        growth = 100;
+        growthType = 'increase';
+      }
+
+      const formattedGrowth = (growth > 0 ? '+' : '') + growth.toFixed(2) + '%';
+
+      return {
+        total,
+        thisPeriodCount,
+        lastPeriodCount,
+        growth: Math.abs(growth),
+        formattedGrowth,
+        growthType,
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
+      throw new ApiError(
+        httpStatus.INTERNAL_SERVER_ERROR,
+        `Failed to calculate growth: ${errorMessage}`
+      );
+    }
+  }
+
+  // ====== REVENUE BREAKDOWN ======
   async getRevenueBreakdown(options: {
     sumField: string;
     groupByField: string;
@@ -147,7 +184,7 @@ class AggregationBuilder<T> {
     limit?: number;
   }) {
     const { sumField, groupByField, filter = {}, limit = 10 } = options;
-    
+
     this.pipeline = [
       { $match: filter },
       {
@@ -155,8 +192,8 @@ class AggregationBuilder<T> {
           _id: `$${groupByField}`,
           totalRevenue: { $sum: `$${sumField}` },
           count: { $sum: 1 },
-          averageRevenue: { $avg: `$${sumField}` }
-        }
+          averageRevenue: { $avg: `$${sumField}` },
+        },
       },
       { $sort: { totalRevenue: -1 } },
       { $limit: limit },
@@ -166,15 +203,15 @@ class AggregationBuilder<T> {
           [groupByField]: '$_id',
           totalRevenue: { $round: ['$totalRevenue', 2] },
           count: 1,
-          averageRevenue: { $round: ['$averageRevenue', 2] }
-        }
-      }
+          averageRevenue: { $round: ['$averageRevenue', 2] },
+        },
+      },
     ];
 
     return await this.execute();
   }
 
-  // Get time-based trends
+  // ====== TIME TRENDS ======
   async getTimeTrends(options: {
     sumField?: string;
     timeUnit: 'day' | 'week' | 'month' | 'year';
@@ -182,24 +219,16 @@ class AggregationBuilder<T> {
     limit?: number;
   }) {
     const { sumField, timeUnit, filter = {}, limit = 12 } = options;
-    
+
     const dateGrouping = {
       day: {
         year: { $year: '$createdAt' },
         month: { $month: '$createdAt' },
-        day: { $dayOfMonth: '$createdAt' }
+        day: { $dayOfMonth: '$createdAt' },
       },
-      week: {
-        year: { $year: '$createdAt' },
-        week: { $week: '$createdAt' }
-      },
-      month: {
-        year: { $year: '$createdAt' },
-        month: { $month: '$createdAt' }
-      },
-      year: {
-        year: { $year: '$createdAt' }
-      }
+      week: { year: { $year: '$createdAt' }, week: { $week: '$createdAt' } },
+      month: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } },
+      year: { year: { $year: '$createdAt' } },
     };
 
     this.pipeline = [
@@ -208,26 +237,45 @@ class AggregationBuilder<T> {
         $group: {
           _id: dateGrouping[timeUnit],
           total: sumField ? { $sum: `$${sumField}` } : { $sum: 1 },
-          count: { $sum: 1 }
-        }
+          count: { $sum: 1 },
+        },
       },
-      { $sort: { '_id.year': -1, '_id.month': -1, '_id.week': -1, '_id.day': -1 } },
-      { $limit: limit }
+      {
+        $sort: {
+          '_id.year': -1,
+          '_id.month': -1,
+          '_id.week': -1,
+          '_id.day': -1,
+        },
+      },
+      { $limit: limit },
     ];
 
     return await this.execute();
   }
-
-  // Reset pipeline
-  reset() {
-    this.pipeline = [];
-    return this;
-  }
-
-  // Get current pipeline (for debugging)
-  getPipeline() {
-    return this.pipeline;
-  }
 }
 
+// ====== HELPER FUNCTION ======
+const calculateGrowthDynamic = async (
+  Model: any,
+  options: {
+    sumField?: string;
+    filter?: Record<string, any>;
+    period?: 'week' | 'month' | 'year';
+  } = {}
+) => {
+  try {
+    const aggregationBuilder = new AggregationBuilder(Model);
+    return await aggregationBuilder.calculateGrowth(options);
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error occurred';
+    throw new ApiError(
+      httpStatus.INTERNAL_SERVER_ERROR,
+      `Failed to calculate growth dynamically: ${errorMessage}`
+    );
+  }
+};
+
 export default AggregationBuilder;
+export { calculateGrowthDynamic };

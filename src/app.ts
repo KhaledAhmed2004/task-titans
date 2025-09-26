@@ -23,7 +23,9 @@ app.use(
       'http://localhost:3000',
       'http://localhost:3001',
       'http://localhost:5174',
+      'http://localhost:5173',
       'https://lauren-electoral-convicted-ruled.trycloudflare.com',
+      'https://task-titans-six.vercel.app',
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     credentials: true, // if you need cookies/auth

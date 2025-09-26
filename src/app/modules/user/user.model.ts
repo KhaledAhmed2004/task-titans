@@ -74,6 +74,9 @@ const userSchema = new Schema<IUser>(
       type: Number,
       default: 0,
     },
+    about: {
+      type: String,
+    },
     googleId: {
       type: String,
       sparse: true, // allows multiple null values but unique non-null values
