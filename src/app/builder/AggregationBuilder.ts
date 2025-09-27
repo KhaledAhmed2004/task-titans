@@ -240,13 +240,54 @@ class AggregationBuilder<T> {
   }
 
   // ====== TIME TRENDS ======
+  // async getTimeTrends(options: {
+  //   sumField?: string;
+  //   timeUnit: 'day' | 'week' | 'month' | 'year';
+  //   filter?: Record<string, any>;
+  //   limit?: number;
+  // }) {
+  //   const { sumField, timeUnit, filter = {}, limit = 12 } = options;
+
+  //   const dateGrouping = {
+  //     day: {
+  //       year: { $year: '$createdAt' },
+  //       month: { $month: '$createdAt' },
+  //       day: { $dayOfMonth: '$createdAt' },
+  //     },
+  //     week: { year: { $year: '$createdAt' }, week: { $week: '$createdAt' } },
+  //     month: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } },
+  //     year: { year: { $year: '$createdAt' } },
+  //   };
+
+  //   this.pipeline = [
+  //     { $match: filter },
+  //     {
+  //       $group: {
+  //         _id: dateGrouping[timeUnit],
+  //         total: sumField ? { $sum: `$${sumField}` } : { $sum: 1 },
+  //         count: { $sum: 1 },
+  //       },
+  //     },
+  //     {
+  //       $sort: {
+  //         '_id.year': -1,
+  //         '_id.month': -1,
+  //         '_id.week': -1,
+  //         '_id.day': -1,
+  //       },
+  //     },
+  //     { $limit: limit },
+  //   ];
+
+  //   return await this.execute();
+  // }
   async getTimeTrends(options: {
     sumField?: string;
     timeUnit: 'day' | 'week' | 'month' | 'year';
     filter?: Record<string, any>;
     limit?: number;
   }) {
-    const { sumField, timeUnit, filter = {}, limit = 12 } = options;
+    const { sumField, timeUnit, filter = {}, limit } = options;
 
     const dateGrouping = {
       day: {
@@ -276,10 +317,95 @@ class AggregationBuilder<T> {
           '_id.day': -1,
         },
       },
-      { $limit: limit },
     ];
 
-    return await this.execute();
+    const results = await this.execute();
+
+    const now = new Date();
+    const year = now.getFullYear();
+
+    // Auto-fill missing periods
+    switch (timeUnit) {
+      case 'month': {
+        const months = Array.from({ length: 12 }, (_, i) => ({
+          month: i + 1,
+          total: 0,
+          count: 0,
+        }));
+        results.forEach(item => {
+          const monthIndex = item._id.month - 1;
+          months[monthIndex] = {
+            month: item._id.month,
+            total: item.total,
+            count: item.count,
+          };
+        });
+        return months.map(m => ({
+          month: new Date(year, m.month - 1).toLocaleString('default', {
+            month: 'long',
+          }),
+          totalRevenue: m.total,
+          transactionCount: m.count,
+        }));
+      }
+
+      case 'week': {
+        const weeks = Array.from({ length: 52 }, (_, i) => ({
+          week: i + 1,
+          total: 0,
+          count: 0,
+        }));
+        results.forEach(item => {
+          const weekIndex = item._id.week - 1;
+          weeks[weekIndex] = {
+            week: item._id.week,
+            total: item.total,
+            count: item.count,
+          };
+        });
+        return weeks;
+      }
+
+      case 'day': {
+        const daysInMonth = new Date(year, now.getMonth() + 1, 0).getDate();
+        const days = Array.from({ length: daysInMonth }, (_, i) => ({
+          day: i + 1,
+          total: 0,
+          count: 0,
+        }));
+        results.forEach(item => {
+          const dayIndex = item._id.day - 1;
+          days[dayIndex] = {
+            day: item._id.day,
+            total: item.total,
+            count: item.count,
+          };
+        });
+        return days;
+      }
+
+      case 'year': {
+        const years = Array.from({ length: 5 }, (_, i) => ({
+          year: year - i,
+          total: 0,
+          count: 0,
+        }));
+        results.forEach(item => {
+          const yearIndex = years.findIndex(y => y.year === item._id.year);
+          if (yearIndex >= 0) {
+            years[yearIndex] = {
+              year: item._id.year,
+              total: item.total,
+              count: item.count,
+            };
+          }
+        });
+        return years;
+      }
+
+      default:
+        return results;
+    }
   }
 
   // ====== TOP PERFORMERS ======

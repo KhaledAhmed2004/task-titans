@@ -61,40 +61,13 @@ const getDashboardStats = async (): Promise<IDashboardStats> => {
 const getMonthlyRevenue = async () => {
   const aggregationBuilder = new AggregationBuilder(PaymentModel);
 
-  const monthlyRevenue = await aggregationBuilder.getTimeTrends({
-    sumField: 'platformFee',
-    timeUnit: 'month',
-    filter: { status: 'COMPLETED' }, // only include completed payments
-    limit: 12,
-  });
+// Monthly revenue
+const monthlyRevenue = await aggregationBuilder.getTimeTrends({
+  sumField: 'platformFee',
+  timeUnit: 'month',
+});
 
-  // Step 1: Build all 12 months
-  const now = new Date();
-  const year = now.getFullYear();
-  const months = Array.from({ length: 12 }, (_, i) => ({
-    month: new Date(year, i).toLocaleString('default', { month: 'long' }),
-    year,
-    totalRevenue: 0,
-    transactionCount: 0,
-  }));
-
-  // Step 2: Merge with DB data
-  monthlyRevenue.forEach(item => {
-    const { year: y, month } = item._id;
-    const monthIndex = month - 1; // Mongo months are 1–12
-    if (y === year) {
-      months[monthIndex] = {
-        month: new Date(year, monthIndex).toLocaleString('default', {
-          month: 'long',
-        }),
-        year,
-        totalRevenue: item.total,
-        transactionCount: item.count,
-      };
-    }
-  });
-
-  return months;
+  return monthlyRevenue;
 };
 
 export const DashboardService = {
