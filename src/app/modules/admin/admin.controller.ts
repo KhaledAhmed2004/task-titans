@@ -4,7 +4,7 @@ import sendResponse from '../../../shared/sendResponse';
 import catchAsync from '../../../shared/catchAsync';
 import { DashboardService } from './admin.service';
 
-const getDashboardStats = catchAsync(async (req: Request, res: Response) => {
+const getDashboardStats = catchAsync(async (_req: Request, res: Response) => {
   const dashboardStats = await DashboardService.getDashboardStats();
 
   sendResponse(res, {

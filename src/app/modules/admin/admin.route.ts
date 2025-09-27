@@ -7,10 +7,10 @@ import { AdminValidation } from './admin.validation';
 
 const router = Router();
 
-// Get dashboard statistics - only for super admin
+// Get dashboard statistics
 router.get(
-  '/stats', 
-  auth(USER_ROLES.SUPER_ADMIN), 
+  '/stats',
+  auth(USER_ROLES.SUPER_ADMIN),
   validateRequest(AdminValidation.getDashboardStatsSchema),
   DashboardController.getDashboardStats
 );

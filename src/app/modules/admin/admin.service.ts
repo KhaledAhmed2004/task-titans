@@ -8,7 +8,7 @@ import { calculateGrowthDynamic } from '../../builder/AggregationBuilder';
 
 const getDashboardStats = async (): Promise<IDashboardStats> => {
   try {
-    // Validate models exist
+    // 1. Validate models exist
     if (!User || !TaskModel || !PaymentModel) {
       throw new ApiError(
         httpStatus.INTERNAL_SERVER_ERROR,

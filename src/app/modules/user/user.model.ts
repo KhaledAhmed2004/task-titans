@@ -16,7 +16,7 @@ const userSchema = new Schema<IUser>(
     role: {
       type: String,
       enum: Object.values(USER_ROLES),
-      default: USER_ROLES.POSTER, // Default to POSTER when user doesn't specify
+      default: USER_ROLES.POSTER,
     },
     email: {
       type: String,
@@ -27,7 +27,7 @@ const userSchema = new Schema<IUser>(
     },
     password: {
       type: String,
-      required: function(this: IUser) {
+      required: function (this: IUser) {
         // Password is not required for OAuth users (users with googleId)
         return !this.googleId;
       },

@@ -5,7 +5,6 @@ import {
   PaymentModel, 
   StripeAccountModel,
   PaymentStatusType,
-  BusinessTypeType,
   PAYMENT_STATUS,
   BUSINESS_TYPE
 } from './payment.interface';
@@ -50,7 +49,6 @@ const PaymentSchema = new Schema<IPayment>(
     stripePaymentIntentId: {
       type: String,
       required: true,
-      unique: true,
     },
     stripeTransferId: {
       type: String,
@@ -95,12 +93,10 @@ const StripeAccountSchema = new Schema<IStripeAccountInfo>(
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
-      unique: true,
     },
     stripeAccountId: {
       type: String,
       required: true,
-      unique: true,
     },
     onboardingCompleted: {
       type: Boolean,
