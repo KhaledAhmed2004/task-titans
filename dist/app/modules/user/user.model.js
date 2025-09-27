@@ -28,7 +28,7 @@ const userSchema = new mongoose_1.Schema({
     role: {
         type: String,
         enum: Object.values(user_1.USER_ROLES),
-        default: user_1.USER_ROLES.POSTER, // Default to POSTER when user doesn't specify
+        default: user_1.USER_ROLES.POSTER,
     },
     email: {
         type: String,

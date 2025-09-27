@@ -61,11 +61,11 @@ const getDashboardStats = async (): Promise<IDashboardStats> => {
 const getMonthlyRevenue = async () => {
   const aggregationBuilder = new AggregationBuilder(PaymentModel);
 
-// Monthly revenue
-const monthlyRevenue = await aggregationBuilder.getTimeTrends({
-  sumField: 'platformFee',
-  timeUnit: 'month',
-});
+  // Monthly revenue
+  const monthlyRevenue = await aggregationBuilder.getTimeTrends({
+    sumField: 'platformFee',
+    timeUnit: 'month',
+  });
 
   return monthlyRevenue;
 };

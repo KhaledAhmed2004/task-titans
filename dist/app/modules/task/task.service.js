@@ -282,6 +282,9 @@ const getLastSixMonthsCompletionStats = () => __awaiter(void 0, void 0, void 0, 
     }
     return stats;
 });
+
+
+
 const getMyTaskById = (userId, taskId) => __awaiter(void 0, void 0, void 0, function* () {
     const task = yield task_model_1.TaskModel.findOne({ _id: taskId, userId }); // ✅ fix here
     if (!task) {
@@ -463,6 +466,7 @@ const completeTask = (taskId, clientId) => __awaiter(void 0, void 0, void 0, fun
         throw new ApiError_1.default(http_status_codes_1.StatusCodes.INTERNAL_SERVER_ERROR, `Failed to complete task and release payment: ${errorMessage}`);
     }
 });
+
 // Cancel task before delivery
 const cancelTask = (taskId, clientId, reason) => __awaiter(void 0, void 0, void 0, function* () {
     const task = yield task_model_1.TaskModel.findById(taskId);

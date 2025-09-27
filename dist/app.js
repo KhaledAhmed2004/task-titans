@@ -28,6 +28,9 @@ app.use((0, cors_1.default)({
         'http://localhost:5173',
         'https://lauren-electoral-convicted-ruled.trycloudflare.com',
         'https://task-titans-six.vercel.app',
+        'https://coordinator-organization-carpet-chassis.trycloudflare.com/',
+        'https://task-titans-admin.vercel.app/sign-in',
+        'https://task-titans-admin.vercel.app',
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     credentials: true, // if you need cookies/auth

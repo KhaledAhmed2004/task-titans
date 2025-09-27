@@ -17,7 +17,7 @@ const http_status_codes_1 = require("http-status-codes");
 const sendResponse_1 = __importDefault(require("../../../shared/sendResponse"));
 const catchAsync_1 = __importDefault(require("../../../shared/catchAsync"));
 const admin_service_1 = require("./admin.service");
-const getDashboardStats = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const getDashboardStats = (0, catchAsync_1.default)((_req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const dashboardStats = yield admin_service_1.DashboardService.getDashboardStats();
     (0, sendResponse_1.default)(res, {
         statusCode: http_status_codes_1.StatusCodes.OK,
@@ -26,6 +26,17 @@ const getDashboardStats = (0, catchAsync_1.default)((req, res) => __awaiter(void
         data: dashboardStats,
     });
 }));
+// admin.controller.ts
+const getMonthlyRevenue = (0, catchAsync_1.default)((_req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const revenueByMonth = yield admin_service_1.DashboardService.getMonthlyRevenue();
+    (0, sendResponse_1.default)(res, {
+        statusCode: http_status_codes_1.StatusCodes.OK,
+        success: true,
+        message: 'Monthly revenue fetched successfully',
+        data: revenueByMonth,
+    });
+}));
 exports.DashboardController = {
     getDashboardStats,
+    getMonthlyRevenue,
 };

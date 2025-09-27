@@ -74,7 +74,6 @@ const PaymentSchema = new mongoose_1.Schema({
     stripePaymentIntentId: {
         type: String,
         required: true,
-        unique: true,
     },
     stripeTransferId: {
         type: String,
@@ -114,12 +113,10 @@ const StripeAccountSchema = new mongoose_1.Schema({
         type: mongoose_1.Schema.Types.ObjectId,
         ref: 'User',
         required: true,
-        unique: true,
     },
     stripeAccountId: {
         type: String,
         required: true,
-        unique: true,
     },
     onboardingCompleted: {
         type: Boolean,

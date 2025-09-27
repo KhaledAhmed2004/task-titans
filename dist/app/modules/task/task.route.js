@@ -22,8 +22,8 @@ router.post('/', (0, auth_1.default)(user_1.USER_ROLES.POSTER), (0, fileUploadHa
     return task_controller_1.TaskController.createTask(req, res, next);
 });
 // get all tasks
-router.get('/', (0, auth_1.default)(user_1.USER_ROLES.POSTER, user_1.USER_ROLES.TASKER, user_1.USER_ROLES.GUEST), task_controller_1.TaskController.getAllTasks);
-// Get task stats
+router.get('/', (0, auth_1.default)(user_1.USER_ROLES.POSTER, user_1.USER_ROLES.TASKER, user_1.USER_ROLES.GUEST, user_1.USER_ROLES.SUPER_ADMIN), task_controller_1.TaskController.getAllTasks);
+// Get task statistics
 router.get('/stats', (0, auth_1.default)(user_1.USER_ROLES.SUPER_ADMIN), task_controller_1.TaskController.getTaskStatistics);
 // get tasks of the current user (poster)
 router.get('/my-tasks', (0, auth_1.default)(user_1.USER_ROLES.POSTER), task_controller_1.TaskController.getMyTasks);

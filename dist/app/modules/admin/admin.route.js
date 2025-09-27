@@ -11,6 +11,7 @@ const user_1 = require("../../../enums/user");
 const validateRequest_1 = __importDefault(require("../../middlewares/validateRequest"));
 const admin_validation_1 = require("./admin.validation");
 const router = (0, express_1.Router)();
-// Get dashboard statistics - only for super admin
+// Get dashboard statistics
 router.get('/stats', (0, auth_1.default)(user_1.USER_ROLES.SUPER_ADMIN), (0, validateRequest_1.default)(admin_validation_1.AdminValidation.getDashboardStatsSchema), admin_controller_1.DashboardController.getDashboardStats);
+router.get('/revenue/monthly', (0, auth_1.default)(user_1.USER_ROLES.SUPER_ADMIN), admin_controller_1.DashboardController.getMonthlyRevenue);
 exports.DashboardRoutes = router;
