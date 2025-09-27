@@ -13,17 +13,26 @@ import { Rating } from '../rating';
 const createBid = async (bid: Bid, taskerId: string) => {
   // 1️⃣ Find the task
   const task = await TaskModel.findById(bid.taskId);
-  if (!task) throw new Error('Task not found');
+  if (!task) throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
 
   // 2️⃣ Check if the task status allows bidding
   if (task.status === TaskStatus.COMPLETED) {
-    throw new Error('Cannot place bid: Task is already completed');
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Cannot place bid: Task is already completed'
+    );
   }
   if (task.status === TaskStatus.CANCELLED) {
-    throw new Error('Cannot place bid: Task is already cancelled');
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Cannot place bid: Task is already cancelled'
+    );
   }
   if (task.status === TaskStatus.IN_PROGRESS) {
-    throw new Error('Cannot place bid: Task is already accepted');
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Cannot place bid: Task is already accepted'
+    );
   }
 
   // 3️⃣ Check if the tasker has already placed a bid on this task
@@ -32,7 +41,10 @@ const createBid = async (bid: Bid, taskerId: string) => {
     taskerId,
   });
   if (isBidExistByTasker)
-    throw new Error('You have already placed a bid for this task');
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'You have already placed a bid for this task'
+    );
 
   // 4️⃣ Create a new bid
   const newBid = await BidModel.create({
@@ -138,7 +150,7 @@ const updateBid = async (
   // 6️⃣ Apply the updates
   Object.assign(bid, bidUpdate);
 
-  // 7️⃣ Save the bid and return  
+  // 7️⃣ Save the bid and return
   await bid.save();
   return bid;
 };
