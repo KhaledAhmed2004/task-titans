@@ -8,18 +8,11 @@ export enum REPORT_STATUS {
   RESOLVED = 'resolved',
 }
 
-// Enum for report type (customize according to your needs)
-export enum REPORT_TYPE {
-  BUG = 'bug',
-  FEEDBACK = 'feedback',
-  ABUSE = 'abuse',
-}
-
 // Interface for creating a report
 export interface ICreateReport {
   title: string;
   description: string;
-  type: REPORT_TYPE;
+  type: string;
   reportedBy: Types.ObjectId | IUser; // user who created the report
   relatedTo?: Types.ObjectId; // optional, e.g., related task, comment, post, etc.
 }
@@ -29,13 +22,14 @@ export interface IUpdateReport {
   title?: string;
   description?: string;
   status?: REPORT_STATUS;
-  type?: REPORT_TYPE;
+  type?: string;
+  images?: string[];
 }
 
 // Interface for querying reports (filters & pagination)
 export interface IQueryReports {
   status?: REPORT_STATUS;
-  type?: REPORT_TYPE;
+  type?: string;
   reportedBy?: Types.ObjectId;
   page?: number;
   limit?: number;
@@ -48,7 +42,8 @@ export interface IReport {
   _id?: Types.ObjectId;
   title: string;
   description: string;
-  type: REPORT_TYPE;
+  images?: string[];
+  type: string;
   status: REPORT_STATUS;
   reportedBy: Types.ObjectId | IUser;
   relatedTo?: Types.ObjectId;

@@ -9,6 +9,7 @@ import {
 } from './payment.interface';
 import mongoose from 'mongoose';
 import {
+  Payment,
   Payment as PaymentModel,
   StripeAccount as StripeAccountModel,
 } from './payment.model';
@@ -17,6 +18,7 @@ import { TaskModel } from '../task/task.model';
 import { BidModel } from '../bid/bid.model';
 import ApiError from '../../../errors/ApiError';
 import httpStatus from 'http-status';
+import QueryBuilder from '../../builder/QueryBuilder';
 import {
   stripe,
   dollarsToCents,
@@ -376,7 +378,10 @@ export const releaseEscrowPayment = async (
         );
       } catch (captureError: any) {
         // Handle already captured error
-        if (captureError.message && captureError.message.includes('already been captured')) {
+        if (
+          captureError.message &&
+          captureError.message.includes('already been captured')
+        ) {
           // Retrieve the current status
           paymentIntent = await stripe.paymentIntents.retrieve(
             payment.stripePaymentIntentId
@@ -815,8 +820,59 @@ const deleteStripeAccountService = async (accountId: string) => {
   }
 };
 
+// Get payment history for poster, tasker, super admin with QueryBuilder
+const getPaymentHistory = async (
+  userId: string,
+  query: Record<string, unknown>
+) => {
+  try {
+    // 🔹 Use string directly for Mongoose to cast automatically
+    const objectId = userId;
+
+    // Base query (poster or freelancer) + populate freelancer name
+    const baseQuery = Payment.find({
+      $or: [{ posterId: objectId }, { freelancerId: objectId }],
+    }).populate('freelancerId', 'name'); // populate only name field
+
+    // Query builder with populate
+    const queryBuilder = new QueryBuilder<IPayment>(baseQuery, query)
+      .search(['status', 'currency'])
+      .filter()
+      .dateFilter()
+      .sort()
+      .paginate()
+      .fields();
+
+    // Execute query with pagination
+    const { data: payments, pagination } =
+      await queryBuilder.getFilteredResults();
+
+    // Format data
+    const formattedPayments = payments.map((payment) => ({
+      paymentId: payment.stripePaymentIntentId,
+      taskerName: payment.freelancerId ? (payment.freelancerId as any).name : 'N/A',
+      amount: payment.amount,
+      transactionDate: payment.createdAt,
+      paymentStatus: payment.status,
+    }));
+
+    return {
+      success: true,
+      data: formattedPayments,
+      pagination,
+    };
+  } catch (error) {
+    console.error('Error fetching payment history:', error);
+    throw new ApiError(
+      httpStatus.INTERNAL_SERVER_ERROR,
+      'Failed to fetch payment history'
+    );
+  }
+};
+
 const PaymentService = {
   createStripeAccount,
+  getPaymentHistory,
   createOnboardingLink,
   checkOnboardingStatus,
   createEscrowPayment,

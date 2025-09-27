@@ -1,5 +1,5 @@
 import { Schema, model } from 'mongoose';
-import { IReport, REPORT_STATUS, REPORT_TYPE } from './report.interface';
+import { IReport, REPORT_STATUS } from './report.interface';
 
 const reportSchema = new Schema<IReport>(
   {
@@ -14,7 +14,6 @@ const reportSchema = new Schema<IReport>(
     },
     type: {
       type: String,
-      enum: Object.values(REPORT_TYPE),
       required: [true, 'Report type is required'],
     },
     status: {
@@ -26,6 +25,14 @@ const reportSchema = new Schema<IReport>(
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: [true, 'Reporter is required'],
+    },
+    relatedTo: {
+      type: Schema.Types.ObjectId,
+      required: false,
+    },
+    images: {
+      type: [String],
+      default: [],
     },
   },
   {

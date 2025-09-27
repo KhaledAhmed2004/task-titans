@@ -5,13 +5,37 @@ import sendResponse from '../../../shared/sendResponse';
 import { IReport } from './report.interface';
 import { ReportService } from './report.service';
 import { JwtPayload } from 'jsonwebtoken';
+import {
+  getMultipleFilesPath,
+  getSingleFilePath,
+} from '../../../shared/getFilePath';
+
+// // Create a new report
+// const createReport = catchAsync(async (req: Request, res: Response) => {
+//   const payload = {
+//     ...req.body,
+//     reportedBy: (req?.user as JwtPayload).id, // fill from auth middleware
+//     // reportedBy: (req.user as { id: string }).id,
+//   };
+
+//   const result = await ReportService.createReport(payload);
+
+//   sendResponse<IReport>(res, {
+//     success: true,
+//     statusCode: StatusCodes.CREATED,
+//     message: 'Report created successfully',
+//     data: result,
+//   });
+// });
 
 // Create a new report
 const createReport = catchAsync(async (req: Request, res: Response) => {
+  let images = getMultipleFilesPath(req.files, 'image');
+
   const payload = {
     ...req.body,
-    reportedBy: (req?.user as JwtPayload).id, // fill from auth middleware
-    // reportedBy: (req.user as { id: string }).id,
+    images,
+    reportedBy: (req.user as any).id,
   };
 
   const result = await ReportService.createReport(payload);

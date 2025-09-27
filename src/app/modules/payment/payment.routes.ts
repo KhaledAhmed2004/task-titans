@@ -33,6 +33,13 @@ router.get(
   PaymentController.checkOnboardingStatusController
 );
 
+// Payment history route for poster, tasker, super admin
+router.get(
+  '/history',
+  auth(USER_ROLES.POSTER, USER_ROLES.TASKER, USER_ROLES.SUPER_ADMIN),
+  PaymentController.getPaymentHistoryController
+);
+
 router.post(
   '/refund/:paymentId',
   auth(USER_ROLES.POSTER, USER_ROLES.SUPER_ADMIN),
@@ -63,5 +70,7 @@ router.delete(
   auth(USER_ROLES.SUPER_ADMIN),
   PaymentController.deleteStripeAccountController
 );
+
+
 
 export const PaymentRoutes = router;

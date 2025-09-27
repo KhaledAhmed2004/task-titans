@@ -1,0 +1,20 @@
+import { Request, Response } from 'express';
+import { StatusCodes } from 'http-status-codes';
+import sendResponse from '../../../shared/sendResponse';
+import catchAsync from '../../../shared/catchAsync';
+import { DashboardService } from './admin.service';
+
+const getDashboardStats = catchAsync(async (req: Request, res: Response) => {
+  const dashboardStats = await DashboardService.getDashboardStats();
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: 'Dashboard stats fetched successfully',
+    data: dashboardStats,
+  });
+});
+
+export const DashboardController = {
+  getDashboardStats,
+};

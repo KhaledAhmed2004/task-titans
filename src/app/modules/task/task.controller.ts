@@ -97,7 +97,7 @@ const deleteTask = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Get all tasks of the current logged-in user
+// Get all tasks
 const getMyTasks = catchAsync(async (req: Request, res: Response) => {
   const user = req.user as JwtPayload;
   const userId = user.id;
@@ -157,21 +157,21 @@ const completeTask = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// const cancelTask = catchAsync(async (req: Request, res: Response) => {
-//   const { taskId } = req.params;
-//   const user = req.user as JwtPayload;
-//   const userId = user.id;
-//   const { reason } = req.body;
+const cancelTask = catchAsync(async (req: Request, res: Response) => {
+  const { taskId } = req.params;
+  const user = req.user as JwtPayload;
+  const userId = user.id;
+  const { reason } = req.body;
 
-//   const result = await TaskService.cancelTask(taskId, userId, reason);
+  const result = await TaskService.cancelTask(taskId, userId, reason);
 
-//   sendResponse(res, {
-//     statusCode: StatusCodes.OK,
-//     success: true,
-//     message: 'Task cancelled successfully',
-//     data: result,
-//   });
-// });
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: 'Task cancelled successfully',
+    data: result,
+  });
+});
 
 // Submit delivery (Tasker)
 const submitDelivery = catchAsync(async (req: Request, res: Response) => {
@@ -213,7 +213,7 @@ export const TaskController = {
   getLastSixMonthsCompletionStats,
   getMyTaskById,
   completeTask,
-  // cancelTask,
+  cancelTask,
   submitDelivery,
   getSimilarTasks,
 };

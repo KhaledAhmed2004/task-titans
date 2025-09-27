@@ -6,7 +6,7 @@ import swaggerUi from 'swagger-ui-express';
 import { StatusCodes } from 'http-status-codes';
 import express, { Request, Response } from 'express';
 import globalErrorHandler from './app/middlewares/globalErrorHandler';
-import './config/passport'; // register strategy
+import './config/passport';
 
 const app = express();
 import path from 'path';
@@ -16,21 +16,25 @@ app.use(Morgan.successHandler);
 app.use(Morgan.errorHandler);
 
 //body parser
-// app.use(cors());
 app.use(
   cors({
+    // origin: "*",
     origin: [
-      'http://localhost:5173',
       'http://localhost:3000',
       'http://localhost:3001',
-    ], // allow both URLs
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], // allowed methods
+      'http://localhost:5174',
+      'http://localhost:5173',
+      'https://lauren-electoral-convicted-ruled.trycloudflare.com',
+      'https://task-titans-six.vercel.app',
+    ],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     credentials: true, // if you need cookies/auth
   })
 );
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
 app.use(passport.initialize());
 
 //file retrieve
@@ -48,16 +52,6 @@ app.use('/api/v1', router);
 app.use('/api/v1/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 //live response
-// app.get('/', (req: Request, res: Response) => {
-//   const date = new Date(Date.now());
-//   res.send(
-//     `<h1 style="text-align:center; color:#173616; font-family:Verdana;">Beep-beep! The server is alive and kicking.</h1>
-//     <p style="text-align:center; color:#173616; font-family:Verdana;">${date}</p>
-//     `
-//   );
-// });
-// live response
-
 app.get('/', (req: Request, res: Response) => {
   res.send(`
     <!DOCTYPE html>

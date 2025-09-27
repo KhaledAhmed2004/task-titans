@@ -18,7 +18,7 @@ router.post(
 // Get all ratings with filters and pagination
 router.get(
   '/',
-  auth(USER_ROLES.SUPER_ADMIN),
+  // auth(USER_ROLES.SUPER_ADMIN),
   validateRequest(RatingValidation.getRatingsQueryZodSchema),
   RatingController.getAllRatings
 );

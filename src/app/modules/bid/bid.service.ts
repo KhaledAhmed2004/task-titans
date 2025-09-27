@@ -8,6 +8,7 @@ import mongoose from 'mongoose';
 import QueryBuilder from '../../builder/QueryBuilder';
 import ApiError from '../../../errors/ApiError';
 import { StatusCodes } from 'http-status-codes';
+import { Rating } from '../rating';
 
 const createBid = async (bid: Bid, taskerId: string) => {
   // 1️⃣ Find the task
@@ -56,13 +57,14 @@ const createBid = async (bid: Bid, taskerId: string) => {
   return newBid;
 };
 
+// Service: Get all tasks a tasker has bid on (with rating from poster)
 const getAllTasksByTaskerBids = async (
   taskerId: string,
-  query: Record<string, unknown>
+  query: Record<string, unknown> = {}
 ) => {
-  // 1️⃣ QueryBuilder with filters, pagination, etc.
+  // 1️⃣ Query bids for this tasker
   const bidQuery = new QueryBuilder(BidModel.find({ taskerId }), query)
-    .search(['message'])
+    .search(['message']) // search in bid message
     .filter()
     .dateFilter()
     .sort()
@@ -72,10 +74,39 @@ const getAllTasksByTaskerBids = async (
       taskId: 'title description status userId assignedTo taskCategory',
     });
 
-  // 2️⃣ Get results directly (already has pagination)
-  const { data, pagination } = await bidQuery.getFilteredResults();
+  // 2️⃣ Execute query
+  const { data: bids, pagination } = await bidQuery.getFilteredResults();
 
-  return { data, pagination };
+  // 3️⃣ Add rating info for each task (from poster → tasker)
+  const bidsWithRating = await Promise.all(
+    bids.map(async (bid: any) => {
+      const task = bid.taskId; // populated task
+      let ratingValue: string | number = 'not given';
+
+      if (task.assignedTo?.toString() === taskerId) {
+        const rating = await Rating.findOne({
+          taskId: task._id,
+          givenBy: task.userId, // poster
+          givenTo: task.assignedTo, // tasker
+        });
+
+        if (rating) {
+          ratingValue = rating.rating;
+        }
+      }
+
+      return {
+        ...bid.toObject(),
+        ratingFromPoster: ratingValue,
+      };
+    })
+  );
+
+  // 4️⃣ Return final result
+  return {
+    data: bidsWithRating,
+    pagination,
+  };
 };
 
 const updateBid = async (

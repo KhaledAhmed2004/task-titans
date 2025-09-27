@@ -31,6 +31,7 @@ const loginUser = catchAsync(async (req: Request, res: Response) => {
 
 const logoutUser = catchAsync(async (req: Request, res: Response) => {
   const { deviceToken } = req.body;
+  console.log('deviceToken', deviceToken);
   const user = req.user as JwtPayload;
 
   await AuthService.logoutUserFromDB(user, deviceToken);
@@ -92,6 +93,36 @@ const resendVerifyEmail = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const googleCallback = catchAsync(async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+
+    if (!user) {
+      console.error('❌ No user data received from passport');
+      return res.redirect(
+        `https://environment-essentials-chose-telescope.trycloudflare.com/auth/error?message=Google authentication failed. No user data received.`
+      );
+    }
+
+    const result = await AuthService.googleLoginToDB(user);
+
+    // Redirect to frontend with token as query parameter in fronted url
+    return res.redirect(
+      `https://environment-essentials-chose-telescope.trycloudflare.com/auth/success?token=${result.createToken}`
+    );
+  } catch (error) {
+    console.error('💥 Google OAuth callback error:', error);
+
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
+    return res.redirect(
+      `https://environment-essentials-chose-telescope.trycloudflare.com/auth/error?message=${encodeURIComponent(
+        errorMessage
+      )}`
+    );
+  }
+});
+
 export const AuthController = {
   verifyEmail,
   logoutUser,
@@ -100,4 +131,5 @@ export const AuthController = {
   resetPassword,
   changePassword,
   resendVerifyEmail,
+  googleCallback,
 };

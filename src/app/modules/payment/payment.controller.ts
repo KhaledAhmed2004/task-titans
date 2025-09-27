@@ -255,6 +255,27 @@ const deleteStripeAccountController = catchAsync(async (req, res) => {
   });
 });
 
+// Get payment history for poster, tasker, super admin
+const getPaymentHistoryController = catchAsync(
+  async (req: Request, res: Response) => {
+    const { id } = req.user as JwtPayload;
+    const query = req.query;
+
+    const result = await PaymentService.getPaymentHistory(id, query);
+
+    sendResponse(res, {
+      success: result.success,
+      statusCode: httpStatus.OK,
+      message: result.pagination.total > 0 
+        ? `Payment history retrieved successfully. Found ${result.pagination.total} payment(s).`
+        : 'No payment history found for this user.',
+      data: result.data,
+      pagination: result.pagination,
+      
+    });
+  }
+);
+
 const PaymentController = {
   createStripeAccountController,
   getOnboardingLinkController,
@@ -265,6 +286,7 @@ const PaymentController = {
   getPaymentStatsController,
   handleStripeWebhookController,
   deleteStripeAccountController,
+  getPaymentHistoryController,
 };
 
 export default PaymentController;

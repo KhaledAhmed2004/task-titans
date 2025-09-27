@@ -1,6 +1,14 @@
 import { Model } from 'mongoose';
 import { USER_ROLES, USER_STATUS } from '../../../enums/user';
 
+export type AchievementType =
+  | 'Founder Titne'
+  | 'Fast 100 Titten'
+  | 'Top Rated Tittens'
+  | '100 plus Tasks Completed'
+  | 'Founder Poster'
+  | 'Top Rated Poster';
+
 export type IUser = {
   name: string;
   role: USER_ROLES;
@@ -16,6 +24,9 @@ export type IUser = {
   deviceTokens?: string[];
   averageRating: number;
   ratingsCount: number;
+  about?: string;
+  achievements?: AchievementType[];
+  googleId?: string;
   authentication?: {
     isResetPassword: boolean;
     oneTimeCode: number;

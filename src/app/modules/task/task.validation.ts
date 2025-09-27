@@ -25,7 +25,20 @@ const updateTaskZodSchema = z.object({
   priority: z.string().optional(),
 });
 
+const cancelTaskZodSchema = z.object({
+  body: z.object({
+    reason: z.string({ required_error: 'Cancellation reason is required' })
+      .min(1, 'Cancellation reason cannot be empty')
+      .max(500, 'Cancellation reason cannot exceed 500 characters'),
+  }),
+  params: z.object({
+    taskId: z.string({ required_error: 'Task ID is required' })
+      .regex(/^[0-9a-fA-F]{24}$/, 'Invalid task ID format'),
+  }),
+});
+
 export const TaskValidation = {
   createTaskZodSchema,
   updateTaskZodSchema,
+  cancelTaskZodSchema,
 };
