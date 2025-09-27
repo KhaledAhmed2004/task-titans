@@ -81,6 +81,10 @@ const userSchema = new Schema<IUser>(
       type: String,
       sparse: true, // allows multiple null values but unique non-null values
     },
+    achievements: {
+      type: [String],
+      default: [],
+    },
     authentication: {
       type: {
         isResetPassword: {

@@ -15,7 +15,7 @@ const createBanner = async (banner: IBanner) => {
 const getAllBanners = async (query: Record<string, unknown> = {}) => {
   // 1️⃣ Build query with filters, pagination, sorting etc.
   const queryBuilder = new QueryBuilder(BannerModel.find(), query)
-    .search(['imageUrl']) // allow searching by imageUrl if needed
+    .search(['imageUrl'])
     .filter()
     .dateFilter()
     .sort()

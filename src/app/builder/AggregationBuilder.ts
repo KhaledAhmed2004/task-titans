@@ -6,7 +6,7 @@ interface IGrowthOptions {
   sumField?: string; // Field to sum for revenue calculations
   filter?: Record<string, any>; // Additional filters
   groupBy?: string; // Field to group by (optional)
-  period?: 'week' | 'month' | 'year'; // Growth period
+  period?: 'day' | 'week' | 'month' | 'quarter' | 'year'; // Growth period
 }
 
 interface IStatistic {
@@ -66,11 +66,25 @@ class AggregationBuilder<T> {
   }
 
   // ====== PERIOD CALCULATOR ======
-  private getPeriodDates(period: 'week' | 'month' | 'year') {
+  private getPeriodDates(
+    period: 'day' | 'week' | 'month' | 'quarter' | 'year'
+  ) {
     const now = new Date();
     let startThis: Date, startLast: Date, endLast: Date;
 
     switch (period) {
+      case 'day':
+        startThis = new Date(now);
+        startThis.setHours(0, 0, 0, 0);
+
+        startLast = new Date(startThis);
+        startLast.setDate(startThis.getDate() - 1);
+
+        endLast = new Date(startThis);
+        endLast.setDate(startThis.getDate() - 1);
+        endLast.setHours(23, 59, 59, 999);
+        break;
+
       case 'week':
         const day = now.getDay(); // Sunday = 0
         startThis = new Date(now);
@@ -89,12 +103,26 @@ class AggregationBuilder<T> {
         startThis = new Date(now.getFullYear(), now.getMonth(), 1);
         startLast = new Date(now.getFullYear(), now.getMonth() - 1, 1);
         endLast = new Date(now.getFullYear(), now.getMonth(), 0);
+        endLast.setHours(23, 59, 59, 999);
+        break;
+
+      case 'quarter':
+        const currentQuarter = Math.floor(now.getMonth() / 3);
+        startThis = new Date(now.getFullYear(), currentQuarter * 3, 1);
+
+        const lastQuarter = currentQuarter === 0 ? 3 : currentQuarter - 1;
+        const lastQuarterYear =
+          currentQuarter === 0 ? now.getFullYear() - 1 : now.getFullYear();
+        startLast = new Date(lastQuarterYear, lastQuarter * 3, 1);
+        endLast = new Date(lastQuarterYear, (lastQuarter + 1) * 3, 0);
+        endLast.setHours(23, 59, 59, 999);
         break;
 
       case 'year':
         startThis = new Date(now.getFullYear(), 0, 1);
         startLast = new Date(now.getFullYear() - 1, 0, 1);
         endLast = new Date(now.getFullYear() - 1, 11, 31);
+        endLast.setHours(23, 59, 59, 999);
         break;
 
       default:
@@ -253,6 +281,68 @@ class AggregationBuilder<T> {
 
     return await this.execute();
   }
+
+  // ====== TOP PERFORMERS ======
+  async getTopPerformers(options: {
+    sumField: string;
+    groupByField: string;
+    filter?: Record<string, any>;
+    limit?: number;
+    period?: 'day' | 'week' | 'month' | 'quarter' | 'year';
+  }) {
+    try {
+      const {
+        sumField,
+        groupByField,
+        filter = {},
+        limit = 10,
+        period,
+      } = options;
+
+      let dateFilter = {};
+      if (period) {
+        const { startThis } = this.getPeriodDates(period);
+        dateFilter = { createdAt: { $gte: startThis } };
+      }
+
+      this.pipeline = [
+        { $match: { ...filter, ...dateFilter } },
+        {
+          $group: {
+            _id: `$${groupByField}`,
+            totalValue: { $sum: `$${sumField}` },
+            count: { $sum: 1 },
+            averageValue: { $avg: `$${sumField}` },
+            firstSeen: { $min: '$createdAt' },
+            lastSeen: { $max: '$createdAt' },
+          },
+        },
+        { $sort: { totalValue: -1 } },
+        { $limit: limit },
+        {
+          $project: {
+            _id: 0,
+            [groupByField]: '$_id',
+            totalValue: { $round: ['$totalValue', 2] },
+            count: 1,
+            averageValue: { $round: ['$averageValue', 2] },
+            firstSeen: 1,
+            lastSeen: 1,
+            rank: { $add: [{ $indexOfArray: [[], null] }, 1] },
+          },
+        },
+      ];
+
+      return await this.execute();
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
+      throw new ApiError(
+        httpStatus.INTERNAL_SERVER_ERROR,
+        `Failed to get top performers: ${errorMessage}`
+      );
+    }
+  }
 }
 
 // ====== HELPER FUNCTION ======
@@ -261,7 +351,7 @@ const calculateGrowthDynamic = async (
   options: {
     sumField?: string;
     filter?: Record<string, any>;
-    period?: 'week' | 'month' | 'year';
+    period?: 'day' | 'week' | 'month' | 'quarter' | 'year';
   } = {}
 ) => {
   try {

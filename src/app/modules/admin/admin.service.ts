@@ -6,7 +6,6 @@ import httpStatus from 'http-status';
 import { IDashboardStats } from './admin.interface';
 import { calculateGrowthDynamic } from '../../builder/AggregationBuilder';
 
-// Main function to get dashboard statistics
 const getDashboardStats = async (): Promise<IDashboardStats> => {
   try {
     // Validate models exist
@@ -17,23 +16,17 @@ const getDashboardStats = async (): Promise<IDashboardStats> => {
       );
     }
 
-    // ===== Use dynamic growth calculation for different models =====
+    // Use dynamic growth calculation for different models
     const [allUsersStats, postsStats, revenueStats] = await Promise.all([
-      // Weekly user growth
       calculateGrowthDynamic(User, { period: 'month' }),
-
-      // Monthly task growth
       calculateGrowthDynamic(TaskModel, { period: 'month' }),
-
-      // Yearly revenue growth (summing 'platformFee')
       calculateGrowthDynamic(PaymentModel, {
         period: 'month',
         sumField: 'platformFee',
       }),
     ]);
 
-    // return { allUsers, posts, revenue };
-        // Pick only total, formattedGrowth & growthType
+    // Pick only total, formattedGrowth & growthType
     const pickStats = (stats: any) => ({
       total: stats.total,
       formattedGrowth: stats.formattedGrowth,
