@@ -2,6 +2,7 @@ export interface IDashboardStats {
   allUsers: IStatisticSummary;
   posts: IStatisticSummary;
   revenue: IStatisticSummary;
+  reports: IStatisticSummary; 
 }
 
 export interface IStatisticSummary {

@@ -15,6 +15,19 @@ const getDashboardStats = catchAsync(async (_req: Request, res: Response) => {
   });
 });
 
+// admin.controller.ts
+const getMonthlyRevenue = catchAsync(async (_req: Request, res: Response) => {
+  const revenueByMonth = await DashboardService.getMonthlyRevenue();
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: 'Monthly revenue fetched successfully',
+    data: revenueByMonth,
+  });
+});
+
 export const DashboardController = {
   getDashboardStats,
+  getMonthlyRevenue,
 };

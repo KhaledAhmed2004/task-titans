@@ -29,11 +29,16 @@ router.post(
 // get all tasks
 router.get(
   '/',
-  auth(USER_ROLES.POSTER, USER_ROLES.TASKER, USER_ROLES.GUEST),
+  auth(
+    USER_ROLES.POSTER,
+    USER_ROLES.TASKER,
+    USER_ROLES.GUEST,
+    USER_ROLES.SUPER_ADMIN
+  ),
   TaskController.getAllTasks
 );
 
-// Get task stats
+// Get task statistics
 router.get(
   '/stats',
   auth(USER_ROLES.SUPER_ADMIN),

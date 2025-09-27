@@ -4,29 +4,34 @@ import { User } from '../user/user.model';
 import { TaskModel } from '../task/task.model';
 import httpStatus from 'http-status';
 import { IDashboardStats } from './admin.interface';
-import { calculateGrowthDynamic } from '../../builder/AggregationBuilder';
+import AggregationBuilder, {
+  calculateGrowthDynamic,
+} from '../../builder/AggregationBuilder';
+import { Report } from '../report/report.model';
 
 const getDashboardStats = async (): Promise<IDashboardStats> => {
   try {
-    // 1. Validate models exist
-    if (!User || !TaskModel || !PaymentModel) {
+    // 1st step: Validate models exist
+    if (!User || !TaskModel || !PaymentModel || !Report) {
       throw new ApiError(
         httpStatus.INTERNAL_SERVER_ERROR,
         'Required models are not available'
       );
     }
 
-    // Use dynamic growth calculation for different models
-    const [allUsersStats, postsStats, revenueStats] = await Promise.all([
-      calculateGrowthDynamic(User, { period: 'month' }),
-      calculateGrowthDynamic(TaskModel, { period: 'month' }),
-      calculateGrowthDynamic(PaymentModel, {
-        period: 'month',
-        sumField: 'platformFee',
-      }),
-    ]);
+    // 2nd step: Use dynamic growth calculation for different models
+    const [allUsersStats, postsStats, revenueStats, reportStats] =
+      await Promise.all([
+        calculateGrowthDynamic(User, { period: 'month' }),
+        calculateGrowthDynamic(TaskModel, { period: 'month' }),
+        calculateGrowthDynamic(PaymentModel, {
+          period: 'month',
+          sumField: 'platformFee',
+        }),
+        calculateGrowthDynamic(Report, { period: 'month' }),
+      ]);
 
-    // Pick only total, formattedGrowth & growthType
+    // 3rd step: Pick only total, formattedGrowth & growthType
     const pickStats = (stats: any) => ({
       total: stats.total,
       formattedGrowth: stats.formattedGrowth,
@@ -37,6 +42,7 @@ const getDashboardStats = async (): Promise<IDashboardStats> => {
       allUsers: pickStats(allUsersStats),
       posts: pickStats(postsStats),
       revenue: pickStats(revenueStats),
+      reports: pickStats(reportStats),
     };
   } catch (error) {
     if (error instanceof ApiError) {
@@ -52,6 +58,46 @@ const getDashboardStats = async (): Promise<IDashboardStats> => {
   }
 };
 
+const getMonthlyRevenue = async () => {
+  const aggregationBuilder = new AggregationBuilder(PaymentModel);
+
+  const monthlyRevenue = await aggregationBuilder.getTimeTrends({
+    sumField: 'platformFee',
+    timeUnit: 'month',
+    filter: { status: 'COMPLETED' }, // only include completed payments
+    limit: 12,
+  });
+
+  // Step 1: Build all 12 months
+  const now = new Date();
+  const year = now.getFullYear();
+  const months = Array.from({ length: 12 }, (_, i) => ({
+    month: new Date(year, i).toLocaleString('default', { month: 'long' }),
+    year,
+    totalRevenue: 0,
+    transactionCount: 0,
+  }));
+
+  // Step 2: Merge with DB data
+  monthlyRevenue.forEach(item => {
+    const { year: y, month } = item._id;
+    const monthIndex = month - 1; // Mongo months are 1–12
+    if (y === year) {
+      months[monthIndex] = {
+        month: new Date(year, monthIndex).toLocaleString('default', {
+          month: 'long',
+        }),
+        year,
+        totalRevenue: item.total,
+        transactionCount: item.count,
+      };
+    }
+  });
+
+  return months;
+};
+
 export const DashboardService = {
   getDashboardStats,
+  getMonthlyRevenue,
 };
