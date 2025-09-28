@@ -118,16 +118,18 @@ const generateTestBidData = (taskId: string, taskerId: string, amount: number = 
 
 // Helper functions
 const createTestUser = async (userData: Partial<IUser>): Promise<TestUser> => {
+  // Create user directly - let the pre-save middleware handle password hashing
   const user = await User.create(userData);
 
-  // Login to get token
+  // Login to get token using original plain text password
   const loginResponse = await request(app)
     .post(`${API_BASE}/auth/login`)
     .send({
       email: userData.email,
-      password: userData.password,
+      password: userData.password, // Use original plain text password for login
     });
 
+  // Remove debug logging
   return {
     ...user.toObject(),
     _id: user._id.toString(),
@@ -296,7 +298,7 @@ describe('POST /:taskId/bids - Create Bid', () => {
       })}`);
     }
 
-    const fullUrl = `${API_BASE}/${testTasks.openTask._id}/bids`;
+    const fullUrl = `${API_BASE}/tasks/${testTasks.openTask._id}/bids`;
     console.log(`🔍 Full URL: ${fullUrl}`);
 
     // Test if the task endpoint itself works
