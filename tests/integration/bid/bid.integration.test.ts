@@ -274,7 +274,7 @@ afterEach(async () => {
 // BID CREATION TESTS
 // ============================================================================
 
-describe('POST /tasks/:taskId/bids - Create Bid', () => {
+describe('POST /:taskId/bids - Create Bid', () => {
   it('should create a new bid successfully', async () => {
     const bidData = {
       amount: 85,
@@ -282,10 +282,33 @@ describe('POST /tasks/:taskId/bids - Create Bid', () => {
     };
 
     console.log(`🔍 Testing with task ID: ${testTasks.openTask._id}`);
-    console.log(`🔍 Task exists in database: ${await TaskModel.findById(testTasks.openTask._id) ? 'YES' : 'NO'}`);
+    console.log(`🔍 Task ID type: ${typeof testTasks.openTask._id}`);
+    console.log(`🔍 Task ID length: ${testTasks.openTask._id.length}`);
+    
+    const taskInDb = await TaskModel.findById(testTasks.openTask._id);
+    console.log(`🔍 Task exists in database: ${taskInDb ? 'YES' : 'NO'}`);
+    if (taskInDb) {
+      console.log(`🔍 Task in DB: ${JSON.stringify({
+        _id: taskInDb._id,
+        title: taskInDb.title,
+        status: taskInDb.status,
+        userId: taskInDb.userId
+      })}`);
+    }
+
+    const fullUrl = `${API_BASE}/${testTasks.openTask._id}/bids`;
+    console.log(`🔍 Full URL: ${fullUrl}`);
+
+    // Test if the task endpoint itself works
+    console.log(`🔍 Testing task endpoint first...`);
+    const taskResponse = await request(app)
+      .get(`${API_BASE}/tasks/${testTasks.openTask._id}`)
+      .set('Authorization', `Bearer ${testUsers.tasker2.token}`);
+    console.log(`🔍 Task endpoint status: ${taskResponse.status}`);
+    console.log(`🔍 Task endpoint body:`, taskResponse.body);
 
     const response = await request(app)
-      .post(`${API_BASE}/tasks/${testTasks.openTask._id}/bids`)
+      .post(fullUrl)
       .set('Authorization', `Bearer ${testUsers.tasker2.token}`)
       .send(bidData);
 
