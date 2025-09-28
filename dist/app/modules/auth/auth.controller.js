@@ -105,16 +105,16 @@ const googleCallback = (0, catchAsync_1.default)((req, res) => __awaiter(void 0,
         const user = req.user;
         if (!user) {
             console.error('❌ No user data received from passport');
-            return res.redirect(`https://task-titans.onrender.com/auth/error?message=Google authentication failed. No user data received.`);
+            return res.redirect(`https://task-titans-six.vercel.app/auth/callback?message=Google authentication failed. No user data received.`);
         }
         const result = yield auth_service_1.AuthService.googleLoginToDB(user);
         // Redirect to frontend with token as query parameter in fronted url
-        return res.redirect(`https://task-titans.onrender.com/auth/success?token=${result.createToken}`);
+        return res.redirect(`https://task-titans-six.vercel.app/auth/callback?token=${result.createToken}`);
     }
     catch (error) {
         console.error('💥 Google OAuth callback error:', error);
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        return res.redirect(`https://task-titans.onrender.com/auth/error?message=${encodeURIComponent(errorMessage)}`);
+        return res.redirect(`https://task-titans-six.vercel.app/auth/callback?message=${encodeURIComponent(errorMessage)}`);
     }
 }));
 exports.AuthController = {

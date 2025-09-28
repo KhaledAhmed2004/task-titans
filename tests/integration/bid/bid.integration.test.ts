@@ -13,10 +13,10 @@ import * as bcrypt from 'bcrypt';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import app from '../../../src/app';
 import { User } from '../../../src/app/modules/user/user.model';
-import { Task } from '../../../src/app/modules/task/task.model';
+import { TaskModel } from '../../../src/app/modules/task/task.model';
 import { BidModel } from '../../../src/app/modules/bid/bid.model';
 import { IUser } from '../../../src/app/modules/user/user.interface';
-import { ITask, TaskStatus } from '../../../src/app/modules/task/task.interface';
+import { Task, TaskStatus } from '../../../src/app/modules/task/task.interface';
 import { Bid, BidStatus } from '../../../src/app/modules/bid/bid.interface';
 import { USER_ROLES, USER_STATUS } from '../../../src/enums/user';
 
@@ -56,7 +56,7 @@ interface TestUser extends Partial<IUser> {
   token?: string;
 }
 
-interface TestTask extends Partial<ITask> {
+interface TestTask extends Partial<Task> {
   _id: string;
 }
 
@@ -82,21 +82,22 @@ const generateTestUserData = (role: string, suffix: string = ''): Partial<IUser>
   verified: true,
 });
 
-const generateTestTaskData = (userId: string): Partial<ITask> => ({
+const generateTestTaskData = (userId: string): Partial<Task> => ({
   title: `Test Task ${Date.now()}`,
   description: 'This is a test task for bidding',
-  budget: 100,
-  location: 'Test Location',
+  taskBudget: 100,
+  taskLocation: 'Test Location',
   userId: new mongoose.Types.ObjectId(userId),
   status: TaskStatus.OPEN,
-  category: 'Test Category',
-  subcategory: 'Test Subcategory',
-  urgency: 'medium',
-  skillsRequired: ['JavaScript', 'Node.js'],
+  taskCategory: new mongoose.Types.ObjectId(),
+  latitude: 40.7128,
+  longitude: -74.0060,
+  isDeleted: false,
 });
 
-const generateTestBidData = (taskId: string, amount: number = 80): Partial<Bid> => ({
+const generateTestBidData = (taskId: string, taskerId: string, amount: number = 80): Partial<Bid> => ({
   taskId: new mongoose.Types.ObjectId(taskId),
+  taskerId: new mongoose.Types.ObjectId(taskerId),
   amount,
   message: 'I can complete this task efficiently with high quality',
   status: BidStatus.PENDING,
@@ -122,12 +123,12 @@ const createTestUser = async (userData: Partial<IUser>): Promise<TestUser> => {
   return {
     ...user.toObject(),
     _id: user._id.toString(),
-    token: loginResponse.body.data.accessToken,
+    token: loginResponse.body.data,
   };
 };
 
-const createTestTask = async (taskData: Partial<ITask>): Promise<TestTask> => {
-  const task = await Task.create(taskData);
+const createTestTask = async (taskData: Partial<Task>): Promise<TestTask> => {
+  const task = await TaskModel.create(taskData);
   return {
     ...task.toObject(),
     _id: task._id.toString(),
@@ -162,15 +163,14 @@ const setupTestData = async (): Promise<void> => {
 
   // Create test bids
   testBids.pendingBid = await createTestBid({
-    ...generateTestBidData(testTasks.openTask._id, 90),
-    taskerId: new mongoose.Types.ObjectId(testUsers.tasker1._id),
+    ...generateTestBidData(testTasks.openTask._id, testUsers.tasker1._id, 90),
   });
 };
 
 const cleanupTestData = async (): Promise<void> => {
   await Promise.all([
     User.deleteMany({}),
-    Task.deleteMany({}),
+    TaskModel.deleteMany({}),
     BidModel.deleteMany({}),
   ]);
   
@@ -191,6 +191,11 @@ const assertErrorResponse = (response: any, expectedStatus: number): void => {
 
 // Test setup and teardown
 beforeAll(async () => {
+  // Disconnect any existing connection first
+  if (mongoose.connection.readyState !== 0) {
+    await mongoose.disconnect();
+  }
+  
   mongoServer = await MongoMemoryServer.create();
   const mongoUri = mongoServer.getUri();
   
@@ -496,8 +501,7 @@ describe('DELETE /bids/:bidId - Delete Bid', () => {
   beforeEach(async () => {
     // Create a fresh bid for deletion tests
     deletableBid = await createTestBid({
-      ...generateTestBidData(testTasks.openTask._id, 75),
-      taskerId: new mongoose.Types.ObjectId(testUsers.tasker2._id),
+      ...generateTestBidData(testTasks.openTask._id, testUsers.tasker2._id, 75),
     });
   });
 
@@ -545,8 +549,7 @@ describe('PATCH /bids/:bidId/accept - Accept Bid', () => {
   beforeEach(async () => {
     // Create a fresh bid for acceptance tests
     acceptableBid = await createTestBid({
-      ...generateTestBidData(testTasks.openTask._id, 88),
-      taskerId: new mongoose.Types.ObjectId(testUsers.tasker2._id),
+      ...generateTestBidData(testTasks.openTask._id, testUsers.tasker2._id, 88),
     });
   });
 

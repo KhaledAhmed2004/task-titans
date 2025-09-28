@@ -24,11 +24,12 @@ const QueryBuilder_1 = __importDefault(require("../../builder/QueryBuilder"));
 const ApiError_1 = __importDefault(require("../../../errors/ApiError"));
 const http_status_codes_1 = require("http-status-codes");
 const rating_1 = require("../rating");
+const serviceHelpers_1 = require("../../../helpers/serviceHelpers");
 const createBid = (bid, taskerId) => __awaiter(void 0, void 0, void 0, function* () {
     // 1️⃣ Find the task
-    const task = yield task_model_1.TaskModel.findById(bid.taskId);
-    if (!task)
-        throw new ApiError_1.default(http_status_codes_1.StatusCodes.NOT_FOUND, 'Task not found');
+    // const task = await TaskModel.findById(bid.taskId);
+    // if (!task) throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
+    const task = yield (0, serviceHelpers_1.findByIdOrThrow)(task_model_1.TaskModel, bid.taskId, 'Task');
     // 2️⃣ Check if the task status allows bidding
     if (task.status === task_interface_1.TaskStatus.COMPLETED) {
         throw new ApiError_1.default(http_status_codes_1.StatusCodes.BAD_REQUEST, 'Cannot place bid: Task is already completed');
@@ -104,6 +105,7 @@ const updateBid = (bidId, taskerId, bidUpdate) => __awaiter(void 0, void 0, void
     const bid = yield bid_model_1.BidModel.findById(bidId);
     if (!bid)
         throw new Error('Bid not found');
+    // const bid = await findByIdOrThrow(BidModel, bidId, 'Bid');
     // 2nd: Ensure only the tasker who created the bid can update it
     if (!bid.taskerId || bid.taskerId.toString() !== taskerId)
         throw new Error('Not authorized');
@@ -129,9 +131,9 @@ const deleteBid = (bidId, taskerId) => __awaiter(void 0, void 0, void 0, functio
         throw new Error('Invalid bid ID format');
     }
     // 2nd: Find the bid
-    const bid = yield bid_model_1.BidModel.findById(bidId);
-    if (!bid)
-        throw new Error('Bid not found');
+    // const bid = await BidModel.findById(bidId);
+    // if (!bid) throw new Error('Bid not found');
+    const bid = yield (0, serviceHelpers_1.findByIdOrThrow)(bid_model_1.BidModel, bidId, 'Bid');
     // 3rd: Check if taskerId is provided
     if (!taskerId)
         throw new Error('Tasker ID missing');
@@ -144,9 +146,9 @@ const deleteBid = (bidId, taskerId) => __awaiter(void 0, void 0, void 0, functio
         throw new Error('Cannot delete a bid that is not pending');
     }
     // 6th: Fetch the associated task
-    const task = yield task_model_1.TaskModel.findById(bid.taskId);
-    if (!task)
-        throw new Error('Associated task not found');
+    // const task = await TaskModel.findById(bid.taskId);
+    // if (!task) throw new Error('Associated task not found');
+    const task = yield (0, serviceHelpers_1.findByIdOrThrow)(task_model_1.TaskModel, bid.taskId, 'Task');
     // 7th: Ensure the task is still open
     if (task.status !== task_interface_1.TaskStatus.OPEN) {
         throw new Error('Cannot delete bid because the task is no longer open');
@@ -163,9 +165,9 @@ const getAllBidsByTaskId = (taskId, query) => __awaiter(void 0, void 0, void 0, 
     if (!mongoose_1.default.isValidObjectId(taskId))
         throw new ApiError_1.default(400, 'Invalid taskId');
     // 2nd: Ensure the task exists
-    const task = yield task_model_1.TaskModel.findById(taskId);
-    if (!task)
-        throw new ApiError_1.default(404, 'Task not found');
+    // const task = await TaskModel.findById(taskId);
+    // if (!task) throw new ApiError(404, 'Task not found');
+    const task = yield (0, serviceHelpers_1.findByIdOrThrow)(task_model_1.TaskModel, taskId, 'Task');
     // 3rd: Build query with filters, pagination, sorting etc.
     const queryBuilder = new QueryBuilder_1.default(bid_model_1.BidModel.find({ taskId }), query)
         .search(['amount', 'message'])
@@ -184,9 +186,9 @@ const getBidById = (bidId) => __awaiter(void 0, void 0, void 0, function* () {
     if (!mongoose_1.default.isValidObjectId(bidId))
         throw new ApiError_1.default(400, 'Invalid bidId');
     // 2️⃣ Find bid by ID
-    const bid = yield bid_model_1.BidModel.findById(bidId);
-    if (!bid)
-        throw new ApiError_1.default(404, 'Bid not found');
+    // const bid = await BidModel.findById(bidId);
+    // if (!bid) throw new ApiError(404, 'Bid not found');
+    const bid = yield (0, serviceHelpers_1.findByIdOrThrow)(bid_model_1.BidModel, bidId, 'Bid');
     return bid;
 });
 const acceptBid = (bidId, clientId) => __awaiter(void 0, void 0, void 0, function* () {
@@ -195,13 +197,14 @@ const acceptBid = (bidId, clientId) => __awaiter(void 0, void 0, void 0, functio
         throw new ApiError_1.default(http_status_codes_1.StatusCodes.BAD_REQUEST, 'Invalid bidId');
     }
     // 2nd: Find the bid by its ID
-    const bid = yield bid_model_1.BidModel.findById(bidId);
-    if (!bid)
-        throw new ApiError_1.default(http_status_codes_1.StatusCodes.NOT_FOUND, 'Bid not found');
+    // const bid = await BidModel.findById(bidId);
+    // if (!bid) throw new ApiError(StatusCodes.NOT_FOUND, 'Bid not found');
+    const bid = yield (0, serviceHelpers_1.findByIdOrThrow)(bid_model_1.BidModel, bidId, 'Bid');
     // 3rd: Find the task associated with the bid
     const task = yield task_model_1.TaskModel.findById(bid.taskId);
     if (!task)
         throw new ApiError_1.default(http_status_codes_1.StatusCodes.NOT_FOUND, 'Task not found');
+    // const task = await findByIdOrThrow(TaskModel, bid.taskId, 'Task');
     // 4th: Check if the client is authorized to accept this bid
     if (task.userId.toString() !== clientId) {
         throw new ApiError_1.default(http_status_codes_1.StatusCodes.FORBIDDEN, 'You are not authorized to accept this bid');
@@ -268,9 +271,9 @@ const acceptBid = (bidId, clientId) => __awaiter(void 0, void 0, void 0, functio
     }
 });
 const getAllBidsByTaskIdWithTasker = (taskId) => __awaiter(void 0, void 0, void 0, function* () {
-    const task = yield task_model_1.TaskModel.findById(taskId);
-    if (!task)
-        throw new Error('Task not found');
+    // const task = await TaskModel.findById(taskId);
+    // if (!task) throw new Error('Task not found');
+    const task = yield (0, serviceHelpers_1.findByIdOrThrow)(task_model_1.TaskModel, taskId, 'Task');
     return yield bid_model_1.BidModel.find({ taskId }).populate({
         path: 'taskerId',
         model: 'User',

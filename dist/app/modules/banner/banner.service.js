@@ -18,6 +18,7 @@ const QueryBuilder_1 = __importDefault(require("../../builder/QueryBuilder"));
 const ApiError_1 = __importDefault(require("../../../errors/ApiError"));
 const mongoose_1 = __importDefault(require("mongoose"));
 const http_status_codes_1 = require("http-status-codes");
+const serviceHelpers_1 = require("../../../helpers/serviceHelpers");
 // ======== CREATE ==============
 const createBanner = (banner) => __awaiter(void 0, void 0, void 0, function* () {
     const newBanner = yield banner_model_1.BannerModel.create(banner);
@@ -63,16 +64,20 @@ const updateBanner = (bannerId, bannerUpdate) => __awaiter(void 0, void 0, void 
     return updatedBanner;
 });
 // ========= DELETE =============
+// const deleteBanner = async (bannerId: string) => {
+//   // 1️⃣ Validate ID
+//   if (!mongoose.isValidObjectId(bannerId)) {
+//     throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid bannerId');
+//   }
+//   // 2️⃣ Delete
+//   const deletedBanner = await BannerModel.findByIdAndDelete(bannerId);
+//   if (!deletedBanner) {
+//     throw new ApiError(StatusCodes.NOT_FOUND, 'Banner not found');
+//   }
+//   return { message: 'Banner deleted successfully' };
+// };
 const deleteBanner = (bannerId) => __awaiter(void 0, void 0, void 0, function* () {
-    // 1️⃣ Validate ID
-    if (!mongoose_1.default.isValidObjectId(bannerId)) {
-        throw new ApiError_1.default(http_status_codes_1.StatusCodes.BAD_REQUEST, 'Invalid bannerId');
-    }
-    // 2️⃣ Delete
-    const deletedBanner = yield banner_model_1.BannerModel.findByIdAndDelete(bannerId);
-    if (!deletedBanner) {
-        throw new ApiError_1.default(http_status_codes_1.StatusCodes.NOT_FOUND, 'Banner not found');
-    }
+    yield (0, serviceHelpers_1.deleteByIdOrThrow)(banner_model_1.BannerModel, bannerId, 'Banner');
     return { message: 'Banner deleted successfully' };
 });
 exports.BannerService = {

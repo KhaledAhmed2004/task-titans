@@ -43,6 +43,7 @@ const ApiError_1 = __importDefault(require("../../../errors/ApiError"));
 const QueryBuilder_1 = __importDefault(require("../../builder/QueryBuilder"));
 const task_model_1 = require("../task/task.model");
 const user_model_1 = require("../user/user.model");
+const serviceHelpers_1 = require("../../../helpers/serviceHelpers");
 const createRating = (payload) => __awaiter(void 0, void 0, void 0, function* () {
     var _a, _b, _c, _d, _e;
     const session = yield mongoose_1.default.startSession();
@@ -155,11 +156,13 @@ const getSingleRating = (id) => __awaiter(void 0, void 0, void 0, function* () {
         throw new ApiError_1.default(http_status_codes_1.StatusCodes.NOT_FOUND, 'Rating not found');
     return rating;
 });
+// const updateRating = async (id: string, payload: Partial<IRating>) => {
+//   const rating = await Rating.findByIdAndUpdate(id, payload, { new: true });
+//   if (!rating) throw new ApiError(StatusCodes.NOT_FOUND, 'Rating not found');
+//   return rating;
+// };
 const updateRating = (id, payload) => __awaiter(void 0, void 0, void 0, function* () {
-    const rating = yield rating_model_1.Rating.findByIdAndUpdate(id, payload, { new: true });
-    if (!rating)
-        throw new ApiError_1.default(http_status_codes_1.StatusCodes.NOT_FOUND, 'Rating not found');
-    return rating;
+    return yield (0, serviceHelpers_1.updateByIdOrThrow)(rating_model_1.Rating, id, payload, 'Rating');
 });
 const deleteRating = (ratingId, userId) => __awaiter(void 0, void 0, void 0, function* () {
     // 1️⃣ Find the rating by ID

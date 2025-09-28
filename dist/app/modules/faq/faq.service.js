@@ -16,6 +16,7 @@ exports.FaqService = void 0;
 const ApiError_1 = __importDefault(require("../../../errors/ApiError"));
 const http_status_codes_1 = require("http-status-codes");
 const faq_model_1 = require("./faq.model");
+const serviceHelpers_1 = require("../../../helpers/serviceHelpers");
 // Create a new FAQ
 const createFaq = (faqData) => __awaiter(void 0, void 0, void 0, function* () {
     const faq = yield faq_model_1.Faq.create(faqData);
@@ -34,24 +35,32 @@ const getFaqById = (id) => __awaiter(void 0, void 0, void 0, function* () {
     }
     return faq;
 });
+// // Update a FAQ
+// const updateFaq = async (id: string, updateData: Partial<IFaq>) => {
+//   const updatedFaq = await Faq.findByIdAndUpdate(id, updateData, {
+//     new: true,
+//     runValidators: true,
+//   });
+//   if (!updatedFaq) {
+//     throw new ApiError(StatusCodes.NOT_FOUND, 'FAQ not found');
+//   }
+//   return updatedFaq;
+// };
+// // Delete a FAQ
+// const deleteFaq = async (id: string) => {
+//   const deletedFaq = await Faq.findByIdAndDelete(id);
+//   if (!deletedFaq) {
+//     throw new ApiError(StatusCodes.NOT_FOUND, 'FAQ not found');
+//   }
+//   return deletedFaq;
+// };
 // Update a FAQ
 const updateFaq = (id, updateData) => __awaiter(void 0, void 0, void 0, function* () {
-    const updatedFaq = yield faq_model_1.Faq.findByIdAndUpdate(id, updateData, {
-        new: true,
-        runValidators: true,
-    });
-    if (!updatedFaq) {
-        throw new ApiError_1.default(http_status_codes_1.StatusCodes.NOT_FOUND, 'FAQ not found');
-    }
-    return updatedFaq;
+    return yield (0, serviceHelpers_1.updateByIdOrThrow)(faq_model_1.Faq, id, updateData, 'FAQ');
 });
 // Delete a FAQ
 const deleteFaq = (id) => __awaiter(void 0, void 0, void 0, function* () {
-    const deletedFaq = yield faq_model_1.Faq.findByIdAndDelete(id);
-    if (!deletedFaq) {
-        throw new ApiError_1.default(http_status_codes_1.StatusCodes.NOT_FOUND, 'FAQ not found');
-    }
-    return deletedFaq;
+    return yield (0, serviceHelpers_1.deleteByIdOrThrow)(faq_model_1.Faq, id, 'FAQ');
 });
 exports.FaqService = {
     createFaq,

@@ -18,7 +18,7 @@ const http_status_codes_1 = require("http-status-codes");
 /**
  * Generic function to find a document by ID with error handling
  * @param model - Mongoose model
- * @param id - Document ID
+ * @param id - Document ID (string or ObjectId)
  * @param entityName - Name of the entity for error messages
  * @returns Found document
  * @throws ApiError if document not found
@@ -34,7 +34,7 @@ exports.findByIdOrThrow = findByIdOrThrow;
 /**
  * Generic function to update a document by ID with validation
  * @param model - Mongoose model
- * @param id - Document ID
+ * @param id - Document ID (string or ObjectId)
  * @param updateData - Data to update
  * @param entityName - Name of the entity for error messages
  * @returns Updated document
@@ -54,7 +54,7 @@ exports.updateByIdOrThrow = updateByIdOrThrow;
 /**
  * Generic function to delete a document by ID with validation
  * @param model - Mongoose model
- * @param id - Document ID
+ * @param id - Document ID (string or ObjectId)
  * @param entityName - Name of the entity for error messages
  * @returns Deleted document
  * @throws ApiError if document not found
@@ -70,7 +70,7 @@ exports.deleteByIdOrThrow = deleteByIdOrThrow;
 /**
  * Generic function to soft delete a document (set isDeleted: true)
  * @param model - Mongoose model
- * @param id - Document ID
+ * @param id - Document ID (string or ObjectId)
  * @param entityName - Name of the entity for error messages
  * @returns Updated document
  * @throws ApiError if document not found
@@ -86,7 +86,7 @@ exports.softDeleteByIdOrThrow = softDeleteByIdOrThrow;
 /**
  * Check if a document exists by ID
  * @param model - Mongoose model
- * @param id - Document ID
+ * @param id - Document ID (string or ObjectId)
  * @returns Boolean indicating existence
  */
 const existsById = (model, id) => __awaiter(void 0, void 0, void 0, function* () {
