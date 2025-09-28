@@ -144,11 +144,18 @@ const createTestCategory = async (categoryData: Partial<ICategory>): Promise<Tes
 };
 
 const createTestTask = async (taskData: Partial<Task>): Promise<TestTask> => {
-  const task = await TaskModel.create(taskData);
-  return {
-    ...task.toObject(),
-    _id: task._id.toString(),
-  };
+  try {
+    // Import TaskService dynamically to avoid circular dependencies
+    const { TaskService } = await import('../../../src/app/modules/task/task.service');
+    const task = await TaskService.createTask(taskData as Task);
+    return {
+      ...task.toObject(),
+      _id: task._id.toString(),
+    };
+  } catch (error) {
+    console.error('❌ Error creating test task:', error);
+    throw error;
+  }
 };
 
 const createTestBid = async (bidData: Partial<Bid>): Promise<TestBid> => {
@@ -274,10 +281,16 @@ describe('POST /tasks/:taskId/bids - Create Bid', () => {
       message: 'I have extensive experience in this area',
     };
 
+    console.log(`🔍 Testing with task ID: ${testTasks.openTask._id}`);
+    console.log(`🔍 Task exists in database: ${await TaskModel.findById(testTasks.openTask._id) ? 'YES' : 'NO'}`);
+
     const response = await request(app)
       .post(`${API_BASE}/tasks/${testTasks.openTask._id}/bids`)
       .set('Authorization', `Bearer ${testUsers.tasker2.token}`)
       .send(bidData);
+
+    console.log(`🔍 Response status: ${response.status}`);
+    console.log(`🔍 Response body:`, response.body);
 
     assertSuccessResponse(response, HTTP_STATUS.CREATED);
     expect(response.body.message).toBe('Bid created successfully');
