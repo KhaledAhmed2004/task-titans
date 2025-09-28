@@ -15,8 +15,15 @@ const router = express_1.default.Router();
 router.post('/login', (0, validateRequest_1.default)(auth_validation_1.AuthValidation.createLoginZodSchema), auth_controller_1.AuthController.loginUser);
 // Google OAuth routes
 router.get('/google', (req, res, next) => {
-    next();
-}, passport_1.default.authenticate('google', { scope: ['profile', 'email'] }));
+    // Store the role in the session or pass it through state parameter
+    const role = req.query.role || 'POSTER';
+    // Pass role through state parameter to preserve it through OAuth flow
+    const state = Buffer.from(JSON.stringify({ role })).toString('base64');
+    passport_1.default.authenticate('google', {
+        scope: ['profile', 'email'],
+        state: state
+    })(req, res, next);
+});
 router.get('/google/callback', (req, res, next) => {
     next();
 }, passport_1.default.authenticate('google', { session: false }), auth_controller_1.AuthController.googleCallback);

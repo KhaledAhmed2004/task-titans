@@ -16,6 +16,7 @@ const passport_1 = __importDefault(require("passport"));
 const passport_google_oauth20_1 = require("passport-google-oauth20");
 const index_1 = __importDefault(require("./index"));
 const user_model_1 = require("../app/modules/user/user.model");
+const user_1 = require("../enums/user");
 // passport.use(
 //   new GoogleStrategy(
 //     {
@@ -82,8 +83,21 @@ passport_1.default.use(new passport_google_oauth20_1.Strategy({
             console.error('No email found in Google profile');
             return done(new Error('No email found in Google profile'), undefined);
         }
-        // ✅ get role from frontend query param
-        const roleFromFrontend = req.query.role || 'POSTER';
+        // ✅ get role from state parameter (OAuth callback)
+        let roleFromFrontend = user_1.USER_ROLES.POSTER; // default
+        try {
+            if (req.query.state) {
+                const stateData = JSON.parse(Buffer.from(req.query.state, 'base64').toString());
+                const parsedRole = stateData.role;
+                // Validate that the role is a valid USER_ROLES value
+                if (parsedRole && Object.values(user_1.USER_ROLES).includes(parsedRole)) {
+                    roleFromFrontend = parsedRole;
+                }
+            }
+        }
+        catch (error) {
+            console.log('Could not parse state parameter, using default role');
+        }
         console.log('Role from frontend:', roleFromFrontend);
         let user = yield user_model_1.User.findOne({ email });
         if (!user) {
@@ -111,12 +125,18 @@ passport_1.default.use(new passport_google_oauth20_1.Strategy({
             console.log('Linking existing user with Google account');
             user.googleId = profile.id;
             user.verified = true;
-            // user.role = roleFromFrontend; // ✅ optionally update role
+            user.role = roleFromFrontend; // ✅ update role when linking account
             yield user.save();
             console.log('User linked with Google account:', user._id);
         }
         else {
             console.log('Existing Google user found:', user._id);
+            // ✅ Update role for existing Google users if different
+            if (user.role !== roleFromFrontend) {
+                user.role = roleFromFrontend;
+                yield user.save();
+                console.log('✅ User role updated to:', roleFromFrontend);
+            }
         }
         return done(null, user);
     }

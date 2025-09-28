@@ -29,6 +29,7 @@ const mongoose_1 = __importDefault(require("mongoose"));
 const bookmark_model_1 = require("../bookmark/bookmark.model");
 const rating_1 = require("../rating");
 const dispute_interface_1 = require("../dispute/dispute.interface");
+const AggregationBuilder_1 = __importDefault(require("../../builder/AggregationBuilder"));
 // Temporary DisputeService implementation until the full service is uncommented
 const DisputeService = {
     createDispute: (clientId, disputeData) => __awaiter(void 0, void 0, void 0, function* () {
@@ -177,68 +178,102 @@ const getAllTasksByUser = (userId_1, ...args_1) => __awaiter(void 0, [userId_1, 
     };
 });
 // Get task statistics
+// const getTaskStats = async () => {
+//   // Total counts by status
+//   const totalTasks = await TaskModel.countDocuments();
+//   const completedTasks = await TaskModel.countDocuments({
+//     status: TaskStatus.COMPLETED,
+//   });
+//   const activeTasks = await TaskModel.countDocuments({
+//     status: TaskStatus.OPEN,
+//   });
+//   const cancelledTasks = await TaskModel.countDocuments({
+//     status: TaskStatus.CANCELLED,
+//   });
+//   // Function to calculate monthly growth for a given filter
+//   const calculateMonthlyGrowth = async (
+//     filter: Record<string, unknown> = {}
+//   ) => {
+//     const now = new Date();
+//     const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+//     const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+//     const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+//     const thisMonthCount = await TaskModel.countDocuments({
+//       ...filter,
+//       createdAt: { $gte: startOfThisMonth },
+//     });
+//     const lastMonthCount = await TaskModel.countDocuments({
+//       ...filter,
+//       createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth },
+//     });
+//     let monthlyGrowth = 0;
+//     let growthType: 'increase' | 'decrease' | 'no_change' = 'no_change';
+//     if (lastMonthCount > 0) {
+//       monthlyGrowth =
+//         ((thisMonthCount - lastMonthCount) / lastMonthCount) * 100;
+//       growthType =
+//         monthlyGrowth > 0
+//           ? 'increase'
+//           : monthlyGrowth < 0
+//           ? 'decrease'
+//           : 'no_change';
+//     } else if (thisMonthCount > 0 && lastMonthCount === 0) {
+//       monthlyGrowth = 100;
+//       growthType = 'increase';
+//     }
+//     // Format for display
+//     const formattedGrowth =
+//       (monthlyGrowth > 0 ? '+' : '') + monthlyGrowth.toFixed(2) + '%';
+//     return {
+//       thisMonthCount,
+//       lastMonthCount,
+//       monthlyGrowth: Math.abs(monthlyGrowth), // absolute number for stats
+//       formattedGrowth, // formatted string with + / - for UI
+//       growthType,
+//     };
+//   };
+//   // Calculate stats for all tasks and by status
+//   const allTaskStats = await calculateMonthlyGrowth();
+//   const completedStats = await calculateMonthlyGrowth({
+//     status: TaskStatus.COMPLETED,
+//   });
+//   const activeStats = await calculateMonthlyGrowth({
+//     status: TaskStatus.OPEN,
+//   });
+//   const cancelledStats = await calculateMonthlyGrowth({
+//     status: TaskStatus.CANCELLED,
+//   });
+//   return {
+//     allTasks: { total: totalTasks, ...allTaskStats },
+//     completed: { total: completedTasks, ...completedStats },
+//     active: { total: activeTasks, ...activeStats },
+//     cancelled: { total: cancelledTasks, ...cancelledStats },
+//   };
+// };
 const getTaskStats = () => __awaiter(void 0, void 0, void 0, function* () {
-    // Total counts by status
-    const totalTasks = yield task_model_1.TaskModel.countDocuments();
-    const completedTasks = yield task_model_1.TaskModel.countDocuments({
-        status: task_interface_1.TaskStatus.COMPLETED,
+    const builder = new AggregationBuilder_1.default(task_model_1.TaskModel);
+    // All tasks
+    const allTasks = yield builder.calculateGrowth({ period: 'month' });
+    // Completed tasks
+    const completed = yield builder.calculateGrowth({
+        filter: { status: task_interface_1.TaskStatus.COMPLETED },
+        period: 'month',
     });
-    const activeTasks = yield task_model_1.TaskModel.countDocuments({
-        status: task_interface_1.TaskStatus.OPEN,
+    // Active (open) tasks
+    const active = yield builder.calculateGrowth({
+        filter: { status: task_interface_1.TaskStatus.OPEN },
+        period: 'month',
     });
-    const cancelledTasks = yield task_model_1.TaskModel.countDocuments({
-        status: task_interface_1.TaskStatus.CANCELLED,
-    });
-    // Function to calculate monthly growth for a given filter
-    const calculateMonthlyGrowth = (...args_1) => __awaiter(void 0, [...args_1], void 0, function* (filter = {}) {
-        const now = new Date();
-        const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
-        const thisMonthCount = yield task_model_1.TaskModel.countDocuments(Object.assign(Object.assign({}, filter), { createdAt: { $gte: startOfThisMonth } }));
-        const lastMonthCount = yield task_model_1.TaskModel.countDocuments(Object.assign(Object.assign({}, filter), { createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth } }));
-        let monthlyGrowth = 0;
-        let growthType = 'no_change';
-        if (lastMonthCount > 0) {
-            monthlyGrowth =
-                ((thisMonthCount - lastMonthCount) / lastMonthCount) * 100;
-            growthType =
-                monthlyGrowth > 0
-                    ? 'increase'
-                    : monthlyGrowth < 0
-                        ? 'decrease'
-                        : 'no_change';
-        }
-        else if (thisMonthCount > 0 && lastMonthCount === 0) {
-            monthlyGrowth = 100;
-            growthType = 'increase';
-        }
-        // Format for display
-        const formattedGrowth = (monthlyGrowth > 0 ? '+' : '') + monthlyGrowth.toFixed(2) + '%';
-        return {
-            thisMonthCount,
-            lastMonthCount,
-            monthlyGrowth: Math.abs(monthlyGrowth), // absolute number for stats
-            formattedGrowth, // formatted string with + / - for UI
-            growthType,
-        };
-    });
-    // Calculate stats for all tasks and by status
-    const allTaskStats = yield calculateMonthlyGrowth();
-    const completedStats = yield calculateMonthlyGrowth({
-        status: task_interface_1.TaskStatus.COMPLETED,
-    });
-    const activeStats = yield calculateMonthlyGrowth({
-        status: task_interface_1.TaskStatus.OPEN,
-    });
-    const cancelledStats = yield calculateMonthlyGrowth({
-        status: task_interface_1.TaskStatus.CANCELLED,
+    // Cancelled tasks
+    const cancelled = yield builder.calculateGrowth({
+        filter: { status: task_interface_1.TaskStatus.CANCELLED },
+        period: 'month',
     });
     return {
-        allTasks: Object.assign({ total: totalTasks }, allTaskStats),
-        completed: Object.assign({ total: completedTasks }, completedStats),
-        active: Object.assign({ total: activeTasks }, activeStats),
-        cancelled: Object.assign({ total: cancelledTasks }, cancelledStats),
+        allTasks,
+        completed,
+        active,
+        cancelled,
     };
 });
 const getLastSixMonthsCompletionStats = () => __awaiter(void 0, void 0, void 0, function* () {

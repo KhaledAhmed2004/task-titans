@@ -24,6 +24,7 @@ const user_model_1 = require("./user.model");
 const QueryBuilder_1 = __importDefault(require("../../builder/QueryBuilder"));
 const task_model_1 = require("../task/task.model");
 const bid_model_1 = require("../bid/bid.model");
+const AggregationBuilder_1 = __importDefault(require("../../builder/AggregationBuilder"));
 const createUserToDB = (payload) => __awaiter(void 0, void 0, void 0, function* () {
     const createUser = yield user_model_1.User.create(payload);
     if (!createUser) {
@@ -84,53 +85,81 @@ const getAllUsers = (query) => __awaiter(void 0, void 0, void 0, function* () {
         data: users,
     };
 });
+// const getUserStats = async () => {
+//   // ✅ Total counts
+//   const totalUsers = await User.countDocuments();
+//   const totalTaskers = await User.countDocuments({ role: USER_ROLES.TASKER });
+//   const totalPosters = await User.countDocuments({ role: USER_ROLES.POSTER });
+//   // ✅ Function to calculate monthly growth for a given filter
+//   const calculateMonthlyGrowth = async (
+//     filter: Record<string, unknown> = {}
+//   ) => {
+//     const now = new Date();
+//     const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+//     const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+//     const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+//     const thisMonthCount = await User.countDocuments({
+//       ...filter,
+//       createdAt: { $gte: startOfThisMonth },
+//     });
+//     const lastMonthCount = await User.countDocuments({
+//       ...filter,
+//       createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth },
+//     });
+//     let monthlyGrowth = 0;
+//     let growthType: 'increase' | 'decrease' | 'no_change' = 'no_change';
+//     if (lastMonthCount > 0) {
+//       monthlyGrowth =
+//         ((thisMonthCount - lastMonthCount) / lastMonthCount) * 100;
+//       growthType =
+//         monthlyGrowth > 0
+//           ? 'increase'
+//           : monthlyGrowth < 0
+//           ? 'decrease'
+//           : 'no_change';
+//     } else if (thisMonthCount > 0 && lastMonthCount === 0) {
+//       monthlyGrowth = 100;
+//       growthType = 'increase';
+//     }
+//     // ✅ Format for display
+//     const formattedGrowth =
+//       (monthlyGrowth > 0 ? '+' : '') + monthlyGrowth.toFixed(2) + '%';
+//     return {
+//       thisMonthCount,
+//       lastMonthCount,
+//       monthlyGrowth: Math.abs(monthlyGrowth), // absolute number for stats
+//       formattedGrowth, // formatted string with + / - for UI
+//       growthType,
+//     };
+//   };
+//   // ✅ Calculate stats for all users, taskers, and posters
+//   const allUserStats = await calculateMonthlyGrowth();
+//   const taskerStats = await calculateMonthlyGrowth({ role: USER_ROLES.TASKER });
+//   const posterStats = await calculateMonthlyGrowth({ role: USER_ROLES.POSTER });
+//   return {
+//     allUsers: { total: totalUsers, ...allUserStats },
+//     taskers: { total: totalTaskers, ...taskerStats },
+//     posters: { total: totalPosters, ...posterStats },
+//   };
+// };
 const getUserStats = () => __awaiter(void 0, void 0, void 0, function* () {
-    // ✅ Total counts
-    const totalUsers = yield user_model_1.User.countDocuments();
-    const totalTaskers = yield user_model_1.User.countDocuments({ role: user_1.USER_ROLES.TASKER });
-    const totalPosters = yield user_model_1.User.countDocuments({ role: user_1.USER_ROLES.POSTER });
-    // ✅ Function to calculate monthly growth for a given filter
-    const calculateMonthlyGrowth = (...args_1) => __awaiter(void 0, [...args_1], void 0, function* (filter = {}) {
-        const now = new Date();
-        const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
-        const thisMonthCount = yield user_model_1.User.countDocuments(Object.assign(Object.assign({}, filter), { createdAt: { $gte: startOfThisMonth } }));
-        const lastMonthCount = yield user_model_1.User.countDocuments(Object.assign(Object.assign({}, filter), { createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth } }));
-        let monthlyGrowth = 0;
-        let growthType = 'no_change';
-        if (lastMonthCount > 0) {
-            monthlyGrowth =
-                ((thisMonthCount - lastMonthCount) / lastMonthCount) * 100;
-            growthType =
-                monthlyGrowth > 0
-                    ? 'increase'
-                    : monthlyGrowth < 0
-                        ? 'decrease'
-                        : 'no_change';
-        }
-        else if (thisMonthCount > 0 && lastMonthCount === 0) {
-            monthlyGrowth = 100;
-            growthType = 'increase';
-        }
-        // ✅ Format for display
-        const formattedGrowth = (monthlyGrowth > 0 ? '+' : '') + monthlyGrowth.toFixed(2) + '%';
-        return {
-            thisMonthCount,
-            lastMonthCount,
-            monthlyGrowth: Math.abs(monthlyGrowth), // absolute number for stats
-            formattedGrowth, // formatted string with + / - for UI
-            growthType,
-        };
+    const builder = new AggregationBuilder_1.default(user_model_1.User);
+    // All Users
+    const allUsers = yield builder.calculateGrowth({ period: 'month' });
+    // Taskers
+    const taskers = yield builder.calculateGrowth({
+        filter: { role: user_1.USER_ROLES.TASKER },
+        period: 'month',
     });
-    // ✅ Calculate stats for all users, taskers, and posters
-    const allUserStats = yield calculateMonthlyGrowth();
-    const taskerStats = yield calculateMonthlyGrowth({ role: user_1.USER_ROLES.TASKER });
-    const posterStats = yield calculateMonthlyGrowth({ role: user_1.USER_ROLES.POSTER });
+    // Posters
+    const posters = yield builder.calculateGrowth({
+        filter: { role: user_1.USER_ROLES.POSTER },
+        period: 'month',
+    });
     return {
-        allUsers: Object.assign({ total: totalUsers }, allUserStats),
-        taskers: Object.assign({ total: totalTaskers }, taskerStats),
-        posters: Object.assign({ total: totalPosters }, posterStats),
+        allUsers,
+        taskers,
+        posters,
     };
 });
 const resendVerifyEmailToDB = (email) => __awaiter(void 0, void 0, void 0, function* () {
