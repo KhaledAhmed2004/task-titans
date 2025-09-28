@@ -100,7 +100,7 @@ const googleCallback = catchAsync(async (req: Request, res: Response) => {
     if (!user) {
       console.error('❌ No user data received from passport');
       return res.redirect(
-        `https://tier-elected-proc-cumulative.trycloudflare.com/auth/error?message=Google authentication failed. No user data received.`
+        `https://task-titans.onrender.com/auth/error?message=Google authentication failed. No user data received.`
       );
     }
 
@@ -108,7 +108,7 @@ const googleCallback = catchAsync(async (req: Request, res: Response) => {
 
     // Redirect to frontend with token as query parameter in fronted url
     return res.redirect(
-      `https://tier-elected-proc-cumulative.trycloudflare.com/auth/success?token=${result.createToken}`
+      `https://task-titans.onrender.com/auth/success?token=${result.createToken}`
     );
   } catch (error) {
     console.error('💥 Google OAuth callback error:', error);
@@ -116,7 +116,7 @@ const googleCallback = catchAsync(async (req: Request, res: Response) => {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
     return res.redirect(
-      `https://tier-elected-proc-cumulative.trycloudflare.com/auth/error?message=${encodeURIComponent(
+      `https://task-titans.onrender.com/auth/error?message=${encodeURIComponent(
         errorMessage
       )}`
     );
