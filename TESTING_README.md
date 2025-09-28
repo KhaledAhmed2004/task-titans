@@ -1,6 +1,6 @@
-# User Module Testing Documentation
+# Testing Documentation
 
-This document provides comprehensive information about testing the User and Authentication modules using Vitest. It covers the testing setup, structure, execution, and detailed explanations of each test component.
+This document provides comprehensive information about testing the User, Authentication, and Bid modules using Vitest. It covers the testing setup, structure, execution, and detailed explanations of each test component.
 
 ## Table of Contents
 
@@ -10,20 +10,22 @@ This document provides comprehensive information about testing the User and Auth
 4. [Running Tests](#running-tests)
 5. [Test Files Explanation](#test-files-explanation)
 6. [Authentication Testing](#authentication-testing)
-7. [Testing Patterns](#testing-patterns)
-8. [Coverage and Quality](#coverage-and-quality)
-9. [Troubleshooting](#troubleshooting)
+7. [Bid Module Testing](#bid-module-testing)
+8. [Testing Patterns](#testing-patterns)
+9. [Coverage and Quality](#coverage-and-quality)
+10. [Troubleshooting](#troubleshooting)
 
 ## Overview
 
-The testing suite provides comprehensive coverage for all components of the User and Authentication modules, including:
+The testing suite provides comprehensive coverage for all components of the User, Authentication, and Bid modules, including:
 
-- **Validation Logic**: Testing Zod schemas for user creation, updates, and authentication
+- **Validation Logic**: Testing Zod schemas for user creation, updates, authentication, and bid operations
 - **Controller Methods**: Testing HTTP request handlers and response logic
 - **Service Layer**: Testing business logic and database operations
 - **Model/Interface**: Testing Mongoose schema validation and static methods
 - **Authentication Flow**: Testing login, logout, password reset, and JWT validation
-- **Integration Tests**: End-to-end testing of complete user workflows
+- **Bid Management**: Testing bid creation, updates, deletion, and acceptance workflows
+- **Integration Tests**: End-to-end testing of complete user and bid workflows
 
 All tests follow the **AAA (Arrange, Act, Assert)** pattern and cover real-world edge cases and error scenarios.
 
@@ -127,8 +129,10 @@ tests/
 ├── integration/
 │   ├── auth/
 │   │   └── auth.integration.test.ts  # Authentication integration tests
-│   └── user/
-│       └── user.integration.test.ts  # User integration tests
+│   ├── user/
+│   │   └── user.integration.test.ts  # User integration tests
+│   └── bid/
+│       └── bid.integration.test.ts   # Bid integration tests
 └── unit/
     └── user/
         ├── user.validation.test.ts   # Validation schema tests
@@ -682,6 +686,209 @@ describe('User Schema Validation', () => {
 });
 ```
 
+## Bid Module Testing
+
+### Overview
+
+The bid module includes comprehensive integration tests that cover all bidding workflows in the Task Titans marketplace. These tests ensure the reliability, security, and performance of the bidding system.
+
+### Bid Test Coverage
+
+The <mcfile name="bid.integration.test.ts" path="tests/integration/bid/bid.integration.test.ts"></mcfile> file provides complete coverage for:
+
+#### 🎯 Core Bid Management Features
+- **Bid Creation**: Submit bids on available tasks with validation
+- **Bid Retrieval**: Get bids by task, user, and specific bid ID
+- **Bid Updates**: Modify bid amounts and proposal messages
+- **Bid Deletion**: Remove pending bids from the system
+- **Bid Acceptance**: Task owners accepting bids and task assignment
+
+#### 🔐 Authorization & Security Testing
+- **Role-Based Access**: TASKER and POSTER role validation
+- **Ownership Verification**: Users can only modify their own bids
+- **Input Sanitization**: Protection against XSS and malicious input
+- **Duplicate Prevention**: Prevents multiple bids from same user on same task
+- **Task Status Validation**: Prevents bidding on completed/cancelled tasks
+
+#### ⚡ Performance & Edge Cases
+- **Concurrent Operations**: Handles simultaneous bid creation attempts
+- **Large Data Handling**: Tests with large bid messages and bulk operations
+- **Error Handling**: Comprehensive error scenarios and recovery
+- **Database Integrity**: Ensures data consistency across operations
+
+### Running Bid Tests
+
+```bash
+# Run all bid integration tests
+npm test -- tests/integration/bid/bid.integration.test.ts
+
+# Run specific bid test suites
+npm test -- tests/integration/bid/bid.integration.test.ts --grep "Create Bid"
+npm test -- tests/integration/bid/bid.integration.test.ts --grep "Get Bids by Task"
+npm test -- tests/integration/bid/bid.integration.test.ts --grep "Update Bid"
+npm test -- tests/integration/bid/bid.integration.test.ts --grep "Delete Bid"
+npm test -- tests/integration/bid/bid.integration.test.ts --grep "Accept Bid"
+npm test -- tests/integration/bid/bid.integration.test.ts --grep "Security"
+npm test -- tests/integration/bid/bid.integration.test.ts --grep "Performance"
+
+# Run with verbose output for detailed results
+npm test -- tests/integration/bid/bid.integration.test.ts --reporter=verbose
+```
+
+### Test Results Summary
+
+The bid test suite includes **35+ comprehensive test cases** covering:
+
+- ✅ **Core Functionality**: All CRUD operations for bids
+- 🔐 **Authorization Tests**: Role-based access control validation
+- 🛡️ **Security Validation**: Input sanitization and injection prevention
+- 🎯 **Business Logic**: Bid lifecycle and task status validation
+- ⚡ **Performance Tests**: Concurrent operations and load handling
+- 🚨 **Error Scenarios**: Comprehensive error handling and edge cases
+
+### Key Test Scenarios
+
+#### Bid Creation
+```typescript
+// Example: Successful bid creation
+it('should create a new bid successfully', async () => {
+  const bidData = {
+    amount: 85,
+    message: 'I have extensive experience in this area',
+  };
+
+  const response = await request(app)
+    .post(`${API_BASE}/tasks/${testTasks.openTask._id}/bids`)
+    .set('Authorization', `Bearer ${testUsers.tasker.token}`)
+    .send(bidData);
+
+  expect(response.status).toBe(201);
+  expect(response.body.success).toBe(true);
+  expect(response.body.data.amount).toBe(bidData.amount);
+  expect(response.body.data.status).toBe('pending');
+});
+```
+
+#### Authorization Testing
+```typescript
+// Example: Role-based access control
+it('should require TASKER role to create a bid', async () => {
+  const bidData = { amount: 85, message: 'Test bid' };
+
+  const response = await request(app)
+    .post(`${API_BASE}/tasks/${testTasks.openTask._id}/bids`)
+    .set('Authorization', `Bearer ${testUsers.poster.token}`)
+    .send(bidData);
+
+  expect(response.status).toBe(401);
+  expect(response.body.success).toBe(false);
+});
+```
+
+#### Business Logic Validation
+```typescript
+// Example: Prevent duplicate bids
+it('should prevent duplicate bids from same tasker', async () => {
+  const bidData = { amount: 95, message: 'Duplicate bid attempt' };
+
+  const response = await request(app)
+    .post(`${API_BASE}/tasks/${testTasks.openTask._id}/bids`)
+    .set('Authorization', `Bearer ${testUsers.tasker1.token}`)
+    .send(bidData);
+
+  expect(response.status).toBe(400);
+  expect(response.body.message).toContain('already placed a bid');
+});
+```
+
+### Bid Test Database Setup
+
+The bid tests use an isolated in-memory MongoDB instance with:
+
+- **Test Users**: POSTER, TASKER, and ADMIN roles with proper authentication
+- **Test Tasks**: Various task statuses (OPEN, COMPLETED, CANCELLED) for testing
+- **Test Bids**: Pre-created bids for update/delete operations
+- **Clean State**: Database is reset between each test for isolation
+- **Realistic Data**: Tests mirror production bid workflows
+
+### API Endpoints Tested
+
+The bid integration tests cover all bid-related endpoints:
+
+#### POST Endpoints
+- `POST /tasks/:taskId/bids` - Create new bid
+
+#### GET Endpoints
+- `GET /tasks/:taskId/bids` - Get all bids for a task (POSTER only)
+- `GET /bids/:bidId` - Get specific bid details
+- `GET /tasker/bids` - Get all tasks a tasker has bid on
+
+#### PUT/PATCH Endpoints
+- `PUT /bids/:bidId` - Update bid amount/message
+- `PATCH /bids/:bidId/accept` - Accept a bid (POSTER only)
+
+#### DELETE Endpoints
+- `DELETE /bids/:bidId` - Delete a pending bid
+
+### Troubleshooting Bid Tests
+
+#### Common Issues
+
+1. **Authentication Errors**
+   - Ensure test users have valid JWT tokens
+   - Check role assignments (TASKER vs POSTER)
+
+2. **Database State Issues**
+   - Verify test data setup in beforeAll/beforeEach hooks
+   - Check for proper cleanup between tests
+
+3. **Validation Failures**
+   - Confirm bid amounts are positive numbers
+   - Ensure required fields are provided
+
+4. **Business Logic Errors**
+   - Verify task status allows bidding (OPEN status)
+   - Check for existing bids from same user
+
+#### Debug Commands
+
+```bash
+# Run single test with detailed output
+npm test -- tests/integration/bid/bid.integration.test.ts --grep "specific test name" --reporter=verbose
+
+# Run tests with coverage
+npm run test:coverage -- tests/integration/bid/bid.integration.test.ts
+
+# Debug failing tests
+npm test -- tests/integration/bid/bid.integration.test.ts --bail
+```
+
+### Test Data Structure
+
+The bid tests use the following test data structure:
+
+```typescript
+// Test Users
+testUsers = {
+  poster: { role: 'POSTER', token: 'jwt_token' },
+  tasker1: { role: 'TASKER', token: 'jwt_token' },
+  tasker2: { role: 'TASKER', token: 'jwt_token' },
+  admin: { role: 'SUPER_ADMIN', token: 'jwt_token' }
+};
+
+// Test Tasks
+testTasks = {
+  openTask: { status: 'OPEN', userId: poster._id },
+  completedTask: { status: 'COMPLETED', userId: poster._id },
+  cancelledTask: { status: 'CANCELLED', userId: poster._id }
+};
+
+// Test Bids
+testBids = {
+  pendingBid: { status: 'PENDING', taskerId: tasker1._id, amount: 90 }
+};
+```
+
 ## Testing Patterns
 
 ### AAA Pattern (Arrange, Act, Assert)
@@ -909,9 +1116,33 @@ process.env.JWT_SECRET = 'test-secret';
    npm test
    ```
 
-3. **Check Coverage**
+3. **Run Specific Module Tests**
+   ```bash
+   # Run all user tests
+   npm test -- tests/integration/user/
+
+   # Run all auth tests  
+   npm test -- tests/integration/auth/
+
+   # Run all bid tests
+   npm test -- tests/integration/bid/
+   ```
+
+4. **Check Coverage**
    ```bash
    npm run test:coverage
+   ```
+
+5. **Quick Test Commands for Bid Module**
+   ```bash
+   # Test bid creation functionality
+   npm test -- tests/integration/bid/bid.integration.test.ts --grep "Create Bid"
+
+   # Test bid security and authorization
+   npm test -- tests/integration/bid/bid.integration.test.ts --grep "Security"
+
+   # Test bid acceptance workflow
+   npm test -- tests/integration/bid/bid.integration.test.ts --grep "Accept Bid"
    ```
 
 ### Development Workflow
@@ -940,6 +1171,7 @@ process.env.JWT_SECRET = 'test-secret';
 
 Before considering a feature complete:
 
+#### General Testing Requirements
 - [ ] All validation scenarios tested
 - [ ] Success and error cases covered
 - [ ] Edge cases identified and tested
@@ -949,6 +1181,18 @@ Before considering a feature complete:
 - [ ] Tests pass consistently
 - [ ] No console errors or warnings
 
+#### Bid Module Specific Checklist
+- [ ] Bid creation with valid/invalid data tested
+- [ ] Authorization for TASKER and POSTER roles verified
+- [ ] Bid ownership validation implemented
+- [ ] Duplicate bid prevention tested
+- [ ] Task status validation (OPEN/COMPLETED/CANCELLED) covered
+- [ ] Bid acceptance workflow tested
+- [ ] Bid update and deletion functionality verified
+- [ ] Security tests for XSS and injection attacks passed
+- [ ] Performance tests for concurrent operations completed
+- [ ] Error handling for all edge cases implemented
+
 ---
 
-This documentation provides a complete guide to testing the User module. For additional questions or issues, refer to the [Vitest documentation](https://vitest.dev/) or consult the development team.
+This documentation provides a complete guide to testing the User, Authentication, and Bid modules. For additional questions or issues, refer to the [Vitest documentation](https://vitest.dev/) or consult the development team.
