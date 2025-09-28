@@ -2,6 +2,7 @@ import { IFaq } from './faq.interface';
 import ApiError from '../../../errors/ApiError';
 import { StatusCodes } from 'http-status-codes';
 import { Faq } from './faq.model';
+import { deleteByIdOrThrow, updateByIdOrThrow } from '../../../helpers/serviceHelpers';
 
 // Create a new FAQ
 const createFaq = async (faqData: IFaq) => {
@@ -24,25 +25,35 @@ const getFaqById = async (id: string) => {
   return faq;
 };
 
+// // Update a FAQ
+// const updateFaq = async (id: string, updateData: Partial<IFaq>) => {
+//   const updatedFaq = await Faq.findByIdAndUpdate(id, updateData, {
+//     new: true,
+//     runValidators: true,
+//   });
+//   if (!updatedFaq) {
+//     throw new ApiError(StatusCodes.NOT_FOUND, 'FAQ not found');
+//   }
+//   return updatedFaq;
+// };
+
+// // Delete a FAQ
+// const deleteFaq = async (id: string) => {
+//   const deletedFaq = await Faq.findByIdAndDelete(id);
+//   if (!deletedFaq) {
+//     throw new ApiError(StatusCodes.NOT_FOUND, 'FAQ not found');
+//   }
+//   return deletedFaq;
+// };
+
 // Update a FAQ
 const updateFaq = async (id: string, updateData: Partial<IFaq>) => {
-  const updatedFaq = await Faq.findByIdAndUpdate(id, updateData, {
-    new: true,
-    runValidators: true,
-  });
-  if (!updatedFaq) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'FAQ not found');
-  }
-  return updatedFaq;
+  return await updateByIdOrThrow(Faq, id, updateData, 'FAQ');
 };
 
 // Delete a FAQ
 const deleteFaq = async (id: string) => {
-  const deletedFaq = await Faq.findByIdAndDelete(id);
-  if (!deletedFaq) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'FAQ not found');
-  }
-  return deletedFaq;
+  return await deleteByIdOrThrow(Faq, id, 'FAQ');
 };
 
 export const FaqService = {

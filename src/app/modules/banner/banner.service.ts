@@ -4,6 +4,7 @@ import ApiError from '../../../errors/ApiError';
 import mongoose from 'mongoose';
 import { StatusCodes } from 'http-status-codes';
 import { IBanner } from './banner.interface';
+import { deleteByIdOrThrow } from '../../../helpers/serviceHelpers';
 
 // ======== CREATE ==============
 const createBanner = async (banner: IBanner) => {
@@ -68,19 +69,24 @@ const updateBanner = async (
 };
 
 // ========= DELETE =============
+// const deleteBanner = async (bannerId: string) => {
+//   // 1️⃣ Validate ID
+//   if (!mongoose.isValidObjectId(bannerId)) {
+//     throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid bannerId');
+//   }
+
+//   // 2️⃣ Delete
+//   const deletedBanner = await BannerModel.findByIdAndDelete(bannerId);
+
+//   if (!deletedBanner) {
+//     throw new ApiError(StatusCodes.NOT_FOUND, 'Banner not found');
+//   }
+
+//   return { message: 'Banner deleted successfully' };
+// };
+
 const deleteBanner = async (bannerId: string) => {
-  // 1️⃣ Validate ID
-  if (!mongoose.isValidObjectId(bannerId)) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid bannerId');
-  }
-
-  // 2️⃣ Delete
-  const deletedBanner = await BannerModel.findByIdAndDelete(bannerId);
-
-  if (!deletedBanner) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Banner not found');
-  }
-
+  await deleteByIdOrThrow(BannerModel, bannerId, 'Banner');
   return { message: 'Banner deleted successfully' };
 };
 

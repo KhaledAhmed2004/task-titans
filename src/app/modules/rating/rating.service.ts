@@ -6,6 +6,7 @@ import ApiError from '../../../errors/ApiError';
 import QueryBuilder from '../../builder/QueryBuilder';
 import { TaskModel } from '../task/task.model';
 import { User } from '../user/user.model';
+import { updateByIdOrThrow } from '../../../helpers/serviceHelpers';
 
 const createRating = async (payload: Partial<IRating>): Promise<IRating> => {
   const session = await mongoose.startSession();
@@ -160,10 +161,13 @@ const getSingleRating = async (id: string) => {
   return rating;
 };
 
+// const updateRating = async (id: string, payload: Partial<IRating>) => {
+//   const rating = await Rating.findByIdAndUpdate(id, payload, { new: true });
+//   if (!rating) throw new ApiError(StatusCodes.NOT_FOUND, 'Rating not found');
+//   return rating;
+// };
 const updateRating = async (id: string, payload: Partial<IRating>) => {
-  const rating = await Rating.findByIdAndUpdate(id, payload, { new: true });
-  if (!rating) throw new ApiError(StatusCodes.NOT_FOUND, 'Rating not found');
-  return rating;
+  return await updateByIdOrThrow(Rating, id, payload, 'Rating');
 };
 
 const deleteRating = async (ratingId: string, userId: string) => {
