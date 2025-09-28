@@ -74,9 +74,9 @@ const getAllTasksByTaskerBids = async (
   taskerId: string,
   query: Record<string, unknown> = {}
 ) => {
-  // 1️⃣ Query bids for this tasker
+  // 1st: Query bids for this tasker
   const bidQuery = new QueryBuilder(BidModel.find({ taskerId }), query)
-    .search(['message']) // search in bid message
+    .search(['message'])
     .filter()
     .dateFilter()
     .sort()
@@ -86,10 +86,10 @@ const getAllTasksByTaskerBids = async (
       taskId: 'title description status userId assignedTo taskCategory',
     });
 
-  // 2️⃣ Execute query
+  // 2nd: Execute query
   const { data: bids, pagination } = await bidQuery.getFilteredResults();
 
-  // 3️⃣ Add rating info for each task (from poster → tasker)
+  // 3rd: Add rating info for each task (from poster → tasker)
   const bidsWithRating = await Promise.all(
     bids.map(async (bid: any) => {
       const task = bid.taskId; // populated task
@@ -114,7 +114,7 @@ const getAllTasksByTaskerBids = async (
     })
   );
 
-  // 4️⃣ Return final result
+  // 4th: Return final result
   return {
     data: bidsWithRating,
     pagination,
@@ -126,68 +126,68 @@ const updateBid = async (
   taskerId: string,
   bidUpdate: BidUpdate
 ) => {
-  // 1️⃣ Find the bid by ID
+  // 1st: Find the bid by ID
   const bid = await BidModel.findById(bidId);
   if (!bid) throw new Error('Bid not found');
 
-  // 2️⃣ Ensure only the tasker who created the bid can update it
+  // 2nd: Ensure only the tasker who created the bid can update it
   if (!bid.taskerId || bid.taskerId.toString() !== taskerId)
     throw new Error('Not authorized');
 
-  // 3️⃣ Only pending bids can be updated
+  // 3rd: Only pending bids can be updated
   if (bid.status !== BidStatus.PENDING)
     throw new Error('Cannot update a bid that is not pending');
 
-  // 4️⃣ Reject empty payloads
+  // 4th: Reject empty payloads
   if (!bidUpdate.amount && !bidUpdate.message) {
     throw new Error('No fields provided to update');
   }
 
-  // 5️⃣ Extra safety: Validate updated amount
+  // 5th: Extra safety: Validate updated amount
   if (bidUpdate.amount !== undefined && bidUpdate.amount <= 0)
     throw new Error('Amount must be greater than 0');
 
-  // 6️⃣ Apply the updates
+  // 6th: Apply the updates
   Object.assign(bid, bidUpdate);
 
-  // 7️⃣ Save the bid and return
+  // 7th: Save the bid and return
   await bid.save();
   return bid;
 };
 
 const deleteBid = async (bidId: string, taskerId: string) => {
-  // 1️⃣ Check if bidId is valid
+  // 1st: Check if bidId is valid
   if (!mongoose.Types.ObjectId.isValid(bidId)) {
     throw new Error('Invalid bid ID format');
   }
 
-  // 2️⃣ Find the bid
+  // 2nd: Find the bid
   const bid = await BidModel.findById(bidId);
   if (!bid) throw new Error('Bid not found');
 
-  // 3️⃣ Check if taskerId is provided
+  // 3rd: Check if taskerId is provided
   if (!taskerId) throw new Error('Tasker ID missing');
 
-  // 4️⃣ Ensure only the bid owner can delete
+  // 4th: Ensure only the bid owner can delete
   if (!bid.taskerId || bid.taskerId.toString() !== taskerId) {
     throw new Error('Not authorized');
   }
 
-  // 5️⃣ Only pending bids can be deleted
+  // 5th: Only pending bids can be deleted
   if (bid.status !== BidStatus.PENDING) {
     throw new Error('Cannot delete a bid that is not pending');
   }
 
-  // 6️⃣ Fetch the associated task
+  // 6th: Fetch the associated task
   const task = await TaskModel.findById(bid.taskId);
   if (!task) throw new Error('Associated task not found');
 
-  // 7️⃣ Ensure the task is still open
+  // 7th: Ensure the task is still open
   if (task.status !== TaskStatus.OPEN) {
     throw new Error('Cannot delete bid because the task is no longer open');
   }
 
-  // 8️⃣ Try delete with concurrency safety
+  // 8th: Try delete with concurrency safety
   const deletedBid = await BidModel.findByIdAndDelete(bidId);
   if (!deletedBid) {
     throw new Error('Bid already deleted');
@@ -200,15 +200,15 @@ const getAllBidsByTaskId = async (
   taskId: string,
   query: Record<string, any>
 ) => {
-  // 1️⃣ Validate taskId
+  // 1st: Validate taskId
   if (!mongoose.isValidObjectId(taskId))
     throw new ApiError(400, 'Invalid taskId');
 
-  // 2️⃣ Ensure the task exists
+  // 2nd: Ensure the task exists
   const task = await TaskModel.findById(taskId);
   if (!task) throw new ApiError(404, 'Task not found');
 
-  // 3️⃣ Build query with filters, pagination, sorting etc.
+  // 3rd: Build query with filters, pagination, sorting etc.
   const queryBuilder = new QueryBuilder(BidModel.find({ taskId }), query)
     .search(['amount', 'message'])
     .filter()
@@ -218,7 +218,7 @@ const getAllBidsByTaskId = async (
     .fields()
     .populate(['taskerId'], { taskerId: 'name' });
 
-  // 4️⃣ Execute query
+  // 4th: Execute query
   const { data, pagination } = await queryBuilder.getFilteredResults();
 
   return { data, pagination };
@@ -236,20 +236,20 @@ const getBidById = async (bidId: string) => {
 };
 
 const acceptBid = async (bidId: string, clientId: string) => {
-  // 1️⃣ Validate bidId
+  // 1st: Validate bidId
   if (!mongoose.isValidObjectId(bidId)) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid bidId');
   }
 
-  // 2️⃣ Find the bid by its ID
+  // 2nd: Find the bid by its ID
   const bid = await BidModel.findById(bidId);
   if (!bid) throw new ApiError(StatusCodes.NOT_FOUND, 'Bid not found');
 
-  // 3️⃣ Find the task associated with the bid
+  // 3rd: Find the task associated with the bid
   const task = await TaskModel.findById(bid.taskId);
   if (!task) throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
 
-  // 4️⃣ Check if the client is authorized to accept this bid
+  // 4th: Check if the client is authorized to accept this bid
   if (task.userId.toString() !== clientId) {
     throw new ApiError(
       StatusCodes.FORBIDDEN,
@@ -257,12 +257,12 @@ const acceptBid = async (bidId: string, clientId: string) => {
     );
   }
 
-  // 5️⃣ Ensure the bid is still pending
+  // 5th: Ensure the bid is still pending
   if (bid.status !== BidStatus.PENDING) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Bid already processed');
   }
 
-  // 6️⃣ Ensure the task is open for accepting bids
+  // 6th: Ensure the task is open for accepting bids
   if (task.status !== TaskStatus.OPEN) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
@@ -270,12 +270,12 @@ const acceptBid = async (bidId: string, clientId: string) => {
     );
   }
 
-  // 7️⃣ Start a MongoDB session for transaction
+  // 7th: Start a MongoDB session for transaction
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    // 8️⃣ Create escrow payment for the accepted bid
+    // 8th: Create escrow payment for the accepted bid
     const paymentData = {
       taskId: new mongoose.Types.ObjectId(task._id),
       posterId: new mongoose.Types.ObjectId(clientId),
@@ -286,7 +286,7 @@ const acceptBid = async (bidId: string, clientId: string) => {
 
     const paymentResult = await PaymentService.createEscrowPayment(paymentData);
 
-    // 9️⃣ Accept the selected bid atomically to prevent race conditions
+    // 9th: Accept the selected bid atomically to prevent race conditions
     const acceptedBid = await BidModel.findOneAndUpdate(
       { _id: bid._id, status: BidStatus.PENDING },
       { $set: { status: BidStatus.ACCEPTED } },
@@ -300,24 +300,24 @@ const acceptBid = async (bidId: string, clientId: string) => {
       );
     }
 
-    // 🔟 Update the task: assign freelancer, update status, store payment info
+    // 10th: Update the task: assign freelancer, update status, store payment info
     task.status = TaskStatus.IN_PROGRESS;
     task.assignedTo = bid.taskerId;
     task.paymentIntentId = paymentResult.payment.stripePaymentIntentId;
     await task.save({ session });
 
-    // 1️⃣1️⃣ Reject all other bids for this task
+    // 11th: Reject all other bids for this task
     await BidModel.updateMany(
       { taskId: task._id, _id: { $ne: bid._id } },
       { $set: { status: BidStatus.REJECTED } },
       { session }
     );
 
-    // 1️⃣2️⃣ Commit the transaction to finalize all changes
+    // 12th: Commit the transaction to finalize all changes
     await session.commitTransaction();
     session.endSession();
 
-    // 1️⃣3️⃣ Send notifications to the accepted freelancer
+    // 13th: Send notifications to the accepted freelancer
     const acceptedNotification = {
       text: `Congratulations! Your bid for "${task.title}" has been accepted. Payment is now in escrow.`,
       title: 'Bid Accepted',
@@ -358,6 +358,7 @@ const getAllBidsByTaskIdWithTasker = async (taskId: string) => {
     select: 'name email image location phone role verified',
   });
 };
+
 export const BidService = {
   createBid,
   getAllBidsByTaskIdWithTasker,
