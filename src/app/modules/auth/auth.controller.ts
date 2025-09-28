@@ -100,7 +100,7 @@ const googleCallback = catchAsync(async (req: Request, res: Response) => {
     if (!user) {
       console.error('❌ No user data received from passport');
       return res.redirect(
-        `https://task-titans-six.vercel.app/auth/error?message=Google authentication failed. No user data received.`
+        `https://task-titans-six.vercel.app/auth/callback?message=Google authentication failed. No user data received.`
       );
     }
 
@@ -116,7 +116,7 @@ const googleCallback = catchAsync(async (req: Request, res: Response) => {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
     return res.redirect(
-      `https://task-titans-six.vercel.app/auth/error?message=${encodeURIComponent(
+      `https://task-titans-six.vercel.app/auth/callback?message=${encodeURIComponent(
         errorMessage
       )}`
     );
