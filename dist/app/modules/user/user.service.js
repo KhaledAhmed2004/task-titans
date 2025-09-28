@@ -221,12 +221,47 @@ const getUserDistribution = () => __awaiter(void 0, void 0, void 0, function* ()
         },
     };
 });
+// const getUserDetailsById = async (id: string) => {
+//   // 1️⃣ Find the user
+//   const user = await User.findById(id).select('-password -authentication');
+//   if (!user) {
+//     throw new ApiError(StatusCodes.NOT_FOUND, "User doesn't exist!");
+//   }
+//   return user;
+// };
 const getUserDetailsById = (id) => __awaiter(void 0, void 0, void 0, function* () {
     // 1️⃣ Find the user
     const user = yield user_model_1.User.findById(id).select('-password -authentication');
     if (!user) {
         throw new ApiError_1.default(http_status_codes_1.StatusCodes.NOT_FOUND, "User doesn't exist!");
     }
+    // 2️⃣ Update Top Rated Achievements dynamically
+    const achievements = user.achievements || [];
+    if (user.role === user_1.USER_ROLES.POSTER &&
+        user.averageRating >= 4.5 &&
+        user.ratingsCount >= 10) {
+        if (!achievements.includes('Top Rated Poster'))
+            achievements.push('Top Rated Poster');
+    }
+    else {
+        const index = achievements.indexOf('Top Rated Poster');
+        if (index > -1)
+            achievements.splice(index, 1);
+    }
+    if (user.role === 'TASKER' &&
+        user.averageRating >= 4.5 &&
+        user.ratingsCount >= 10) {
+        if (!achievements.includes('Top Rated Tittens'))
+            achievements.push('Top Rated Tittens');
+    }
+    else {
+        const index = achievements.indexOf('Top Rated Tittens');
+        if (index > -1)
+            achievements.splice(index, 1);
+    }
+    // 3️⃣ Save updated achievements (optional if you want to persist)
+    user.achievements = achievements;
+    yield user.save();
     return user;
 });
 exports.UserService = {

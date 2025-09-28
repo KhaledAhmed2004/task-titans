@@ -17,9 +17,15 @@ router.post(
 router.get(
   '/google',
   (req, res, next) => {
-    next();
-  },
-  passport.authenticate('google', { scope: ['profile', 'email'] })
+    // Store the role in the session or pass it through state parameter
+    const role = req.query.role as string || 'POSTER';
+    // Pass role through state parameter to preserve it through OAuth flow
+    const state = Buffer.from(JSON.stringify({ role })).toString('base64');
+    passport.authenticate('google', { 
+      scope: ['profile', 'email'],
+      state: state
+    })(req, res, next);
+  }
 );
 
 router.get(

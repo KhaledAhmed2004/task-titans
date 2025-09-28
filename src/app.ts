@@ -205,16 +205,25 @@ const allowedOrigins = [
   'http://localhost:5173',
   'https://task-titans-six.vercel.app',
   'https://task-titans-admin.vercel.app',
+  'https://tier-elected-proc-cumulative.trycloudflare.com',
+  // Add common development origins
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
 ];
 
 app.use(
   cors({
     origin: (origin, callback) => {
+      console.log('🔍 CORS Origin Check:', origin);
       // Allow requests with no origin (like mobile apps, Postman)
       if (!origin) return callback(null, true);
       if (allowedOrigins.includes(origin)) {
+        console.log('✅ Origin allowed:', origin);
         callback(null, true);
       } else {
+        console.log('❌ Origin blocked:', origin);
+        console.log('📋 Allowed origins:', allowedOrigins);
         callback(new Error('Not allowed by CORS'));
       }
     },
@@ -224,11 +233,14 @@ app.use(
 );
 
 // Explicitly handle preflight OPTIONS requests
-app.options('*', cors({
-  origin: allowedOrigins,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  credentials: true,
-}));
+app.options(
+  '*',
+  cors({
+    origin: allowedOrigins,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    credentials: true,
+  })
+);
 
 // -------------------
 // Body parser
@@ -249,7 +261,9 @@ app.use(express.static('uploads'));
 // -------------------
 // Swagger
 // -------------------
-const swaggerDocument = YAML.load(path.join(__dirname, '../public/swagger.yaml'));
+const swaggerDocument = YAML.load(
+  path.join(__dirname, '../public/swagger.yaml')
+);
 app.use('/api/v1/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // -------------------

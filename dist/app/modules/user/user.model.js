@@ -131,8 +131,11 @@ userSchema.statics.isMatchPassword = (password, hashPassword) => __awaiter(void 
 //check user
 userSchema.pre('save', function (next) {
     return __awaiter(this, void 0, void 0, function* () {
-        //check user
-        const isExist = yield exports.User.findOne({ email: this.email });
+        //check user - exclude current user from email uniqueness check
+        const isExist = yield exports.User.findOne({
+            email: this.email,
+            _id: { $ne: this._id } // exclude current user
+        });
         if (isExist) {
             throw new ApiError_1.default(http_status_codes_1.StatusCodes.BAD_REQUEST, 'Email already exist!');
         }

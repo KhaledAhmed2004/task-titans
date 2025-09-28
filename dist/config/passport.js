@@ -16,11 +16,64 @@ const passport_1 = __importDefault(require("passport"));
 const passport_google_oauth20_1 = require("passport-google-oauth20");
 const index_1 = __importDefault(require("./index"));
 const user_model_1 = require("../app/modules/user/user.model");
+// passport.use(
+//   new GoogleStrategy(
+//     {
+//       clientID: config.google_client_id as string,
+//       clientSecret: config.google_client_secret as string,
+//       callbackURL: config.google_redirect_uri as string,
+//     },
+//     async (_accessToken, _refreshToken, profile, done) => {
+//       try {
+//         console.log('Google OAuth Profile:', profile);
+//         const email = profile.emails?.[0]?.value;
+//         if (!email) {
+//           console.error('No email found in Google profile');
+//           return done(new Error('No email found in Google profile'), undefined);
+//         }
+//         let user = await User.findOne({ email });
+//         if (!user) {
+//           try {
+//             // Create new user with Google OAuth data - no password needed
+//             user = await User.create({
+//               name: profile.displayName || 'Google User',
+//               email,
+//               verified: true,
+//               googleId: profile.id,
+//               location: '', // default empty location
+//               gender: 'male', // default gender, can be updated later
+//               dateOfBirth: '', // default empty date of birth
+//               phone: '', // default empty phone
+//             });
+//           } catch (createError) {
+//             console.error('❌ Error creating user:', createError);
+//             return done(createError as Error, undefined);
+//           }
+//         } else if (!user.googleId) {
+//           console.log('Linking existing user with Google account');
+//           // Link existing user with Google account
+//           user.googleId = profile.id;
+//           user.verified = true;
+//           await user.save();
+//           console.log('User linked with Google account:', user._id);
+//         } else {
+//           console.log('Existing Google user found:', user._id);
+//         }
+//         return done(null, user);
+//       } catch (err) {
+//         console.error('Google OAuth Strategy Error:', err);
+//         return done(err as Error);
+//       }
+//     }
+//   )
+// );
+// export default passport;
 passport_1.default.use(new passport_google_oauth20_1.Strategy({
     clientID: index_1.default.google_client_id,
     clientSecret: index_1.default.google_client_secret,
     callbackURL: index_1.default.google_redirect_uri,
-}, (_accessToken, _refreshToken, profile, done) => __awaiter(void 0, void 0, void 0, function* () {
+    passReqToCallback: true, // ✅ allow req access
+}, (req, _accessToken, _refreshToken, profile, done) => __awaiter(void 0, void 0, void 0, function* () {
     var _a, _b;
     try {
         console.log('Google OAuth Profile:', profile);
@@ -29,20 +82,25 @@ passport_1.default.use(new passport_google_oauth20_1.Strategy({
             console.error('No email found in Google profile');
             return done(new Error('No email found in Google profile'), undefined);
         }
+        // ✅ get role from frontend query param
+        const roleFromFrontend = req.query.role || 'POSTER';
+        console.log('Role from frontend:', roleFromFrontend);
         let user = yield user_model_1.User.findOne({ email });
         if (!user) {
             try {
-                // Create new user with Google OAuth data - no password needed
+                // Create new user with role from frontend
                 user = yield user_model_1.User.create({
                     name: profile.displayName || 'Google User',
                     email,
                     verified: true,
                     googleId: profile.id,
-                    location: '', // default empty location
-                    gender: 'male', // default gender, can be updated later
-                    dateOfBirth: '', // default empty date of birth
-                    phone: '', // default empty phone
+                    role: roleFromFrontend, // ✅ assign role here
+                    location: '',
+                    gender: 'male',
+                    dateOfBirth: '',
+                    phone: '',
                 });
+                console.log('✅ New user created:', user._id);
             }
             catch (createError) {
                 console.error('❌ Error creating user:', createError);
@@ -51,9 +109,9 @@ passport_1.default.use(new passport_google_oauth20_1.Strategy({
         }
         else if (!user.googleId) {
             console.log('Linking existing user with Google account');
-            // Link existing user with Google account
             user.googleId = profile.id;
             user.verified = true;
+            // user.role = roleFromFrontend; // ✅ optionally update role
             yield user.save();
             console.log('User linked with Google account:', user._id);
         }

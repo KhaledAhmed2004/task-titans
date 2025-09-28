@@ -234,6 +234,14 @@ class AggregationBuilder {
     getTimeTrends(options) {
         return __awaiter(this, void 0, void 0, function* () {
             const { sumField, timeUnit, filter = {}, limit } = options;
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth(); // 0-indexed
+            // Only consider documents from the current year
+            const yearFilter = Object.assign(Object.assign({}, filter), { createdAt: {
+                    $gte: new Date(currentYear, 0, 1),
+                    $lte: new Date(currentYear, 11, 31),
+                } });
             const dateGrouping = {
                 day: {
                     year: { $year: '$createdAt' },
@@ -245,7 +253,7 @@ class AggregationBuilder {
                 year: { year: { $year: '$createdAt' } },
             };
             this.pipeline = [
-                { $match: filter },
+                { $match: yearFilter },
                 {
                     $group: {
                         _id: dateGrouping[timeUnit],
@@ -263,9 +271,6 @@ class AggregationBuilder {
                 },
             ];
             const results = yield this.execute();
-            const now = new Date();
-            const year = now.getFullYear();
-            // Auto-fill missing periods
             switch (timeUnit) {
                 case 'month': {
                     const months = Array.from({ length: 12 }, (_, i) => ({
@@ -274,16 +279,16 @@ class AggregationBuilder {
                         count: 0,
                     }));
                     results.forEach(item => {
-                        const monthIndex = item._id.month - 1;
-                        months[monthIndex] = {
+                        const index = item._id.month - 1;
+                        months[index] = {
                             month: item._id.month,
                             total: item.total,
                             count: item.count,
                         };
                     });
                     return months.map(m => ({
-                        month: new Date(year, m.month - 1).toLocaleString('default', {
-                            month: 'long',
+                        label: new Date(currentYear, m.month - 1).toLocaleString('default', {
+                            month: 'short',
                         }),
                         totalRevenue: m.total,
                         transactionCount: m.count,
@@ -296,49 +301,66 @@ class AggregationBuilder {
                         count: 0,
                     }));
                     results.forEach(item => {
-                        const weekIndex = item._id.week - 1;
-                        weeks[weekIndex] = {
-                            week: item._id.week,
-                            total: item.total,
-                            count: item.count,
-                        };
+                        if (item._id.year === currentYear) {
+                            const index = item._id.week - 1;
+                            weeks[index] = {
+                                week: item._id.week,
+                                total: item.total,
+                                count: item.count,
+                            };
+                        }
                     });
-                    return weeks;
+                    return weeks.map(w => ({
+                        label: `Week ${w.week}`,
+                        totalRevenue: w.total,
+                        transactionCount: w.count,
+                    }));
                 }
                 case 'day': {
-                    const daysInMonth = new Date(year, now.getMonth() + 1, 0).getDate();
+                    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
                     const days = Array.from({ length: daysInMonth }, (_, i) => ({
                         day: i + 1,
                         total: 0,
                         count: 0,
                     }));
                     results.forEach(item => {
-                        const dayIndex = item._id.day - 1;
-                        days[dayIndex] = {
-                            day: item._id.day,
-                            total: item.total,
-                            count: item.count,
-                        };
+                        if (item._id.year === currentYear &&
+                            item._id.month === currentMonth + 1) {
+                            const index = item._id.day - 1;
+                            days[index] = {
+                                day: item._id.day,
+                                total: item.total,
+                                count: item.count,
+                            };
+                        }
                     });
-                    return days;
+                    return days.map(d => ({
+                        label: `${now.toLocaleString('default', { month: 'short' })} ${d.day}`,
+                        totalRevenue: d.total,
+                        transactionCount: d.count,
+                    }));
                 }
                 case 'year': {
                     const years = Array.from({ length: 5 }, (_, i) => ({
-                        year: year - i,
+                        year: currentYear - i,
                         total: 0,
                         count: 0,
                     }));
                     results.forEach(item => {
-                        const yearIndex = years.findIndex(y => y.year === item._id.year);
-                        if (yearIndex >= 0) {
-                            years[yearIndex] = {
+                        const index = years.findIndex(y => y.year === item._id.year);
+                        if (index >= 0) {
+                            years[index] = {
                                 year: item._id.year,
                                 total: item.total,
                                 count: item.count,
                             };
                         }
                     });
-                    return years;
+                    return years.map(y => ({
+                        label: `${y.year}`,
+                        totalRevenue: y.total,
+                        transactionCount: y.count,
+                    }));
                 }
                 default:
                     return results;

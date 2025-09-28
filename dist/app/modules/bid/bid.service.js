@@ -28,16 +28,16 @@ const createBid = (bid, taskerId) => __awaiter(void 0, void 0, void 0, function*
     // 1️⃣ Find the task
     const task = yield task_model_1.TaskModel.findById(bid.taskId);
     if (!task)
-        throw new Error('Task not found');
+        throw new ApiError_1.default(http_status_codes_1.StatusCodes.NOT_FOUND, 'Task not found');
     // 2️⃣ Check if the task status allows bidding
     if (task.status === task_interface_1.TaskStatus.COMPLETED) {
-        throw new Error('Cannot place bid: Task is already completed');
+        throw new ApiError_1.default(http_status_codes_1.StatusCodes.BAD_REQUEST, 'Cannot place bid: Task is already completed');
     }
     if (task.status === task_interface_1.TaskStatus.CANCELLED) {
-        throw new Error('Cannot place bid: Task is already cancelled');
+        throw new ApiError_1.default(http_status_codes_1.StatusCodes.BAD_REQUEST, 'Cannot place bid: Task is already cancelled');
     }
     if (task.status === task_interface_1.TaskStatus.IN_PROGRESS) {
-        throw new Error('Cannot place bid: Task is already accepted');
+        throw new ApiError_1.default(http_status_codes_1.StatusCodes.BAD_REQUEST, 'Cannot place bid: Task is already accepted');
     }
     // 3️⃣ Check if the tasker has already placed a bid on this task
     const isBidExistByTasker = yield bid_model_1.BidModel.findOne({
@@ -45,7 +45,7 @@ const createBid = (bid, taskerId) => __awaiter(void 0, void 0, void 0, function*
         taskerId,
     });
     if (isBidExistByTasker)
-        throw new Error('You have already placed a bid for this task');
+        throw new ApiError_1.default(http_status_codes_1.StatusCodes.BAD_REQUEST, 'You have already placed a bid for this task');
     // 4️⃣ Create a new bid
     const newBid = yield bid_model_1.BidModel.create(Object.assign(Object.assign({}, bid), { taskerId, status: bid_interface_1.BidStatus.PENDING }));
     // 5️⃣ Prepare notification data for the task owner
@@ -119,7 +119,7 @@ const updateBid = (bidId, taskerId, bidUpdate) => __awaiter(void 0, void 0, void
         throw new Error('Amount must be greater than 0');
     // 6️⃣ Apply the updates
     Object.assign(bid, bidUpdate);
-    // 7️⃣ Save the bid and return  
+    // 7️⃣ Save the bid and return
     yield bid.save();
     return bid;
 });

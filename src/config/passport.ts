@@ -2,6 +2,7 @@ import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import config from './index';
 import { User } from '../app/modules/user/user.model';
+import { USER_ROLES } from '../enums/user';
 
 
 
@@ -81,8 +82,20 @@ passport.use(
           return done(new Error('No email found in Google profile'), undefined);
         }
 
-        // ✅ get role from frontend query param
-        const roleFromFrontend = req.query.role as string || 'POSTER';
+        // ✅ get role from state parameter (OAuth callback)
+        let roleFromFrontend: USER_ROLES = USER_ROLES.POSTER; // default
+        try {
+          if (req.query.state) {
+            const stateData = JSON.parse(Buffer.from(req.query.state as string, 'base64').toString());
+            const parsedRole = stateData.role;
+            // Validate that the role is a valid USER_ROLES value
+            if (parsedRole && Object.values(USER_ROLES).includes(parsedRole as USER_ROLES)) {
+              roleFromFrontend = parsedRole as USER_ROLES;
+            }
+          }
+        } catch (error) {
+          console.log('Could not parse state parameter, using default role');
+        }
         console.log('Role from frontend:', roleFromFrontend);
 
         let user = await User.findOne({ email });
@@ -110,11 +123,17 @@ passport.use(
           console.log('Linking existing user with Google account');
           user.googleId = profile.id;
           user.verified = true;
-          // user.role = roleFromFrontend; // ✅ optionally update role
+          user.role = roleFromFrontend; // ✅ update role when linking account
           await user.save();
           console.log('User linked with Google account:', user._id);
         } else {
           console.log('Existing Google user found:', user._id);
+          // ✅ Update role for existing Google users if different
+          if (user.role !== roleFromFrontend) {
+            user.role = roleFromFrontend;
+            await user.save();
+            console.log('✅ User role updated to:', roleFromFrontend);
+          }
         }
 
         return done(null, user);
