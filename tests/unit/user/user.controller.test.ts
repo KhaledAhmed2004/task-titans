@@ -7,6 +7,18 @@ import sendResponse from '../../../src/shared/sendResponse';
 import { getSingleFilePath } from '../../../src/shared/getFilePath';
 import { USER_STATUS } from '../../../src/enums/user';
 
+// Import reusable test utilities
+import { 
+  MockExpressFactory, 
+  ResponseAssertions, 
+  MockAssertions 
+} from '../../helpers';
+import { 
+  MockUserFixtures, 
+  MockResponseFixtures,
+  UserFixtures 
+} from '../../fixtures';
+
 // Mock dependencies
 vi.mock('../../../src/app/modules/user/user.service');
 vi.mock('../../../src/shared/sendResponse');
@@ -21,38 +33,19 @@ describe('UserController', () => {
     // Reset all mocks before each test
     vi.clearAllMocks();
 
-    // Setup mock request and response objects
-    mockRequest = {
-      body: {},
-      params: {},
-      query: {},
-      user: undefined,
-      files: undefined,
-    };
-
-    mockResponse = {
-      status: vi.fn().mockReturnThis(),
-      json: vi.fn().mockReturnThis(),
-    };
-
-    mockNext = vi.fn();
+    // Setup mock request and response objects using reusable helpers
+    const { mockRequest: req, mockResponse: res, mockNext: next } = MockExpressFactory.createExpressMocks();
+    mockRequest = req;
+    mockResponse = res;
+    mockNext = next;
   });
 
   describe('createUser', () => {
     describe('Successful User Creation', () => {
       it('should create user successfully with valid data', async () => {
         // Arrange
-        const userData = {
-          name: 'John Doe',
-          email: 'john@example.com',
-          password: 'password123',
-        };
-        const expectedResult = {
-          id: '64f123abc456def789012345',
-          name: 'John Doe',
-          email: 'john@example.com',
-          verified: false,
-        };
+        const userData = UserFixtures.validPoster;
+        const expectedResult = MockUserFixtures.poster;
 
         mockRequest.body = userData;
         (UserService.createUserToDB as Mock).mockResolvedValue(expectedResult);
@@ -61,10 +54,10 @@ describe('UserController', () => {
         await UserController.createUser(mockRequest as Request, mockResponse as Response, mockNext);
 
         // Assert
-        expect(UserService.createUserToDB).toHaveBeenCalledWith(userData);
-        expect(sendResponse).toHaveBeenCalledWith(mockResponse, {
-          success: true,
+        MockAssertions.assertServiceCalled(UserService.createUserToDB, userData);
+        ResponseAssertions.assertSuccessResponseUnit(sendResponse as Mock, mockResponse, {
           statusCode: StatusCodes.CREATED,
+          success: true,
           message: 'User created successfully',
           data: expectedResult,
         });
@@ -72,19 +65,8 @@ describe('UserController', () => {
 
       it('should handle user creation with optional fields', async () => {
         // Arrange
-        const userData = {
-          name: 'Jane Smith',
-          email: 'jane@example.com',
-          password: 'password123',
-          gender: 'female',
-          location: 'New York',
-          phone: '+1234567890',
-        };
-        const expectedResult = {
-          id: '64f123abc456def789012346',
-          ...userData,
-          verified: false,
-        };
+        const userData = UserFixtures.validTasker;
+        const expectedResult = MockUserFixtures.tasker;
 
         mockRequest.body = userData;
         (UserService.createUserToDB as Mock).mockResolvedValue(expectedResult);
@@ -93,10 +75,10 @@ describe('UserController', () => {
         await UserController.createUser(mockRequest as Request, mockResponse as Response, mockNext);
 
         // Assert
-        expect(UserService.createUserToDB).toHaveBeenCalledWith(userData);
-        expect(sendResponse).toHaveBeenCalledWith(mockResponse, {
-          success: true,
+        MockAssertions.assertServiceCalled(UserService.createUserToDB, userData);
+        ResponseAssertions.assertSuccessResponseUnit(sendResponse as Mock, mockResponse, {
           statusCode: StatusCodes.CREATED,
+          success: true,
           message: 'User created successfully',
           data: expectedResult,
         });
@@ -106,11 +88,7 @@ describe('UserController', () => {
     describe('Error Handling', () => {
       it('should handle service errors during user creation', async () => {
         // Arrange
-        const userData = {
-          name: 'John Doe',
-          email: 'john@example.com',
-          password: 'password123',
-        };
+        const userData = UserFixtures.validPoster;
         const serviceError = new Error('Email already exists');
 
         mockRequest.body = userData;
@@ -120,9 +98,9 @@ describe('UserController', () => {
         await UserController.createUser(mockRequest as Request, mockResponse as Response, mockNext);
 
         // Assert
-        expect(mockNext).toHaveBeenCalledWith(serviceError);
-        expect(UserService.createUserToDB).toHaveBeenCalledWith(userData);
-        expect(sendResponse).not.toHaveBeenCalled();
+        MockAssertions.assertErrorHandled(mockNext, serviceError);
+        MockAssertions.assertServiceCalled(UserService.createUserToDB, userData);
+        MockAssertions.assertNotCalled(sendResponse as Mock);
       });
     });
   });

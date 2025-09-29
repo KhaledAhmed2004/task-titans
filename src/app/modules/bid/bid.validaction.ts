@@ -5,7 +5,7 @@ const createBidZodSchema = z.object({
     amount: z
       .number({ required_error: 'Amount is required' })
       .positive({ message: 'Amount must be greater than 0' }),
-    message: z.string().optional(),
+    message: z.string({ required_error: 'Message is required' }).min(1, 'Message cannot be empty'),
   }),
 });
 

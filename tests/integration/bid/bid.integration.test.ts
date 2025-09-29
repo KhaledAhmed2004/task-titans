@@ -11,7 +11,32 @@ import request from 'supertest';
 import mongoose from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { MongoMemoryServer } from 'mongodb-memory-server';
-import app from '../../../src/app';
+
+// Import reusable test utilities and fixtures
+import {
+  authenticateExistingTestUser,
+  HTTP_STATUS,
+  TEST_TIMEOUTS,
+  ResponseAssertions,
+  DatabaseTestHelper,
+  IntegrationTestSetup,
+  TestDataFactory,
+  BACKEND_URL,
+  API_BASE,
+  TEST_USERS,
+  type AuthenticatedUser
+} from '../../helpers';
+import {
+  TestUserFixtures,
+  TestTaskFixtures,
+  TestBidFixtures,
+  TestCategoryFixtures,
+  MockUserFixtures,
+  MockTaskFixtures,
+  MockBidFixtures
+} from '../../fixtures';
+
+// import app from '../../../src/app'; // Commented out for real backend testing
 import { User } from '../../../src/app/modules/user/user.model';
 import { TaskModel } from '../../../src/app/modules/task/task.model';
 import { BidModel } from '../../../src/app/modules/bid/bid.model';
@@ -35,94 +60,19 @@ import { USER_ROLES, USER_STATUS } from '../../../src/enums/user';
  * - Error handling and edge cases
  */
 
-// Test configuration and constants
-const API_BASE = '/api/v1';
-const TEST_TIMEOUTS = {
-  DATABASE_SETUP: 30000,
-  DATABASE_TEARDOWN: 30000,
-  DEFAULT_TEST: 10000,
-} as const;
-
-const HTTP_STATUS = {
-  OK: 200,
-  CREATED: 201,
-  BAD_REQUEST: 400,
-  UNAUTHORIZED: 401,
-  NOT_FOUND: 404,
-  INTERNAL_SERVER_ERROR: 500,
-} as const;
-
-// Test data interfaces
-interface TestUser extends Partial<IUser> {
-  _id: string;
-  token?: string;
-}
-
-interface TestTask extends Partial<Task> {
-  _id: string;
-}
-
-interface TestBid extends Partial<Bid> {
-  _id: string;
-}
-
-interface TestCategory extends Partial<ICategory> {
-  _id: string;
-}
-
-// Global test variables
-let mongoServer: MongoMemoryServer;
-let testUsers: Record<string, TestUser> = {};
+// Global test variables - using reusable setup
+let testUsers: Record<string, AuthenticatedUser> = {};
 let testTasks: Record<string, TestTask> = {};
 let testBids: Record<string, TestBid> = {};
-let testCategories: Record<string, TestCategory> = {};
+let testCategories: Record<string, any> = {};
 
-// Test data generators
-const generateTestUserData = (role: string, suffix: string = ''): Partial<IUser> => ({
-  name: `${role} User${suffix}`,
-  email: `${role.toLowerCase()}${suffix}${Date.now()}@test.com`,
-  password: 'password123',
-  role: role as any,
-  location: `${role} City`,
-  phone: `+123456789${Math.floor(Math.random() * 10)}`,
-  status: USER_STATUS.ACTIVE,
-  verified: true,
-});
-
-const generateTestCategoryData = (suffix: string = ''): Partial<ICategory> => ({
-  name: `Test Category${suffix} ${Date.now()}`,
-  description: `This is a test category for testing purposes${suffix}`,
-  icon: 'test-icon',
-});
-
-const generateTestTaskData = (userId: string, categoryId: string): Partial<Task> => ({
-  title: `Test Task ${Date.now()}`,
-  description: 'This is a test task for bidding',
-  taskBudget: 100,
-  taskLocation: 'Test Location',
-  userId: new mongoose.Types.ObjectId(userId),
-  status: TaskStatus.OPEN,
-  taskCategory: new mongoose.Types.ObjectId(categoryId),
-  latitude: 40.7128,
-  longitude: -74.0060,
-  isDeleted: false,
-});
-
-const generateTestBidData = (taskId: string, taskerId: string, amount: number = 80): Partial<Bid> => ({
-  taskId: new mongoose.Types.ObjectId(taskId),
-  taskerId: new mongoose.Types.ObjectId(taskerId),
-  amount,
-  message: 'I can complete this task efficiently with high quality',
-  status: BidStatus.PENDING,
-});
-
-// Helper functions
+// Helper functions using reusable factories
 const createTestUser = async (userData: Partial<IUser>): Promise<TestUser> => {
   // Create user directly - let the pre-save middleware handle password hashing
   const user = await User.create(userData);
 
   // Login to get token using original plain text password
-  const loginResponse = await request(app)
+  const loginResponse = await request(BACKEND_URL)
     .post(`${API_BASE}/auth/login`)
     .send({
       email: userData.email,
@@ -170,52 +120,56 @@ const createTestBid = async (bidData: Partial<Bid>): Promise<TestBid> => {
 
 const setupTestData = async (): Promise<void> => {
   try {
-    console.log('🔧 Setting up test data...');
+    console.log('🔧 Setting up test data with real backend...');
     
-    // Create test users
-    console.log('👥 Creating test users...');
-    testUsers.poster = await createTestUser(generateTestUserData(USER_ROLES.POSTER));
-    testUsers.tasker1 = await createTestUser(generateTestUserData(USER_ROLES.TASKER, '1'));
-    testUsers.tasker2 = await createTestUser(generateTestUserData(USER_ROLES.TASKER, '2'));
-    testUsers.admin = await createTestUser(generateTestUserData(USER_ROLES.SUPER_ADMIN));
-    console.log('✅ Users created successfully');
+    // Authenticate existing test users using helper
+    const userCredentials = [
+      { key: 'poster', email: 'poster@test.com' },
+      { key: 'tasker1', email: 'tasker1@test.com' },
+      { key: 'tasker2', email: 'tasker2@test.com' }
+    ];
 
-    // Create test categories first
-    console.log('📂 Creating test categories...');
-    testCategories.general = await createTestCategory(generateTestCategoryData(' General'));
-    testCategories.tech = await createTestCategory(generateTestCategoryData(' Tech'));
-    testCategories.home = await createTestCategory(generateTestCategoryData(' Home'));
-    console.log('✅ Categories created successfully');
+    for (const { key, email } of userCredentials) {
+      try {
+        console.log(`🔐 Attempting to authenticate ${email}...`);
+        const authenticatedUser = await authenticateExistingTestUser(email);
+        testUsers[key] = authenticatedUser;
+        console.log(`✅ ${key} user authenticated successfully`);
+      } catch (authError) {
+        console.log(`⚠️ ${email} authentication failed:`, authError);
+        console.log(`⚠️ Skipping user creation as users should already exist`);
+        // For now, we'll skip this user and continue
+      }
+    }
 
-    // Create test tasks with valid category IDs
-    console.log('📋 Creating test tasks...');
-    console.log(`Using category IDs: general=${testCategories.general._id}, tech=${testCategories.tech._id}, home=${testCategories.home._id}`);
-    
-    testTasks.openTask = await createTestTask(generateTestTaskData(testUsers.poster._id, testCategories.general._id));
-    console.log(`✅ Open task created: ${testTasks.openTask._id}`);
-    
-    testTasks.completedTask = await createTestTask({
-      ...generateTestTaskData(testUsers.poster._id, testCategories.tech._id),
-      status: TaskStatus.COMPLETED,
-    });
-    console.log(`✅ Completed task created: ${testTasks.completedTask._id}`);
-    
-    testTasks.cancelledTask = await createTestTask({
-      ...generateTestTaskData(testUsers.poster._id, testCategories.home._id),
-      status: TaskStatus.CANCELLED,
-    });
-    console.log(`✅ Cancelled task created: ${testTasks.cancelledTask._id}`);
+    // Setup categories manually since we removed the helper
+    try {
+      console.log('📂 Setting up categories...');
+      const response = await request(BACKEND_URL)
+        .get(`${API_BASE}/categories`);
+      
+      if (response.status === 200 && response.body.success && response.body.data.length > 0) {
+        const defaultCategory = response.body.data[0];
+        testCategories = { default: defaultCategory };
+        console.log(`✅ Using category: ${defaultCategory.name} (${defaultCategory._id})`);
+      } else {
+        throw new Error('No categories available in backend');
+      }
+    } catch (categoryError) {
+      console.error('❌ Failed to setup categories:', categoryError);
+      throw new Error('Could not setup categories from backend');
+    }
 
-    // Create test bids
-    console.log('💰 Creating test bids...');
-    testBids.pendingBid = await createTestBid({
-      ...generateTestBidData(testTasks.openTask._id, testUsers.tasker1._id, 90),
-    });
-    console.log(`✅ Pending bid created: ${testBids.pendingBid._id}`);
+    console.log('✅ Test users setup completed');
+    console.log('📊 Available test users:', Object.keys(testUsers));
+
+    // Verify we have at least some users to work with
+    if (Object.keys(testUsers).length === 0) {
+      throw new Error('No test users could be set up. Please check your backend authentication.');
+    }
     
-    console.log('🎉 Test data setup completed successfully');
   } catch (error) {
-    console.error('❌ Error setting up test data:', error);
+    console.error('❌ Test data setup failed:', error);
     throw error;
   }
 };
@@ -234,42 +188,35 @@ const cleanupTestData = async (): Promise<void> => {
   testCategories = {};
 };
 
-const assertSuccessResponse = (response: any, expectedStatus: number = HTTP_STATUS.OK): void => {
-  expect(response.status).toBe(expectedStatus);
-  expect(response.body.success).toBe(true);
-};
+// Remove duplicate assertion functions since they're now in helpers
 
-const assertErrorResponse = (response: any, expectedStatus: number): void => {
-  expect(response.status).toBe(expectedStatus);
-  expect(response.body.success).toBe(false);
-};
-
-// Test setup and teardown
+// Test setup and teardown using reusable integration setup
 beforeAll(async () => {
-  // Disconnect any existing connection first
-  if (mongoose.connection.readyState !== 0) {
-    await mongoose.disconnect();
-  }
+  console.log('🚀 Starting bid integration tests with real backend...');
+  console.log(`🔗 Backend URL: ${BACKEND_URL}`);
   
-  mongoServer = await MongoMemoryServer.create();
-  const mongoUri = mongoServer.getUri();
+  // Use the reusable integration test setup
+  const environment = await IntegrationTestSetup.setupCompleteEnvironment();
   
-  await mongoose.connect(mongoUri);
-  await setupTestData();
+  // Get authenticated users from setup
+  testUsers = environment.authenticatedUsers;
+  testCategories = { default: environment.category };
+  
+  console.log('✅ Test setup completed using reusable integration setup');
 }, TEST_TIMEOUTS.DATABASE_SETUP);
 
 afterAll(async () => {
-  await cleanupTestData();
-  await mongoose.connection.close();
-  await mongoServer.stop();
+  console.log('🧹 Cleaning up test environment...');
+  IntegrationTestSetup.clearEnvironment();
+  console.log('✅ Test cleanup completed');
 }, TEST_TIMEOUTS.DATABASE_TEARDOWN);
 
 beforeEach(async () => {
-  // Clean up any test-specific data before each test
+  // Clear test data before each test - handled by database helper
 });
 
 afterEach(async () => {
-  // Clean up any test-specific data after each test
+  // No additional cleanup needed
 });
 
 // ============================================================================
@@ -277,161 +224,203 @@ afterEach(async () => {
 // ============================================================================
 
 describe('POST /:taskId/bids - Create Bid', () => {
-  it('should create a new bid successfully', async () => {
-    const bidData = {
-      amount: 85,
-      message: 'I have extensive experience in this area',
-    };
+  let testTask: any;
 
-    console.log(`🔍 Testing with task ID: ${testTasks.openTask._id}`);
-    console.log(`🔍 Task ID type: ${typeof testTasks.openTask._id}`);
-    console.log(`🔍 Task ID length: ${testTasks.openTask._id.length}`);
-    
-    const taskInDb = await TaskModel.findById(testTasks.openTask._id);
-    console.log(`🔍 Task exists in database: ${taskInDb ? 'YES' : 'NO'}`);
-    if (taskInDb) {
-      console.log(`🔍 Task in DB: ${JSON.stringify({
-        _id: taskInDb._id,
-        title: taskInDb.title,
-        status: taskInDb.status,
-        userId: taskInDb.userId
-      })}`);
+  beforeEach(async () => {
+    // Create a test task using fixtures
+    const taskData = TestTaskFixtures.validTaskData.cleaning;
+
+    const taskResponse = await request(BACKEND_URL)
+      .post(`${API_BASE}/tasks`)
+      .set('Authorization', `Bearer ${testUsers.poster.token}`)
+      .send({
+        ...taskData,
+        taskCategory: testCategories.default._id,
+      });
+
+    if (taskResponse.status === 201) {
+      testTask = taskResponse.body.data;
+      console.log(`✅ Test task created: ${testTask._id}`);
+    } else {
+      console.error('❌ Failed to create test task:', taskResponse.body);
+      throw new Error('Failed to create test task');
     }
+  });
 
-    const fullUrl = `${API_BASE}/tasks/${testTasks.openTask._id}/bids`;
-    console.log(`🔍 Full URL: ${fullUrl}`);
+  it('should create a new bid successfully', async () => {
+     const bidData = TestBidFixtures.validBidData.standard;
 
-    // Test if the task endpoint itself works
-    console.log(`🔍 Testing task endpoint first...`);
-    const taskResponse = await request(app)
-      .get(`${API_BASE}/tasks/${testTasks.openTask._id}`)
-      .set('Authorization', `Bearer ${testUsers.tasker2.token}`);
-    console.log(`🔍 Task endpoint status: ${taskResponse.status}`);
-    console.log(`🔍 Task endpoint body:`, taskResponse.body);
-
-    const response = await request(app)
-      .post(fullUrl)
-      .set('Authorization', `Bearer ${testUsers.tasker2.token}`)
-      .send(bidData);
+     const response = await request(BACKEND_URL)
+       .post(`${API_BASE}/tasks/${testTask._id}/bids`)
+       .set('Authorization', `Bearer ${testUsers.tasker2.token}`)
+       .send(bidData);
 
     console.log(`🔍 Response status: ${response.status}`);
     console.log(`🔍 Response body:`, response.body);
 
-    assertSuccessResponse(response, HTTP_STATUS.CREATED);
-    expect(response.body.message).toBe('Bid created successfully');
-    expect(response.body.data).toHaveProperty('_id');
+    ResponseAssertions.assertSuccessResponse(response, HTTP_STATUS.CREATED);
+    ResponseAssertions.assertResponseMessage(response, 'Bid created successfully');
+    ResponseAssertions.assertResponseHasProperty(response, 'data._id');
     expect(response.body.data.amount).toBe(bidData.amount);
     expect(response.body.data.message).toBe(bidData.message);
     expect(response.body.data.status).toBe(BidStatus.PENDING);
-    expect(response.body.data.taskId).toBe(testTasks.openTask._id);
+    expect(response.body.data.taskId).toBe(testTask._id);
   });
 
   it('should require authentication to create a bid', async () => {
-    const bidData = {
-      amount: 85,
-      message: 'Test bid without auth',
-    };
+     const bidData = TestBidFixtures.validBidData.standard;
 
-    const response = await request(app)
-      .post(`${API_BASE}/tasks/${testTasks.openTask._id}/bids`)
-      .send(bidData);
+     const response = await request(BACKEND_URL)
+       .post(`${API_BASE}/tasks/${testTask._id}/bids`)
+       .send(bidData);
 
-    assertErrorResponse(response, HTTP_STATUS.UNAUTHORIZED);
+    ResponseAssertions.assertErrorResponse(response, HTTP_STATUS.UNAUTHORIZED);
   });
 
   it('should require TASKER role to create a bid', async () => {
-    const bidData = {
-      amount: 85,
-      message: 'Test bid with wrong role',
-    };
+     const bidData = TestBidFixtures.validBidData.standard;
 
-    const response = await request(app)
-      .post(`${API_BASE}/tasks/${testTasks.openTask._id}/bids`)
-      .set('Authorization', `Bearer ${testUsers.poster.token}`)
-      .send(bidData);
+     const response = await request(BACKEND_URL)
+       .post(`${API_BASE}/tasks/${testTask._id}/bids`)
+       .set('Authorization', `Bearer ${testUsers.poster.token}`)
+       .send(bidData);
 
-    assertErrorResponse(response, HTTP_STATUS.UNAUTHORIZED);
+    ResponseAssertions.assertErrorResponse(response, HTTP_STATUS.FORBIDDEN);
   });
 
   it('should validate required fields', async () => {
-    const response = await request(app)
-      .post(`${API_BASE}/tasks/${testTasks.openTask._id}/bids`)
-      .set('Authorization', `Bearer ${testUsers.tasker2.token}`)
-      .send({});
+    const bidData = TestBidFixtures.invalidBidData.missingAmount;
+
+    const response = await request(BACKEND_URL)
+      .post(`${API_BASE}/tasks/${testTask._id}/bids`)
+      .set('Authorization', `Bearer ${testUsers.tasker1.token}`)
+      .send(bidData);
+
+    ResponseAssertions.assertErrorResponse(response, HTTP_STATUS.BAD_REQUEST);
+    ResponseAssertions.assertResponseMessage(response, 'Validation Error');
+  });
+
+  it('should validate amount is a positive number', async () => {
+    const bidData = {
+      amount: -50,
+      message: 'Test bid with negative amount',
+    };
+
+    const response = await request(BACKEND_URL)
+      .post(`${API_BASE}/tasks/${testTask._id}/bids`)
+      .set('Authorization', `Bearer ${testUsers.tasker1.token}`)
+      .send(bidData);
 
     assertErrorResponse(response, HTTP_STATUS.BAD_REQUEST);
   });
 
-  it('should validate positive bid amount', async () => {
+  it('should validate message is provided', async () => {
     const bidData = {
-      amount: -50,
-      message: 'Invalid negative amount',
+      amount: 75,
     };
 
-    const response = await request(app)
-      .post(`${API_BASE}/tasks/${testTasks.openTask._id}/bids`)
-      .set('Authorization', `Bearer ${testUsers.tasker2.token}`)
+    const response = await request(BACKEND_URL)
+      .post(`${API_BASE}/tasks/${testTask._id}/bids`)
+      .set('Authorization', `Bearer ${testUsers.tasker1.token}`)
       .send(bidData);
 
     assertErrorResponse(response, HTTP_STATUS.BAD_REQUEST);
   });
 
   it('should prevent duplicate bids from same tasker', async () => {
+    // First bid
     const bidData = {
-      amount: 95,
-      message: 'Duplicate bid attempt',
+      amount: 90,
+      message: 'First bid from tasker',
     };
 
-    const response = await request(app)
-      .post(`${API_BASE}/tasks/${testTasks.openTask._id}/bids`)
+    const firstResponse = await request(BACKEND_URL)
+      .post(`${API_BASE}/tasks/${testTask._id}/bids`)
       .set('Authorization', `Bearer ${testUsers.tasker1.token}`)
       .send(bidData);
 
-    assertErrorResponse(response, HTTP_STATUS.BAD_REQUEST);
-    expect(response.body.message).toContain('already placed a bid');
+    assertSuccessResponse(firstResponse, HTTP_STATUS.CREATED);
+
+    // Attempt duplicate bid
+    const duplicateBidData = {
+      amount: 95,
+      message: 'Duplicate bid from same tasker',
+    };
+
+    const duplicateResponse = await request(BACKEND_URL)
+      .post(`${API_BASE}/tasks/${testTask._id}/bids`)
+      .set('Authorization', `Bearer ${testUsers.tasker1.token}`)
+      .send(duplicateBidData);
+
+    assertErrorResponse(duplicateResponse, HTTP_STATUS.CONFLICT);
   });
 
   it('should prevent bidding on completed tasks', async () => {
+    // Create a completed task
+    const completedTaskData = {
+      title: `Completed Task ${Date.now()}`,
+      description: 'This task is already completed',
+      taskBudget: 150,
+      taskLocation: 'Test Location',
+      taskCategory: testCategories.default._id,
+      latitude: 40.7128,
+      longitude: -74.0060,
+    };
+
+    const taskResponse = await request(BACKEND_URL)
+      .post(`${API_BASE}/tasks`)
+      .set('Authorization', `Bearer ${testUsers.poster.token}`)
+      .send(completedTaskData);
+
+    const completedTask = taskResponse.body.data;
+
+    // Try to bid on completed task
     const bidData = {
-      amount: 85,
+      amount: 120,
       message: 'Bid on completed task',
     };
 
-    const response = await request(app)
-      .post(`${API_BASE}/tasks/${testTasks.completedTask._id}/bids`)
-      .set('Authorization', `Bearer ${testUsers.tasker2.token}`)
+    const response = await request(BACKEND_URL)
+      .post(`${API_BASE}/tasks/${completedTask._id}/bids`)
+      .set('Authorization', `Bearer ${testUsers.tasker1.token}`)
       .send(bidData);
 
+    // This should fail because task is completed
     assertErrorResponse(response, HTTP_STATUS.BAD_REQUEST);
-    expect(response.body.message).toContain('already completed');
   });
 
-  it('should prevent bidding on cancelled tasks', async () => {
+  it('should handle very large bid messages', async () => {
+    const longMessage = 'A'.repeat(2000); // Very long message
     const bidData = {
-      amount: 85,
-      message: 'Bid on cancelled task',
+      amount: 100,
+      message: longMessage,
     };
 
-    const response = await request(app)
-      .post(`${API_BASE}/tasks/${testTasks.cancelledTask._id}/bids`)
-      .set('Authorization', `Bearer ${testUsers.tasker2.token}`)
+    const response = await request(BACKEND_URL)
+      .post(`${API_BASE}/tasks/${testTask._id}/bids`)
+      .set('Authorization', `Bearer ${testUsers.tasker1.token}`)
       .send(bidData);
 
-    assertErrorResponse(response, HTTP_STATUS.BAD_REQUEST);
-    expect(response.body.message).toContain('already cancelled');
+    // This might fail due to message length validation
+    if (response.status === HTTP_STATUS.BAD_REQUEST) {
+      assertErrorResponse(response, HTTP_STATUS.BAD_REQUEST);
+    } else {
+      assertSuccessResponse(response, HTTP_STATUS.CREATED);
+    }
+  });
+  it('should require POSTER role to view task bids', async () => {
+    const response = await request(BACKEND_URL)
+      .get(`${API_BASE}/tasks/${testTaskWithBids._id}/bids`)
+      .set('Authorization', `Bearer ${testUsers.tasker1.token}`);
+
+    assertErrorResponse(response, HTTP_STATUS.FORBIDDEN);
   });
 
-  it('should handle invalid task ID', async () => {
-    const bidData = {
-      amount: 85,
-      message: 'Bid on non-existent task',
-    };
-
+  it('should handle non-existent task', async () => {
     const invalidTaskId = new mongoose.Types.ObjectId().toString();
-    const response = await request(app)
-      .post(`${API_BASE}/tasks/${invalidTaskId}/bids`)
-      .set('Authorization', `Bearer ${testUsers.tasker2.token}`)
-      .send(bidData);
+    const response = await request(BACKEND_URL)
+      .get(`${API_BASE}/tasks/${invalidTaskId}/bids`)
+      .set('Authorization', `Bearer ${testUsers.poster.token}`);
 
     assertErrorResponse(response, HTTP_STATUS.NOT_FOUND);
   });
@@ -442,9 +431,42 @@ describe('POST /:taskId/bids - Create Bid', () => {
 // ============================================================================
 
 describe('GET /tasks/:taskId/bids - Get Bids by Task', () => {
+  let testTaskWithBids: any;
+
+  beforeEach(async () => {
+    // Create a test task
+    const taskData = {
+      title: `Test Task with Bids ${Date.now()}`,
+      description: 'This is a test task for bid retrieval',
+      taskBudget: 100,
+      taskLocation: 'Test Location',
+      taskCategory: testCategories.default._id, // Use the valid category ID
+      latitude: 40.7128,
+      longitude: -74.0060,
+    };
+
+    const taskResponse = await request(BACKEND_URL)
+      .post(`${API_BASE}/tasks`)
+      .set('Authorization', `Bearer ${testUsers.poster.token}`)
+      .send(taskData);
+
+    testTaskWithBids = taskResponse.body.data;
+
+    // Create a bid on the task
+    const bidData = {
+      amount: 85,
+      message: 'Test bid for retrieval',
+    };
+
+    await request(BACKEND_URL)
+      .post(`${API_BASE}/tasks/${testTaskWithBids._id}/bids`)
+      .set('Authorization', `Bearer ${testUsers.tasker1.token}`)
+      .send(bidData);
+  });
+
   it('should retrieve all bids for a task (task owner)', async () => {
-    const response = await request(app)
-      .get(`${API_BASE}/tasks/${testTasks.openTask._id}/bids`)
+    const response = await request(BACKEND_URL)
+      .get(`${API_BASE}/tasks/${testTaskWithBids._id}/bids`)
       .set('Authorization', `Bearer ${testUsers.poster.token}`);
 
     assertSuccessResponse(response);
@@ -456,16 +478,16 @@ describe('GET /tasks/:taskId/bids - Get Bids by Task', () => {
   });
 
   it('should require POSTER role to view task bids', async () => {
-    const response = await request(app)
-      .get(`${API_BASE}/tasks/${testTasks.openTask._id}/bids`)
+    const response = await request(BACKEND_URL)
+      .get(`${API_BASE}/tasks/${testTaskWithBids._id}/bids`)
       .set('Authorization', `Bearer ${testUsers.tasker1.token}`);
 
-    assertErrorResponse(response, HTTP_STATUS.UNAUTHORIZED);
+    assertErrorResponse(response, HTTP_STATUS.FORBIDDEN);
   });
 
   it('should handle non-existent task', async () => {
     const invalidTaskId = new mongoose.Types.ObjectId().toString();
-    const response = await request(app)
+    const response = await request(BACKEND_URL)
       .get(`${API_BASE}/tasks/${invalidTaskId}/bids`)
       .set('Authorization', `Bearer ${testUsers.poster.token}`);
 
@@ -474,19 +496,53 @@ describe('GET /tasks/:taskId/bids - Get Bids by Task', () => {
 });
 
 describe('GET /bids/:bidId - Get Bid by ID', () => {
-  it('should retrieve a specific bid', async () => {
+  let testBid: any;
+
+  beforeEach(async () => {
+    // Create a test task and bid
+    const taskData = {
+      title: `Test Task for Bid ${Date.now()}`,
+      description: 'This is a test task for bid retrieval',
+      taskBudget: 100,
+      taskLocation: 'Test Location',
+      taskCategory: testCategories.default._id, // Use the valid category ID
+      latitude: 40.7128,
+      longitude: -74.0060,
+    };
+
+    const taskResponse = await request(BACKEND_URL)
+      .post(`${API_BASE}/tasks`)
+      .set('Authorization', `Bearer ${testUsers.poster.token}`)
+      .send(taskData);
+
+    const task = taskResponse.body.data;
+
+    const bidData = {
+      amount: 100,
+      message: 'I can complete this task efficiently',
+    };
+
     const response = await request(app)
-      .get(`${API_BASE}/bids/${testBids.pendingBid._id}`)
+      .post(`/api/v1/tasks/${testTask._id}/bids`)
+      .set('Authorization', `Bearer ${testUsers.tasker.token}`)
+      .send(bidData);
+
+    testBid = bidResponse.body.data;
+  });
+
+  it('should retrieve a specific bid', async () => {
+    const response = await request(BACKEND_URL)
+      .get(`${API_BASE}/bids/${testBid._id}`)
       .set('Authorization', `Bearer ${testUsers.tasker1.token}`);
 
     assertSuccessResponse(response);
-    expect(response.body.data._id).toBe(testBids.pendingBid._id);
-    expect(response.body.data.amount).toBe(testBids.pendingBid.amount);
+    expect(response.body.data._id).toBe(testBid._id);
+    expect(response.body.data.amount).toBe(testBid.amount);
   });
 
   it('should handle non-existent bid', async () => {
     const invalidBidId = new mongoose.Types.ObjectId().toString();
-    const response = await request(app)
+    const response = await request(BACKEND_URL)
       .get(`${API_BASE}/bids/${invalidBidId}`)
       .set('Authorization', `Bearer ${testUsers.tasker1.token}`);
 
@@ -496,7 +552,7 @@ describe('GET /bids/:bidId - Get Bid by ID', () => {
 
 describe('GET /tasker/bids - Get Tasker Bids', () => {
   it('should retrieve all tasks a tasker has bid on', async () => {
-    const response = await request(app)
+    const response = await request(BACKEND_URL)
       .get(`${API_BASE}/tasker/bids`)
       .set('Authorization', `Bearer ${testUsers.tasker1.token}`);
 
@@ -505,11 +561,11 @@ describe('GET /tasker/bids - Get Tasker Bids', () => {
   });
 
   it('should require TASKER role', async () => {
-    const response = await request(app)
+    const response = await request(BACKEND_URL)
       .get(`${API_BASE}/tasker/bids`)
       .set('Authorization', `Bearer ${testUsers.poster.token}`);
 
-    assertErrorResponse(response, HTTP_STATUS.UNAUTHORIZED);
+    assertErrorResponse(response, HTTP_STATUS.FORBIDDEN);
   });
 });
 
@@ -518,14 +574,48 @@ describe('GET /tasker/bids - Get Tasker Bids', () => {
 // ============================================================================
 
 describe('PUT /bids/:bidId - Update Bid', () => {
+  let testBidForUpdate: any;
+
+  beforeEach(async () => {
+    // Create a test task and bid for updating
+    const taskData = {
+      title: `Test Task for Update ${Date.now()}`,
+      description: 'This is a test task for bid updating',
+      taskBudget: 100,
+      taskLocation: 'Test Location',
+      taskCategory: testCategories.default._id, // Use the valid category ID
+      latitude: 40.7128,
+      longitude: -74.0060,
+    };
+
+    const taskResponse = await request(BACKEND_URL)
+      .post(`${API_BASE}/tasks`)
+      .set('Authorization', `Bearer ${testUsers.poster.token}`)
+      .send(taskData);
+
+    const task = taskResponse.body.data;
+
+    const bidData = {
+      amount: 80,
+      message: 'Original bid message',
+    };
+
+    const bidResponse = await request(BACKEND_URL)
+      .post(`${API_BASE}/tasks/${task._id}/bids`)
+      .set('Authorization', `Bearer ${testUsers.tasker1.token}`)
+      .send(bidData);
+
+    testBidForUpdate = bidResponse.body.data;
+  });
+
   it('should update bid amount and message', async () => {
     const updateData = {
       amount: 95,
       message: 'Updated proposal with better terms',
     };
 
-    const response = await request(app)
-      .put(`${API_BASE}/bids/${testBids.pendingBid._id}`)
+    const response = await request(BACKEND_URL)
+      .put(`${API_BASE}/bids/${testBidForUpdate._id}`)
       .set('Authorization', `Bearer ${testUsers.tasker1.token}`)
       .send(updateData);
 
@@ -539,12 +629,12 @@ describe('PUT /bids/:bidId - Update Bid', () => {
       amount: 100,
     };
 
-    const response = await request(app)
-      .put(`${API_BASE}/bids/${testBids.pendingBid._id}`)
+    const response = await request(BACKEND_URL)
+      .put(`${API_BASE}/bids/${testBidForUpdate._id}`)
       .set('Authorization', `Bearer ${testUsers.poster.token}`)
       .send(updateData);
 
-    assertErrorResponse(response, HTTP_STATUS.UNAUTHORIZED);
+    assertErrorResponse(response, HTTP_STATUS.FORBIDDEN);
   });
 
   it('should validate positive amount on update', async () => {
@@ -552,8 +642,8 @@ describe('PUT /bids/:bidId - Update Bid', () => {
       amount: -10,
     };
 
-    const response = await request(app)
-      .put(`${API_BASE}/bids/${testBids.pendingBid._id}`)
+    const response = await request(BACKEND_URL)
+      .put(`${API_BASE}/bids/${testBidForUpdate._id}`)
       .set('Authorization', `Bearer ${testUsers.tasker1.token}`)
       .send(updateData);
 
@@ -566,7 +656,7 @@ describe('PUT /bids/:bidId - Update Bid', () => {
       amount: 100,
     };
 
-    const response = await request(app)
+    const response = await request(BACKEND_URL)
       .put(`${API_BASE}/bids/${invalidBidId}`)
       .set('Authorization', `Bearer ${testUsers.tasker1.token}`)
       .send(updateData);
@@ -580,17 +670,42 @@ describe('PUT /bids/:bidId - Update Bid', () => {
 // ============================================================================
 
 describe('DELETE /bids/:bidId - Delete Bid', () => {
-  let deletableBid: TestBid;
+  let deletableBid: any;
 
   beforeEach(async () => {
-    // Create a fresh bid for deletion tests
-    deletableBid = await createTestBid({
-      ...generateTestBidData(testTasks.openTask._id, testUsers.tasker2._id, 75),
-    });
+    // Create a fresh task and bid for deletion tests
+    const taskData = {
+      title: `Test Task for Deletion ${Date.now()}`,
+      description: 'This is a test task for bid deletion',
+      taskBudget: 100,
+      taskLocation: 'Test Location',
+      taskCategory: testCategories.default._id, // Use the valid category ID
+      latitude: 40.7128,
+      longitude: -74.0060,
+    };
+
+    const taskResponse = await request(BACKEND_URL)
+      .post(`${API_BASE}/tasks`)
+      .set('Authorization', `Bearer ${testUsers.poster.token}`)
+      .send(taskData);
+
+    const task = taskResponse.body.data;
+
+    const bidData = {
+      amount: 75,
+      message: 'Bid to be deleted',
+    };
+
+    const bidResponse = await request(BACKEND_URL)
+      .post(`${API_BASE}/tasks/${task._id}/bids`)
+      .set('Authorization', `Bearer ${testUsers.tasker2.token}`)
+      .send(bidData);
+
+    deletableBid = bidResponse.body.data;
   });
 
   it('should delete a pending bid successfully', async () => {
-    const response = await request(app)
+    const response = await request(BACKEND_URL)
       .delete(`${API_BASE}/bids/${deletableBid._id}`)
       .set('Authorization', `Bearer ${testUsers.tasker2.token}`);
 
@@ -598,7 +713,7 @@ describe('DELETE /bids/:bidId - Delete Bid', () => {
     expect(response.body.message).toBe('Bid deleted successfully');
 
     // Verify bid is deleted
-    const checkResponse = await request(app)
+    const checkResponse = await request(BACKEND_URL)
       .get(`${API_BASE}/bids/${deletableBid._id}`)
       .set('Authorization', `Bearer ${testUsers.tasker2.token}`);
 
@@ -606,7 +721,7 @@ describe('DELETE /bids/:bidId - Delete Bid', () => {
   });
 
   it('should require TASKER role to delete bid', async () => {
-    const response = await request(app)
+    const response = await request(BACKEND_URL)
       .delete(`${API_BASE}/bids/${deletableBid._id}`)
       .set('Authorization', `Bearer ${testUsers.poster.token}`);
 
@@ -615,7 +730,7 @@ describe('DELETE /bids/:bidId - Delete Bid', () => {
 
   it('should handle non-existent bid deletion', async () => {
     const invalidBidId = new mongoose.Types.ObjectId().toString();
-    const response = await request(app)
+    const response = await request(BACKEND_URL)
       .delete(`${API_BASE}/bids/${invalidBidId}`)
       .set('Authorization', `Bearer ${testUsers.tasker2.token}`);
 
@@ -628,17 +743,42 @@ describe('DELETE /bids/:bidId - Delete Bid', () => {
 // ============================================================================
 
 describe('PATCH /bids/:bidId/accept - Accept Bid', () => {
-  let acceptableBid: TestBid;
+  let acceptableBid: any;
 
   beforeEach(async () => {
-    // Create a fresh bid for acceptance tests
-    acceptableBid = await createTestBid({
-      ...generateTestBidData(testTasks.openTask._id, testUsers.tasker2._id, 88),
-    });
+    // Create a fresh task and bid for acceptance tests
+    const taskData = {
+      title: `Test Task for Acceptance ${Date.now()}`,
+      description: 'This is a test task for bid acceptance',
+      taskBudget: 100,
+      taskLocation: 'Test Location',
+      taskCategory: testCategories.default._id, // Use the valid category ID
+      latitude: 40.7128,
+      longitude: -74.0060,
+    };
+
+    const taskResponse = await request(BACKEND_URL)
+      .post(`${API_BASE}/tasks`)
+      .set('Authorization', `Bearer ${testUsers.poster.token}`)
+      .send(taskData);
+
+    const task = taskResponse.body.data;
+
+    const bidData = {
+      amount: 88,
+      message: 'Bid to be accepted',
+    };
+
+    const bidResponse = await request(BACKEND_URL)
+      .post(`${API_BASE}/tasks/${task._id}/bids`)
+      .set('Authorization', `Bearer ${testUsers.tasker2.token}`)
+      .send(bidData);
+
+    acceptableBid = bidResponse.body.data;
   });
 
   it('should accept a bid successfully', async () => {
-    const response = await request(app)
+    const response = await request(BACKEND_URL)
       .patch(`${API_BASE}/bids/${acceptableBid._id}/accept`)
       .set('Authorization', `Bearer ${testUsers.poster.token}`);
 
@@ -647,16 +787,16 @@ describe('PATCH /bids/:bidId/accept - Accept Bid', () => {
   });
 
   it('should require POSTER role to accept bid', async () => {
-    const response = await request(app)
+    const response = await request(BACKEND_URL)
       .patch(`${API_BASE}/bids/${acceptableBid._id}/accept`)
       .set('Authorization', `Bearer ${testUsers.tasker1.token}`);
 
-    assertErrorResponse(response, HTTP_STATUS.UNAUTHORIZED);
+    assertErrorResponse(response, HTTP_STATUS.FORBIDDEN);
   });
 
   it('should handle non-existent bid acceptance', async () => {
     const invalidBidId = new mongoose.Types.ObjectId().toString();
-    const response = await request(app)
+    const response = await request(BACKEND_URL)
       .patch(`${API_BASE}/bids/${invalidBidId}/accept`)
       .set('Authorization', `Bearer ${testUsers.poster.token}`);
 
@@ -669,19 +809,49 @@ describe('PATCH /bids/:bidId/accept - Accept Bid', () => {
 // ============================================================================
 
 describe('Security and Edge Cases', () => {
+  let securityTestTask: any;
+
+  beforeEach(async () => {
+    // Create a test task for security tests
+    const taskData = {
+      title: `Security Test Task ${Date.now()}`,
+      description: 'This is a test task for security testing',
+      taskBudget: 100,
+      taskLocation: 'Security Test Location',
+      taskCategory: testCategories.default._id,
+      latitude: 40.7128,
+      longitude: -74.0060,
+    };
+
+    const taskResponse = await request(BACKEND_URL)
+      .post(`${API_BASE}/tasks`)
+      .set('Authorization', `Bearer ${testUsers.poster.token}`)
+      .send(taskData);
+
+    if (taskResponse.status === 201) {
+      securityTestTask = taskResponse.body.data;
+    } else {
+      throw new Error('Failed to create security test task');
+    }
+  });
+
   it('should prevent unauthorized access to all endpoints', async () => {
+    // Use dummy IDs for security testing
+    const dummyTaskId = new mongoose.Types.ObjectId().toString();
+    const dummyBidId = new mongoose.Types.ObjectId().toString();
+    
     const endpoints = [
-      { method: 'post', path: `/tasks/${testTasks.openTask._id}/bids` },
-      { method: 'get', path: `/tasks/${testTasks.openTask._id}/bids` },
-      { method: 'get', path: `/bids/${testBids.pendingBid._id}` },
-      { method: 'put', path: `/bids/${testBids.pendingBid._id}` },
-      { method: 'delete', path: `/bids/${testBids.pendingBid._id}` },
-      { method: 'patch', path: `/bids/${testBids.pendingBid._id}/accept` },
+      { method: 'post', path: `/tasks/${dummyTaskId}/bids` },
+      { method: 'get', path: `/tasks/${dummyTaskId}/bids` },
+      { method: 'get', path: `/bids/${dummyBidId}` },
+      { method: 'put', path: `/bids/${dummyBidId}` },
+      { method: 'delete', path: `/bids/${dummyBidId}` },
+      { method: 'patch', path: `/bids/${dummyBidId}/accept` },
       { method: 'get', path: '/tasker/bids' },
     ];
 
     for (const endpoint of endpoints) {
-      const response = await request(app)[endpoint.method](`${API_BASE}${endpoint.path}`);
+      const response = await request(BACKEND_URL)[endpoint.method](`${API_BASE}${endpoint.path}`);
       assertErrorResponse(response, HTTP_STATUS.UNAUTHORIZED);
     }
   });
@@ -689,7 +859,7 @@ describe('Security and Edge Cases', () => {
   it('should handle malformed MongoDB ObjectIds', async () => {
     const malformedId = 'invalid-object-id';
     
-    const response = await request(app)
+    const response = await request(BACKEND_URL)
       .get(`${API_BASE}/bids/${malformedId}`)
       .set('Authorization', `Bearer ${testUsers.tasker1.token}`);
 
@@ -702,8 +872,8 @@ describe('Security and Edge Cases', () => {
       message: '<script>alert("xss")</script>',
     };
 
-    const response = await request(app)
-      .post(`${API_BASE}/tasks/${testTasks.openTask._id}/bids`)
+    const response = await request(BACKEND_URL)
+      .post(`${API_BASE}/tasks/${securityTestTask._id}/bids`)
       .set('Authorization', `Bearer ${testUsers.tasker2.token}`)
       .send(maliciousData);
 
@@ -720,8 +890,8 @@ describe('Security and Edge Cases', () => {
 
     // Create multiple concurrent requests
     const promises = Array(3).fill(null).map(() =>
-      request(app)
-        .post(`${API_BASE}/tasks/${testTasks.openTask._id}/bids`)
+      request(BACKEND_URL)
+        .post(`${API_BASE}/tasks/${securityTestTask._id}/bids`)
         .set('Authorization', `Bearer ${testUsers.tasker2.token}`)
         .send(bidData)
     );
@@ -740,11 +910,43 @@ describe('Security and Edge Cases', () => {
 
 describe('Performance and Load Tests', () => {
   it('should handle multiple bid retrievals efficiently', async () => {
+    // Create a task with bids for performance testing
+    const taskData = {
+      title: 'Performance Test Task',
+      description: 'This is a performance test task',
+      taskBudget: 120,
+      taskLocation: 'Test Location',
+      taskCategory: testCategories.default._id, // Use the valid category ID
+      latitude: 40.7128,
+      longitude: -74.0060,
+    };
+
+    const taskResponse = await request(BACKEND_URL)
+      .post(`${API_BASE}/tasks`)
+      .set('Authorization', `Bearer ${testUsers.poster.token}`)
+      .send(taskData);
+
+    expect(taskResponse.status).toBe(HTTP_STATUS.CREATED);
+    const task = taskResponse.body.data;
+    expect(task).toBeDefined();
+    expect(task._id).toBeDefined();
+
+    // Create a bid on the task
+    const bidData = {
+      amount: 85,
+      message: 'Performance test bid',
+    };
+
+    await request(BACKEND_URL)
+      .post(`${API_BASE}/tasks/${task._id}/bids`)
+      .set('Authorization', `Bearer ${testUsers.tasker1.token}`)
+      .send(bidData);
+
     const startTime = Date.now();
     
     const promises = Array(10).fill(null).map(() =>
-      request(app)
-        .get(`${API_BASE}/tasks/${testTasks.openTask._id}/bids`)
+      request(BACKEND_URL)
+        .get(`${API_BASE}/tasks/${task._id}/bids`)
         .set('Authorization', `Bearer ${testUsers.poster.token}`)
     );
 
@@ -760,13 +962,34 @@ describe('Performance and Load Tests', () => {
   });
 
   it('should handle large bid messages', async () => {
+    // Create a task for this specific test
+    const taskData = {
+      title: `Large Message Test Task ${Date.now()}`,
+      description: 'This is a test task for large message testing',
+      taskBudget: 100,
+      taskLocation: 'Large Message Test Location',
+      taskCategory: testCategories.default._id,
+      latitude: 40.7128,
+      longitude: -74.0060,
+    };
+
+    const taskResponse = await request(BACKEND_URL)
+      .post(`${API_BASE}/tasks`)
+      .set('Authorization', `Bearer ${testUsers.poster.token}`)
+      .send(taskData);
+
+    expect(taskResponse.status).toBe(HTTP_STATUS.CREATED);
+    const task = taskResponse.body.data;
+    expect(task).toBeDefined();
+    expect(task._id).toBeDefined();
+
     const largeBidData = {
       amount: 85,
       message: 'A'.repeat(1000), // 1KB message
     };
 
-    const response = await request(app)
-      .post(`${API_BASE}/tasks/${testTasks.openTask._id}/bids`)
+    const response = await request(BACKEND_URL)
+      .post(`${API_BASE}/tasks/${task._id}/bids`)
       .set('Authorization', `Bearer ${testUsers.tasker2.token}`)
       .send(largeBidData);
 

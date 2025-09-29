@@ -14,7 +14,7 @@ const BidSchema = new mongoose.Schema<Bid>(
       required: true,
     },
     amount: { type: Number, required: true },
-    message: { type: String, required: false },
+    message: { type: String, required: true },
     status: { type: String, enum: Object.values(BidStatus), required: true },
   },
 
@@ -22,5 +22,8 @@ const BidSchema = new mongoose.Schema<Bid>(
     timestamps: true,
   }
 );
+
+// Create a unique compound index to prevent duplicate bids from the same tasker on the same task
+BidSchema.index({ taskId: 1, taskerId: 1 }, { unique: true });
 
 export const BidModel = mongoose.model<Bid>('Bid', BidSchema);
