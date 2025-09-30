@@ -15,7 +15,6 @@ import { MongoMemoryServer } from 'mongodb-memory-server';
 // Import reusable test utilities and fixtures
 import {
   authenticateExistingTestUser,
-  HTTP_STATUS,
   TEST_TIMEOUTS,
   ResponseAssertions,
   DatabaseTestHelper,
@@ -26,6 +25,7 @@ import {
   TEST_USERS,
   type AuthenticatedUser
 } from '../../helpers';
+import { StatusCodes } from 'http-status-codes';
 import {
   TestUserFixtures,
   TestTaskFixtures,
@@ -258,7 +258,7 @@ describe('POST /:taskId/bids - Create Bid', () => {
     console.log(`🔍 Response status: ${response.status}`);
     console.log(`🔍 Response body:`, response.body);
 
-    ResponseAssertions.assertSuccessResponse(response, HTTP_STATUS.CREATED);
+    ResponseAssertions.assertSuccessResponse(response, StatusCodes.CREATED);
     ResponseAssertions.assertResponseMessage(response, 'Bid created successfully');
     ResponseAssertions.assertResponseHasProperty(response, 'data._id');
     expect(response.body.data.amount).toBe(bidData.amount);
@@ -274,7 +274,7 @@ describe('POST /:taskId/bids - Create Bid', () => {
        .post(`${API_BASE}/tasks/${testTask._id}/bids`)
        .send(bidData);
 
-    ResponseAssertions.assertErrorResponse(response, HTTP_STATUS.UNAUTHORIZED);
+    ResponseAssertions.assertErrorResponse(response, StatusCodes.UNAUTHORIZED);
   });
 
   it('should require TASKER role to create a bid', async () => {
@@ -285,7 +285,7 @@ describe('POST /:taskId/bids - Create Bid', () => {
        .set('Authorization', `Bearer ${testUsers.poster.token}`)
        .send(bidData);
 
-    ResponseAssertions.assertErrorResponse(response, HTTP_STATUS.FORBIDDEN);
+    ResponseAssertions.assertErrorResponse(response, StatusCodes.FORBIDDEN);
   });
 
   it('should validate required fields', async () => {
@@ -296,7 +296,7 @@ describe('POST /:taskId/bids - Create Bid', () => {
       .set('Authorization', `Bearer ${testUsers.tasker1.token}`)
       .send(bidData);
 
-    ResponseAssertions.assertErrorResponse(response, HTTP_STATUS.BAD_REQUEST);
+    ResponseAssertions.assertErrorResponse(response, StatusCodes.BAD_REQUEST);
     ResponseAssertions.assertResponseMessage(response, 'Validation Error');
   });
 
@@ -311,7 +311,7 @@ describe('POST /:taskId/bids - Create Bid', () => {
       .set('Authorization', `Bearer ${testUsers.tasker1.token}`)
       .send(bidData);
 
-    assertErrorResponse(response, HTTP_STATUS.BAD_REQUEST);
+    assertErrorResponse(response, StatusCodes.BAD_REQUEST);
   });
 
   it('should validate message is provided', async () => {
@@ -324,7 +324,7 @@ describe('POST /:taskId/bids - Create Bid', () => {
       .set('Authorization', `Bearer ${testUsers.tasker1.token}`)
       .send(bidData);
 
-    assertErrorResponse(response, HTTP_STATUS.BAD_REQUEST);
+    assertErrorResponse(response, StatusCodes.BAD_REQUEST);
   });
 
   it('should prevent duplicate bids from same tasker', async () => {
@@ -339,7 +339,7 @@ describe('POST /:taskId/bids - Create Bid', () => {
       .set('Authorization', `Bearer ${testUsers.tasker1.token}`)
       .send(bidData);
 
-    assertSuccessResponse(firstResponse, HTTP_STATUS.CREATED);
+    assertSuccessResponse(firstResponse, StatusCodes.CREATED);
 
     // Attempt duplicate bid
     const duplicateBidData = {
@@ -352,7 +352,7 @@ describe('POST /:taskId/bids - Create Bid', () => {
       .set('Authorization', `Bearer ${testUsers.tasker1.token}`)
       .send(duplicateBidData);
 
-    assertErrorResponse(duplicateResponse, HTTP_STATUS.CONFLICT);
+    assertErrorResponse(duplicateResponse, StatusCodes.CONFLICT);
   });
 
   it('should prevent bidding on completed tasks', async () => {
@@ -386,7 +386,7 @@ describe('POST /:taskId/bids - Create Bid', () => {
       .send(bidData);
 
     // This should fail because task is completed
-    assertErrorResponse(response, HTTP_STATUS.BAD_REQUEST);
+    assertErrorResponse(response, StatusCodes.BAD_REQUEST);
   });
 
   it('should handle very large bid messages', async () => {
@@ -402,10 +402,10 @@ describe('POST /:taskId/bids - Create Bid', () => {
       .send(bidData);
 
     // This might fail due to message length validation
-    if (response.status === HTTP_STATUS.BAD_REQUEST) {
-      assertErrorResponse(response, HTTP_STATUS.BAD_REQUEST);
+    if (response.status === StatusCodes.BAD_REQUEST) {
+      assertErrorResponse(response, StatusCodes.BAD_REQUEST);
     } else {
-      assertSuccessResponse(response, HTTP_STATUS.CREATED);
+      assertSuccessResponse(response, StatusCodes.CREATED);
     }
   });
   it('should require POSTER role to view task bids', async () => {
@@ -994,6 +994,10 @@ describe('Performance and Load Tests', () => {
       .send(largeBidData);
 
     // Should either succeed or fail gracefully
-    expect([HTTP_STATUS.CREATED, HTTP_STATUS.BAD_REQUEST, HTTP_STATUS.UNAUTHORIZED, HTTP_STATUS.NOT_FOUND]).toContain(response.status);
+    if (response.status === HTTP_STATUS.BAD_REQUEST) {
+      assertErrorResponse(response, HTTP_STATUS.BAD_REQUEST);
+    } else {
+      assertSuccessResponse(response, HTTP_STATUS.CREATED);
+    }
   });
 });

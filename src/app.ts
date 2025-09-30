@@ -202,10 +202,13 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
   'http://localhost:5174',
+  "https://task-titans-admin-orcin.vercel.app",
   'http://localhost:5173',
+  'http://localhost:5175',
   'https://task-titans-six.vercel.app',
   'https://task-titans-admin.vercel.app',
   'https://tier-elected-proc-cumulative.trycloudflare.com',
+  'https://directory-supplements-adapter-designs.trycloudflare.com',
   // Add common development origins
   'http://127.0.0.1:3000',
   'http://127.0.0.1:5173',

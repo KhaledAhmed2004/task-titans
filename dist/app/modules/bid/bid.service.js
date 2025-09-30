@@ -75,24 +75,27 @@ const getAllTasksByTaskerBids = (taskerId_1, ...args_1) => __awaiter(void 0, [ta
         .populate(['taskId'], {
         taskId: 'title description status userId assignedTo taskCategory',
     });
-    // 2nd: Execute query
-    const { data: bids, pagination } = yield bidQuery.getFilteredResults();
+    // 2nd: Execute query and filter out bids with deleted tasks
+    const { data: bids, pagination } = yield bidQuery.getFilteredResults(['taskId']);
     // 3rd: Add rating info for each task (from poster → tasker)
     const bidsWithRating = yield Promise.all(bids.map((bid) => __awaiter(void 0, void 0, void 0, function* () {
         var _a;
         const task = bid.taskId; // populated task
         let ratingValue = 'not given';
-        if (((_a = task.assignedTo) === null || _a === void 0 ? void 0 : _a.toString()) === taskerId) {
+        // Check if task exists and is not null (task might be deleted)
+        if (task && ((_a = task.assignedTo) === null || _a === void 0 ? void 0 : _a.toString()) === taskerId) {
             const rating = yield rating_1.Rating.findOne({
-                taskId: task._id,
-                givenBy: task.userId, // poster
-                givenTo: task.assignedTo, // tasker
+                taskId: task === null || task === void 0 ? void 0 : task._id,
+                givenBy: task === null || task === void 0 ? void 0 : task.userId, // poster
+                givenTo: task === null || task === void 0 ? void 0 : task.assignedTo, // tasker
             });
             if (rating) {
                 ratingValue = rating.rating;
             }
         }
-        return Object.assign(Object.assign({}, bid.toObject()), { ratingFromPoster: ratingValue });
+        return Object.assign(Object.assign({}, bid.toObject()), { ratingFromPoster: ratingValue, 
+            // Add task status to help identify deleted tasks
+            taskExists: task !== null });
     })));
     // 4th: Return final result
     return {
@@ -201,10 +204,9 @@ const acceptBid = (bidId, clientId) => __awaiter(void 0, void 0, void 0, functio
     // if (!bid) throw new ApiError(StatusCodes.NOT_FOUND, 'Bid not found');
     const bid = yield (0, serviceHelpers_1.findByIdOrThrow)(bid_model_1.BidModel, bidId, 'Bid');
     // 3rd: Find the task associated with the bid
-    const task = yield task_model_1.TaskModel.findById(bid.taskId);
-    if (!task)
-        throw new ApiError_1.default(http_status_codes_1.StatusCodes.NOT_FOUND, 'Task not found');
-    // const task = await findByIdOrThrow(TaskModel, bid.taskId, 'Task');
+    // const task = await TaskModel.findById(bid.taskId);
+    // if (!task) throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
+    const task = yield (0, serviceHelpers_1.findByIdOrThrow)(task_model_1.TaskModel, bid.taskId, 'Task');
     // 4th: Check if the client is authorized to accept this bid
     if (task.userId.toString() !== clientId) {
         throw new ApiError_1.default(http_status_codes_1.StatusCodes.FORBIDDEN, 'You are not authorized to accept this bid');
@@ -236,10 +238,11 @@ const acceptBid = (bidId, clientId) => __awaiter(void 0, void 0, void 0, functio
             throw new ApiError_1.default(http_status_codes_1.StatusCodes.CONFLICT, 'Bid was already processed by another client');
         }
         // 10th: Update the task: assign freelancer, update status, store payment info
-        task.status = task_interface_1.TaskStatus.IN_PROGRESS;
-        task.assignedTo = bid.taskerId;
-        task.paymentIntentId = paymentResult.payment.stripePaymentIntentId;
-        yield task.save({ session });
+        yield task_model_1.TaskModel.findByIdAndUpdate(task._id, {
+            status: task_interface_1.TaskStatus.IN_PROGRESS,
+            assignedTo: bid === null || bid === void 0 ? void 0 : bid.taskerId,
+            paymentIntentId: paymentResult.payment.stripePaymentIntentId,
+        }, { session });
         // 11th: Reject all other bids for this task
         yield bid_model_1.BidModel.updateMany({ taskId: task._id, _id: { $ne: bid._id } }, { $set: { status: bid_interface_1.BidStatus.REJECTED } }, { session });
         // 12th: Commit the transaction to finalize all changes

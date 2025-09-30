@@ -10,7 +10,7 @@ const createBidZodSchema = zod_1.default.object({
         amount: zod_1.default
             .number({ required_error: 'Amount is required' })
             .positive({ message: 'Amount must be greater than 0' }),
-        message: zod_1.default.string().optional(),
+        message: zod_1.default.string({ required_error: 'Message is required' }).min(1, 'Message cannot be empty'),
     }),
 });
 const updateBidZodSchema = zod_1.default.object({

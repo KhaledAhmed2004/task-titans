@@ -88,8 +88,8 @@ const getAllTasksByTaskerBids = async (
       taskId: 'title description status userId assignedTo taskCategory',
     });
 
-  // 2nd: Execute query
-  const { data: bids, pagination } = await bidQuery.getFilteredResults();
+  // 2nd: Execute query and filter out bids with deleted tasks
+  const { data: bids, pagination } = await bidQuery.getFilteredResults(['taskId']);
 
   // 3rd: Add rating info for each task (from poster → tasker)
   const bidsWithRating = await Promise.all(
@@ -97,11 +97,12 @@ const getAllTasksByTaskerBids = async (
       const task = bid.taskId; // populated task
       let ratingValue: string | number = 'not given';
 
-      if (task.assignedTo?.toString() === taskerId) {
+      // Check if task exists and is not null (task might be deleted)
+      if (task && task.assignedTo?.toString() === taskerId) {
         const rating = await Rating.findOne({
-          taskId: task._id,
-          givenBy: task.userId, // poster
-          givenTo: task.assignedTo, // tasker
+          taskId: task?._id,
+          givenBy: task?.userId, // poster
+          givenTo: task?.assignedTo, // tasker
         });
 
         if (rating) {
@@ -112,6 +113,8 @@ const getAllTasksByTaskerBids = async (
       return {
         ...bid.toObject(),
         ratingFromPoster: ratingValue,
+        // Add task status to help identify deleted tasks
+        taskExists: task !== null,
       };
     })
   );
@@ -254,9 +257,9 @@ const acceptBid = async (bidId: string, clientId: string) => {
   const bid = await findByIdOrThrow(BidModel, bidId, 'Bid');
 
   // 3rd: Find the task associated with the bid
-  const task = await TaskModel.findById(bid.taskId);
-  if (!task) throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
-  // const task = await findByIdOrThrow(TaskModel, bid.taskId, 'Task');
+  // const task = await TaskModel.findById(bid.taskId);
+  // if (!task) throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
+  const task = await findByIdOrThrow(TaskModel, bid.taskId, 'Task');
 
   // 4th: Check if the client is authorized to accept this bid
   if (task.userId.toString() !== clientId) {
@@ -310,10 +313,15 @@ const acceptBid = async (bidId: string, clientId: string) => {
     }
 
     // 10th: Update the task: assign freelancer, update status, store payment info
-    task.status = TaskStatus.IN_PROGRESS;
-    task.assignedTo = bid.taskerId;
-    task.paymentIntentId = paymentResult.payment.stripePaymentIntentId;
-    await task.save({ session });
+    await TaskModel.findByIdAndUpdate(
+      task._id,
+      {
+        status: TaskStatus.IN_PROGRESS,
+        assignedTo: bid?.taskerId,
+        paymentIntentId: paymentResult.payment.stripePaymentIntentId,
+      },
+      { session }
+    );
 
     // 11th: Reject all other bids for this task
     await BidModel.updateMany(

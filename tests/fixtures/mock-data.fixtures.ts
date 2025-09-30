@@ -2,16 +2,7 @@ import { USER_ROLES, USER_STATUS } from '../../src/enums/user';
 import { TaskStatus } from '../../src/app/modules/task/task.interface';
 import { BidStatus } from '../../src/app/modules/bid/bid.interface';
 
-/**
- * Mock Data Fixtures
- * 
- * Predefined mock objects for unit testing.
- * These fixtures provide consistent mock data that can be used across unit tests.
- */
-
-/**
- * Mock User Objects
- */
+// Mock User Objects
 export const MockUserFixtures = {
   poster: {
     _id: '64f123abc456def789012345',
@@ -43,7 +34,7 @@ export const MockUserFixtures = {
     _id: '64f123abc456def789012347',
     name: 'Admin User',
     email: 'admin@example.com',
-    role: USER_ROLES.ADMIN,
+    role: USER_ROLES.SUPER_ADMIN,
     location: 'San Francisco, CA',
     phone: '+1234567892',
     status: USER_STATUS.ACTIVE,
@@ -82,9 +73,7 @@ export const MockUserFixtures = {
   },
 };
 
-/**
- * Mock Category Objects
- */
+// Mock Category Objects
 export const MockCategoryFixtures = {
   cleaning: {
     _id: '64f123abc456def789012350',
@@ -114,9 +103,7 @@ export const MockCategoryFixtures = {
   },
 };
 
-/**
- * Mock Task Objects
- */
+// Mock Task Objects
 export const MockTaskFixtures = {
   openTask: {
     _id: '64f123abc456def789012353',
@@ -181,9 +168,7 @@ export const MockTaskFixtures = {
   },
 };
 
-/**
- * Mock Bid Objects
- */
+// Mock Bid Objects
 export const MockBidFixtures = {
   pendingBid: {
     _id: '64f123abc456def789012357',
@@ -219,9 +204,7 @@ export const MockBidFixtures = {
   },
 };
 
-/**
- * Mock Reset Token Objects
- */
+// Mock Reset Token Objects
 export const MockResetTokenFixtures = {
   validToken: {
     _id: '64f123abc456def789012360',
@@ -242,19 +225,17 @@ export const MockResetTokenFixtures = {
   },
 };
 
-/**
- * Mock JWT Tokens
- */
+// Mock JWT Tokens
 export const MockTokenFixtures = {
-  validAccessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c',
-  expiredAccessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyLCJleHAiOjE1MTYyMzkwMjJ9.4Adcj3UFYzPUVaVF43FmMab6RlaQD8A9V8wFzzht-KQ',
+  validAccessToken:
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c',
+  expiredAccessToken:
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyLCJleHAiOjE1MTYyMzkwMjJ9.4Adcj3UFYzPUVaVF43FmMab6RlaQD8A9V8wFzzht-KQ',
   invalidToken: 'invalid.token.here',
   malformedToken: 'not-a-jwt-token',
 };
 
-/**
- * Mock API Responses
- */
+// Mock API Responses
 export const MockResponseFixtures = {
   successResponse: {
     success: true,
@@ -314,17 +295,15 @@ export const MockResponseFixtures = {
   },
 };
 
-/**
- * Mock Database Query Results
- */
+// Mock Database Query Results
 export const MockQueryFixtures = {
   findOneResult: MockUserFixtures.poster,
   findManyResult: [MockUserFixtures.poster, MockUserFixtures.tasker],
   emptyResult: null,
   emptyArrayResult: [],
-  
+
   countResult: 5,
-  
+
   aggregateResult: [
     {
       _id: 'POSTER',
@@ -343,9 +322,7 @@ export const MockQueryFixtures = {
   },
 };
 
-/**
- * Mock File Upload Data
- */
+// Mock File Upload Data
 export const MockFileFixtures = {
   validImage: {
     fieldname: 'profileImage',
@@ -377,9 +354,7 @@ export const MockFileFixtures = {
   },
 };
 
-/**
- * Mock Email Data
- */
+// Mock Email Data
 export const MockEmailFixtures = {
   verificationEmail: {
     to: 'user@example.com',
@@ -411,9 +386,7 @@ export const MockEmailFixtures = {
   },
 };
 
-/**
- * Mock Error Objects
- */
+// Mock Error Objects
 export const MockErrorFixtures = {
   validationError: {
     name: 'ValidationError',
@@ -459,9 +432,8 @@ export const MockErrorFixtures = {
   },
 };
 
-/**
- * Mock External Service Responses
- */
+// Mock External Service Responses
+
 export const MockExternalServiceFixtures = {
   emailServiceSuccess: {
     messageId: 'email-123456',

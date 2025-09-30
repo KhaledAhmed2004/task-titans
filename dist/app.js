@@ -187,6 +187,7 @@ const allowedOrigins = [
     'https://task-titans-six.vercel.app',
     'https://task-titans-admin.vercel.app',
     'https://tier-elected-proc-cumulative.trycloudflare.com',
+    'https://directory-supplements-adapter-designs.trycloudflare.com',
     // Add common development origins
     'http://127.0.0.1:3000',
     'http://127.0.0.1:5173',
