@@ -8,16 +8,8 @@ export * from './mock.helper';
 export * from './assertion.helper';
 export * from './integration-test.helper';
 
-// Common HTTP status codes for tests
-export const HTTP_STATUS = {
-  OK: 200,
-  CREATED: 201,
-  BAD_REQUEST: 400,
-  UNAUTHORIZED: 401,
-  FORBIDDEN: 403,
-  NOT_FOUND: 404,
-  INTERNAL_SERVER_ERROR: 500,
-} as const;
+// Re-export StatusCodes from http-status-codes for convenience
+export { StatusCodes } from 'http-status-codes';
 
 // Common test timeouts
 export const TEST_TIMEOUTS = {
@@ -29,7 +21,7 @@ export const TEST_TIMEOUTS = {
 
 // Legacy response assertion helpers (kept for backward compatibility)
 // Use ResponseAssertions from assertion.helper.ts for new tests
-export const assertSuccessResponse = (response: any, expectedStatus: number = HTTP_STATUS.OK): void => {
+export const assertSuccessResponse = (response: any, expectedStatus: number = 200): void => {
   expect(response.status).toBe(expectedStatus);
   expect(response.body.success).toBe(true);
 };

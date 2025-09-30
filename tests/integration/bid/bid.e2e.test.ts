@@ -10,9 +10,9 @@ import {
 import request from 'supertest';
 import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
+import { StatusCodes } from 'http-status-codes';
 import {
   authenticateExistingTestUser,
-  HTTP_STATUS,
   TEST_TIMEOUTS,
   assertSuccessResponse,
   assertErrorResponse,
@@ -128,7 +128,7 @@ const createGlobalTestTask = async (): Promise<void> => {
     .set('Authorization', `Bearer ${testUsers.poster.token}`)
     .send(taskData);
 
-  if (taskResponse.status === HTTP_STATUS.CREATED && taskResponse.body.success) {
+  if (taskResponse.status === StatusCodes.CREATED && taskResponse.body.success) {
     globalTestTask = taskResponse.body.data;
     console.log(`✅ Global test task created: ${globalTestTask.title} (${globalTestTask._id})`);
   } else {
@@ -215,7 +215,7 @@ describe('End-to-End Bid Workflow', () => {
         .set('Authorization', `Bearer ${testUsers.tasker1.token}`)
         .send(bidData);
 
-      assertSuccessResponse(createResponse, HTTP_STATUS.CREATED);
+      assertSuccessResponse(createResponse, StatusCodes.CREATED);
       expect(createResponse.body.data.amount).toBe(bidData.body.amount);
       expect(createResponse.body.data.message).toBe(bidData.body.message);
       expect(createResponse.body.data.taskId).toBe(globalTestTask._id);
@@ -280,7 +280,7 @@ describe('End-to-End Bid Workflow', () => {
 
       // Verify all bids were created successfully
       responses.forEach(response => {
-        assertSuccessResponse(response, HTTP_STATUS.CREATED);
+        assertSuccessResponse(response, StatusCodes.CREATED);
       });
 
       // Verify all bids appear in the task's bid list
@@ -338,7 +338,7 @@ describe('End-to-End Bid Workflow', () => {
         .get(`${API_BASE}/bids/${testBidId}`)
         .set('Authorization', `Bearer ${testUsers.tasker1.token}`);
 
-      assertErrorResponse(getBidResponse, HTTP_STATUS.NOT_FOUND);
+      assertErrorResponse(getBidResponse, StatusCodes.NOT_FOUND);
 
       console.log('✅ Bid deletion workflow test passed');
     });
@@ -382,7 +382,7 @@ describe('End-to-End Bid Workflow', () => {
       
       // All should return unauthorized or forbidden
       unauthorizedResponses.forEach(response => {
-        expect([HTTP_STATUS.UNAUTHORIZED, HTTP_STATUS.FORBIDDEN]).toContain(response.status);
+        expect([StatusCodes.UNAUTHORIZED, StatusCodes.FORBIDDEN]).toContain(response.status);
       });
 
       console.log('✅ Security and authorization workflow test passed');
@@ -402,7 +402,7 @@ describe('End-to-End Bid Workflow', () => {
         .set('Authorization', `Bearer ${testUsers.tasker1.token}`)
         .send(invalidBidData);
 
-      assertErrorResponse(invalidResponse, HTTP_STATUS.BAD_REQUEST);
+      assertErrorResponse(invalidResponse, StatusCodes.BAD_REQUEST);
 
       // Test operations on non-existent bid
       const fakeId = new mongoose.Types.ObjectId().toString();
@@ -421,7 +421,7 @@ describe('End-to-End Bid Workflow', () => {
       const nonExistentResponses = await Promise.all(nonExistentTests);
       
       nonExistentResponses.forEach(response => {
-        assertErrorResponse(response, HTTP_STATUS.NOT_FOUND);
+        assertErrorResponse(response, StatusCodes.NOT_FOUND);
       });
 
       console.log('✅ Error handling workflow test passed');

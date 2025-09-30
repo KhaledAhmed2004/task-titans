@@ -311,7 +311,7 @@ describe('POST /:taskId/bids - Create Bid', () => {
       .set('Authorization', `Bearer ${testUsers.tasker1.token}`)
       .send(bidData);
 
-    assertErrorResponse(response, StatusCodes.BAD_REQUEST);
+    ResponseAssertions.assertErrorResponse(response, StatusCodes.BAD_REQUEST);
   });
 
   it('should validate message is provided', async () => {
@@ -324,7 +324,7 @@ describe('POST /:taskId/bids - Create Bid', () => {
       .set('Authorization', `Bearer ${testUsers.tasker1.token}`)
       .send(bidData);
 
-    assertErrorResponse(response, StatusCodes.BAD_REQUEST);
+    ResponseAssertions.assertErrorResponse(response, StatusCodes.BAD_REQUEST);
   });
 
   it('should prevent duplicate bids from same tasker', async () => {
@@ -339,7 +339,7 @@ describe('POST /:taskId/bids - Create Bid', () => {
       .set('Authorization', `Bearer ${testUsers.tasker1.token}`)
       .send(bidData);
 
-    assertSuccessResponse(firstResponse, StatusCodes.CREATED);
+    ResponseAssertions.assertSuccessResponse(firstResponse, StatusCodes.CREATED);
 
     // Attempt duplicate bid
     const duplicateBidData = {
@@ -352,7 +352,7 @@ describe('POST /:taskId/bids - Create Bid', () => {
       .set('Authorization', `Bearer ${testUsers.tasker1.token}`)
       .send(duplicateBidData);
 
-    assertErrorResponse(duplicateResponse, StatusCodes.CONFLICT);
+    ResponseAssertions.assertErrorResponse(duplicateResponse, StatusCodes.CONFLICT);
   });
 
   it('should prevent bidding on completed tasks', async () => {
@@ -386,7 +386,7 @@ describe('POST /:taskId/bids - Create Bid', () => {
       .send(bidData);
 
     // This should fail because task is completed
-    assertErrorResponse(response, StatusCodes.BAD_REQUEST);
+    ResponseAssertions.assertErrorResponse(response, StatusCodes.BAD_REQUEST);
   });
 
   it('should handle very large bid messages', async () => {
@@ -403,27 +403,27 @@ describe('POST /:taskId/bids - Create Bid', () => {
 
     // This might fail due to message length validation
     if (response.status === StatusCodes.BAD_REQUEST) {
-      assertErrorResponse(response, StatusCodes.BAD_REQUEST);
+      ResponseAssertions.assertErrorResponse(response, StatusCodes.BAD_REQUEST);
     } else {
-      assertSuccessResponse(response, StatusCodes.CREATED);
+      ResponseAssertions.assertSuccessResponse(response, StatusCodes.CREATED);
     }
   });
   it('should require POSTER role to view task bids', async () => {
-    const response = await request(BACKEND_URL)
-      .get(`${API_BASE}/tasks/${testTaskWithBids._id}/bids`)
-      .set('Authorization', `Bearer ${testUsers.tasker1.token}`);
+     const response = await request(BACKEND_URL)
+       .get(`${API_BASE}/tasks/${testTaskWithBids._id}/bids`)
+       .set('Authorization', `Bearer ${testUsers.tasker1.token}`);
 
-    assertErrorResponse(response, HTTP_STATUS.FORBIDDEN);
-  });
+     ResponseAssertions.assertErrorResponse(response, StatusCodes.FORBIDDEN);
+   });
 
-  it('should handle non-existent task', async () => {
-    const invalidTaskId = new mongoose.Types.ObjectId().toString();
-    const response = await request(BACKEND_URL)
-      .get(`${API_BASE}/tasks/${invalidTaskId}/bids`)
-      .set('Authorization', `Bearer ${testUsers.poster.token}`);
+   it('should handle non-existent task', async () => {
+     const invalidTaskId = new mongoose.Types.ObjectId().toString();
+     const response = await request(BACKEND_URL)
+       .get(`${API_BASE}/tasks/${invalidTaskId}/bids`)
+       .set('Authorization', `Bearer ${testUsers.poster.token}`);
 
-    assertErrorResponse(response, HTTP_STATUS.NOT_FOUND);
-  });
+     ResponseAssertions.assertErrorResponse(response, StatusCodes.NOT_FOUND);
+   });
 });
 
 // ============================================================================
@@ -469,7 +469,7 @@ describe('GET /tasks/:taskId/bids - Get Bids by Task', () => {
       .get(`${API_BASE}/tasks/${testTaskWithBids._id}/bids`)
       .set('Authorization', `Bearer ${testUsers.poster.token}`);
 
-    assertSuccessResponse(response);
+    ResponseAssertions.assertSuccessResponse(response);
     expect(response.body.data).toBeInstanceOf(Array);
     expect(response.body.data.length).toBeGreaterThan(0);
     expect(response.body.data[0]).toHaveProperty('_id');
@@ -482,7 +482,7 @@ describe('GET /tasks/:taskId/bids - Get Bids by Task', () => {
       .get(`${API_BASE}/tasks/${testTaskWithBids._id}/bids`)
       .set('Authorization', `Bearer ${testUsers.tasker1.token}`);
 
-    assertErrorResponse(response, HTTP_STATUS.FORBIDDEN);
+    ResponseAssertions.assertErrorResponse(response, StatusCodes.FORBIDDEN);
   });
 
   it('should handle non-existent task', async () => {
@@ -491,7 +491,7 @@ describe('GET /tasks/:taskId/bids - Get Bids by Task', () => {
       .get(`${API_BASE}/tasks/${invalidTaskId}/bids`)
       .set('Authorization', `Bearer ${testUsers.poster.token}`);
 
-    assertErrorResponse(response, HTTP_STATUS.NOT_FOUND);
+    ResponseAssertions.assertErrorResponse(response, StatusCodes.NOT_FOUND);
   });
 });
 
@@ -522,9 +522,9 @@ describe('GET /bids/:bidId - Get Bid by ID', () => {
       message: 'I can complete this task efficiently',
     };
 
-    const response = await request(app)
-      .post(`/api/v1/tasks/${testTask._id}/bids`)
-      .set('Authorization', `Bearer ${testUsers.tasker.token}`)
+    const bidResponse = await request(BACKEND_URL)
+      .post(`${API_BASE}/tasks/${task._id}/bids`)
+      .set('Authorization', `Bearer ${testUsers.tasker1.token}`)
       .send(bidData);
 
     testBid = bidResponse.body.data;
@@ -535,7 +535,7 @@ describe('GET /bids/:bidId - Get Bid by ID', () => {
       .get(`${API_BASE}/bids/${testBid._id}`)
       .set('Authorization', `Bearer ${testUsers.tasker1.token}`);
 
-    assertSuccessResponse(response);
+    ResponseAssertions.assertSuccessResponse(response);
     expect(response.body.data._id).toBe(testBid._id);
     expect(response.body.data.amount).toBe(testBid.amount);
   });
@@ -546,7 +546,7 @@ describe('GET /bids/:bidId - Get Bid by ID', () => {
       .get(`${API_BASE}/bids/${invalidBidId}`)
       .set('Authorization', `Bearer ${testUsers.tasker1.token}`);
 
-    assertErrorResponse(response, HTTP_STATUS.NOT_FOUND);
+    ResponseAssertions.assertErrorResponse(response, StatusCodes.NOT_FOUND);
   });
 });
 
@@ -556,7 +556,7 @@ describe('GET /tasker/bids - Get Tasker Bids', () => {
       .get(`${API_BASE}/tasker/bids`)
       .set('Authorization', `Bearer ${testUsers.tasker1.token}`);
 
-    assertSuccessResponse(response);
+    ResponseAssertions.assertSuccessResponse(response);
     expect(response.body.data).toBeInstanceOf(Array);
   });
 
@@ -565,7 +565,7 @@ describe('GET /tasker/bids - Get Tasker Bids', () => {
       .get(`${API_BASE}/tasker/bids`)
       .set('Authorization', `Bearer ${testUsers.poster.token}`);
 
-    assertErrorResponse(response, HTTP_STATUS.FORBIDDEN);
+    ResponseAssertions.assertErrorResponse(response, StatusCodes.FORBIDDEN);
   });
 });
 
@@ -619,7 +619,7 @@ describe('PUT /bids/:bidId - Update Bid', () => {
       .set('Authorization', `Bearer ${testUsers.tasker1.token}`)
       .send(updateData);
 
-    assertSuccessResponse(response);
+    ResponseAssertions.assertSuccessResponse(response);
     expect(response.body.data.amount).toBe(updateData.amount);
     expect(response.body.data.message).toBe(updateData.message);
   });
@@ -634,7 +634,7 @@ describe('PUT /bids/:bidId - Update Bid', () => {
       .set('Authorization', `Bearer ${testUsers.poster.token}`)
       .send(updateData);
 
-    assertErrorResponse(response, HTTP_STATUS.FORBIDDEN);
+    ResponseAssertions.assertErrorResponse(response, StatusCodes.FORBIDDEN);
   });
 
   it('should validate positive amount on update', async () => {
@@ -647,7 +647,7 @@ describe('PUT /bids/:bidId - Update Bid', () => {
       .set('Authorization', `Bearer ${testUsers.tasker1.token}`)
       .send(updateData);
 
-    assertErrorResponse(response, HTTP_STATUS.BAD_REQUEST);
+    ResponseAssertions.assertErrorResponse(response, StatusCodes.BAD_REQUEST);
   });
 
   it('should handle non-existent bid update', async () => {
@@ -661,7 +661,7 @@ describe('PUT /bids/:bidId - Update Bid', () => {
       .set('Authorization', `Bearer ${testUsers.tasker1.token}`)
       .send(updateData);
 
-    assertErrorResponse(response, HTTP_STATUS.NOT_FOUND);
+    ResponseAssertions.assertErrorResponse(response, StatusCodes.NOT_FOUND);
   });
 });
 
@@ -709,7 +709,7 @@ describe('DELETE /bids/:bidId - Delete Bid', () => {
       .delete(`${API_BASE}/bids/${deletableBid._id}`)
       .set('Authorization', `Bearer ${testUsers.tasker2.token}`);
 
-    assertSuccessResponse(response);
+    ResponseAssertions.assertSuccessResponse(response);
     expect(response.body.message).toBe('Bid deleted successfully');
 
     // Verify bid is deleted
@@ -717,7 +717,7 @@ describe('DELETE /bids/:bidId - Delete Bid', () => {
       .get(`${API_BASE}/bids/${deletableBid._id}`)
       .set('Authorization', `Bearer ${testUsers.tasker2.token}`);
 
-    assertErrorResponse(checkResponse, HTTP_STATUS.NOT_FOUND);
+    ResponseAssertions.assertErrorResponse(checkResponse, StatusCodes.NOT_FOUND);
   });
 
   it('should require TASKER role to delete bid', async () => {
@@ -725,7 +725,7 @@ describe('DELETE /bids/:bidId - Delete Bid', () => {
       .delete(`${API_BASE}/bids/${deletableBid._id}`)
       .set('Authorization', `Bearer ${testUsers.poster.token}`);
 
-    assertErrorResponse(response, HTTP_STATUS.UNAUTHORIZED);
+    ResponseAssertions.assertErrorResponse(response, StatusCodes.UNAUTHORIZED);
   });
 
   it('should handle non-existent bid deletion', async () => {
@@ -734,7 +734,7 @@ describe('DELETE /bids/:bidId - Delete Bid', () => {
       .delete(`${API_BASE}/bids/${invalidBidId}`)
       .set('Authorization', `Bearer ${testUsers.tasker2.token}`);
 
-    assertErrorResponse(response, HTTP_STATUS.NOT_FOUND);
+    ResponseAssertions.assertErrorResponse(response, StatusCodes.NOT_FOUND);
   });
 });
 
@@ -782,7 +782,7 @@ describe('PATCH /bids/:bidId/accept - Accept Bid', () => {
       .patch(`${API_BASE}/bids/${acceptableBid._id}/accept`)
       .set('Authorization', `Bearer ${testUsers.poster.token}`);
 
-    assertSuccessResponse(response);
+    ResponseAssertions.assertSuccessResponse(response);
     expect(response.body.message).toBe('Bid accepted successfully');
   });
 
@@ -791,7 +791,7 @@ describe('PATCH /bids/:bidId/accept - Accept Bid', () => {
       .patch(`${API_BASE}/bids/${acceptableBid._id}/accept`)
       .set('Authorization', `Bearer ${testUsers.tasker1.token}`);
 
-    assertErrorResponse(response, HTTP_STATUS.FORBIDDEN);
+    ResponseAssertions.assertErrorResponse(response, StatusCodes.FORBIDDEN);
   });
 
   it('should handle non-existent bid acceptance', async () => {
@@ -800,7 +800,7 @@ describe('PATCH /bids/:bidId/accept - Accept Bid', () => {
       .patch(`${API_BASE}/bids/${invalidBidId}/accept`)
       .set('Authorization', `Bearer ${testUsers.poster.token}`);
 
-    assertErrorResponse(response, HTTP_STATUS.NOT_FOUND);
+    ResponseAssertions.assertErrorResponse(response, StatusCodes.NOT_FOUND);
   });
 });
 
@@ -852,7 +852,7 @@ describe('Security and Edge Cases', () => {
 
     for (const endpoint of endpoints) {
       const response = await request(BACKEND_URL)[endpoint.method](`${API_BASE}${endpoint.path}`);
-      assertErrorResponse(response, HTTP_STATUS.UNAUTHORIZED);
+      ResponseAssertions.assertErrorResponse(response, StatusCodes.UNAUTHORIZED);
     }
   });
 
@@ -863,7 +863,7 @@ describe('Security and Edge Cases', () => {
       .get(`${API_BASE}/bids/${malformedId}`)
       .set('Authorization', `Bearer ${testUsers.tasker1.token}`);
 
-    assertErrorResponse(response, HTTP_STATUS.BAD_REQUEST);
+    ResponseAssertions.assertErrorResponse(response, StatusCodes.BAD_REQUEST);
   });
 
   it('should sanitize input data', async () => {
@@ -877,7 +877,7 @@ describe('Security and Edge Cases', () => {
       .set('Authorization', `Bearer ${testUsers.tasker2.token}`)
       .send(maliciousData);
 
-    if (response.status === HTTP_STATUS.CREATED) {
+    if (response.status === StatusCodes.CREATED) {
       expect(response.body.data.message).not.toContain('<script>');
     }
   });
@@ -899,7 +899,7 @@ describe('Security and Edge Cases', () => {
     const responses = await Promise.all(promises);
     
     // Only one should succeed, others should fail with duplicate error
-    const successCount = responses.filter(r => r.status === HTTP_STATUS.CREATED).length;
+    const successCount = responses.filter(r => r.status === StatusCodes.CREATED).length;
     expect(successCount).toBe(1);
   });
 });
@@ -926,7 +926,7 @@ describe('Performance and Load Tests', () => {
       .set('Authorization', `Bearer ${testUsers.poster.token}`)
       .send(taskData);
 
-    expect(taskResponse.status).toBe(HTTP_STATUS.CREATED);
+    expect(taskResponse.status).toBe(StatusCodes.CREATED);
     const task = taskResponse.body.data;
     expect(task).toBeDefined();
     expect(task._id).toBeDefined();
@@ -954,7 +954,7 @@ describe('Performance and Load Tests', () => {
     const endTime = Date.now();
     
     responses.forEach(response => {
-      assertSuccessResponse(response);
+      ResponseAssertions.assertSuccessResponse(response);
     });
     
     // Should complete within reasonable time (adjust as needed)
@@ -978,7 +978,7 @@ describe('Performance and Load Tests', () => {
       .set('Authorization', `Bearer ${testUsers.poster.token}`)
       .send(taskData);
 
-    expect(taskResponse.status).toBe(HTTP_STATUS.CREATED);
+    expect(taskResponse.status).toBe(StatusCodes.CREATED);
     const task = taskResponse.body.data;
     expect(task).toBeDefined();
     expect(task._id).toBeDefined();
@@ -994,10 +994,10 @@ describe('Performance and Load Tests', () => {
       .send(largeBidData);
 
     // Should either succeed or fail gracefully
-    if (response.status === HTTP_STATUS.BAD_REQUEST) {
-      assertErrorResponse(response, HTTP_STATUS.BAD_REQUEST);
+    if (response.status === StatusCodes.BAD_REQUEST) {
+      ResponseAssertions.assertErrorResponse(response, StatusCodes.BAD_REQUEST);
     } else {
-      assertSuccessResponse(response, HTTP_STATUS.CREATED);
+      ResponseAssertions.assertSuccessResponse(response, StatusCodes.CREATED);
     }
   });
 });
